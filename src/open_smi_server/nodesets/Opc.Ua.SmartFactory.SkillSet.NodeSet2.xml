@@ -1,0 +1,856 @@
+<?xml version="1.0" encoding="utf-8"?>
+<UANodeSet LastModified="2025-08-01T07:36:00.148Z" xmlns="http://opcfoundation.org/UA/2011/03/UANodeSet.xsd"
+           xmlns:uax="http://opcfoundation.org/UA/2008/02/Types.xsd"
+           xmlns:si="http://www.siemens.com/OPCUA/2017/SimaticNodeSetExtensions">
+    <NamespaceUris>
+        <Uri>http://opcfoundation.org/UA/DI/</Uri>
+        <Uri>http://smartfactory.de/UA/SkillSet</Uri>
+    </NamespaceUris>
+    <Models>
+        <Model ModelUri="http://smartfactory.de/UA/SkillSet" PublicationDate="2024-08-04T09:39:05+02:00" Version="1.00">
+            <RequiredModel ModelUri="http://opcfoundation.org/UA/" XmlSchemaUri="http://opcfoundation.org/UA/2008/02/Types.xsd" Version="1.05.01" PublicationDate="2022-02-24T00:00:00Z"/>
+            <RequiredModel ModelUri="http://opcfoundation.org/UA/DI/" PublicationDate="2022-11-03T00:00:00Z" Version="1.04.0"/>
+        </Model>
+    </Models>
+    <Aliases>
+        <Alias Alias="Boolean">i=1</Alias>
+        <Alias Alias="Int32">i=6</Alias>
+        <Alias Alias="UInt32">i=7</Alias>
+        <Alias Alias="Float">i=10</Alias>
+        <Alias Alias="DateTime">i=13</Alias>
+        <Alias Alias="String">i=12</Alias>
+        <Alias Alias="QualifiedName">i=20</Alias>
+        <Alias Alias="Number">i=26</Alias>
+        <Alias Alias="HasComponent">i=47</Alias>
+        <Alias Alias="HasProperty">i=46</Alias>
+        <Alias Alias="Organizes">i=35</Alias>
+        <Alias Alias="HasSubtype">i=45</Alias>
+        <Alias Alias="HasTypeDefinition">i=40</Alias>
+        <Alias Alias="HasModellingRule">i=37</Alias>
+        <Alias Alias="HasInterface">i=17603</Alias>
+        <Alias Alias="IdType">i=256</Alias>
+        <Alias Alias="NumericRange">i=291</Alias>
+        <Alias Alias="EUInformation">i=887</Alias>
+        <Alias Alias="Duration">i=290</Alias>
+    </Aliases>
+    <Extensions>
+        <Extension>
+            <si:Generator Product="SiOME" Edition="Standard" Version="2.8.6-installer"/>
+        </Extension>
+        <Extension>
+            <si:GeneratorExtension Hash="5d6d1a92a540537bb76b48d0b48cd3d2"/>
+        </Extension>
+    </Extensions>
+    <UAObject SymbolicName="http___smartfactory_de_UA_SkillSet" NodeId="ns=2;i=5000" BrowseName="2:http://smartfactory.de/UA/SkillSet" ParentNodeId="i=11715">
+        <DisplayName>http://smartfactory.de/UA/SkillSet</DisplayName>
+        <References>
+            <Reference ReferenceType="HasComponent" IsForward="false">i=11715</Reference>
+            <Reference ReferenceType="HasTypeDefinition">i=11616</Reference>
+        </References>
+    </UAObject>
+    <UAVariable DataType="Boolean" NodeId="ns=2;i=6000" BrowseName="IsNamespaceSubset" ParentNodeId="ns=2;i=5000">
+        <DisplayName>IsNamespaceSubset</DisplayName>
+        <References>
+            <Reference ReferenceType="HasProperty" IsForward="false">ns=2;i=5000</Reference>
+            <Reference ReferenceType="HasTypeDefinition">i=68</Reference>
+        </References>
+    </UAVariable>
+    <UAVariable DataType="DateTime" NodeId="ns=2;i=6001" BrowseName="NamespacePublicationDate" ParentNodeId="ns=2;i=5000">
+        <DisplayName>NamespacePublicationDate</DisplayName>
+        <References>
+            <Reference ReferenceType="HasProperty" IsForward="false">ns=2;i=5000</Reference>
+            <Reference ReferenceType="HasTypeDefinition">i=68</Reference>
+        </References>
+        <Value>
+            <uax:DateTime>2024-08-04T09:39:05+02:00</uax:DateTime>
+        </Value>
+    </UAVariable>
+    <UAVariable DataType="String" NodeId="ns=2;i=6002" BrowseName="NamespaceUri" ParentNodeId="ns=2;i=5000">
+        <DisplayName>NamespaceUri</DisplayName>
+        <References>
+            <Reference ReferenceType="HasProperty" IsForward="false">ns=2;i=5000</Reference>
+            <Reference ReferenceType="HasTypeDefinition">i=68</Reference>
+        </References>
+        <Value>
+            <uax:String>http://smartfactory.de/UA/SkillSet</uax:String>
+        </Value>
+    </UAVariable>
+    <UAVariable DataType="String" NodeId="ns=2;i=6003" BrowseName="NamespaceVersion" ParentNodeId="ns=2;i=5000">
+        <DisplayName>NamespaceVersion</DisplayName>
+        <References>
+            <Reference ReferenceType="HasProperty" IsForward="false">ns=2;i=5000</Reference>
+            <Reference ReferenceType="HasTypeDefinition">i=68</Reference>
+        </References>
+        <Value>
+            <uax:String>1.00</uax:String>
+        </Value>
+    </UAVariable>
+    <UAVariable DataType="IdType" ValueRank="1" NodeId="ns=2;i=6004" BrowseName="StaticNodeIdTypes" ParentNodeId="ns=2;i=5000">
+        <DisplayName>StaticNodeIdTypes</DisplayName>
+        <References>
+            <Reference ReferenceType="HasProperty" IsForward="false">ns=2;i=5000</Reference>
+            <Reference ReferenceType="HasTypeDefinition">i=68</Reference>
+        </References>
+    </UAVariable>
+    <UAVariable DataType="NumericRange" ValueRank="1" NodeId="ns=2;i=6005" BrowseName="StaticNumericNodeIdRange" ParentNodeId="ns=2;i=5000">
+        <DisplayName>StaticNumericNodeIdRange</DisplayName>
+        <References>
+            <Reference ReferenceType="HasProperty" IsForward="false">ns=2;i=5000</Reference>
+            <Reference ReferenceType="HasTypeDefinition">i=68</Reference>
+        </References>
+    </UAVariable>
+    <UAVariable DataType="String" NodeId="ns=2;i=6006" BrowseName="StaticStringNodeIdPattern" ParentNodeId="ns=2;i=5000">
+        <DisplayName>StaticStringNodeIdPattern</DisplayName>
+        <References>
+            <Reference ReferenceType="HasProperty" IsForward="false">ns=2;i=5000</Reference>
+            <Reference ReferenceType="HasTypeDefinition">i=68</Reference>
+        </References>
+    </UAVariable>
+    <UAVariable DataType="i=96" ValueRank="1" NodeId="ns=2;i=6007" BrowseName="DefaultRolePermissions" ParentNodeId="ns=2;i=5000">
+        <DisplayName>DefaultRolePermissions</DisplayName>
+        <References>
+            <Reference ReferenceType="HasProperty" IsForward="false">ns=2;i=5000</Reference>
+            <Reference ReferenceType="HasTypeDefinition">i=68</Reference>
+        </References>
+    </UAVariable>
+    <UAObjectType IsAbstract="true" NodeId="ns=2;i=1000" BrowseName="2:BaseSkillElementType">
+        <DisplayName>BaseSkillElementType</DisplayName>
+        <Description>Used to build custom SkillElements while overriding StateMachine.</Description>
+        <References>
+            <Reference ReferenceType="HasSubtype" IsForward="false">i=58</Reference>
+            <Reference ReferenceType="HasComponent">ns=2;i=5001</Reference>
+            <Reference ReferenceType="HasComponent">ns=2;i=5002</Reference>
+            <Reference ReferenceType="HasComponent">ns=2;i=5003</Reference>
+            <Reference ReferenceType="HasComponent">ns=2;i=5004</Reference>
+            <Reference ReferenceType="HasProperty">ns=2;i=6011</Reference>
+        </References>
+    </UAObjectType>
+    <UAObject NodeId="ns=2;i=5001" BrowseName="2:FinalResultData" ParentNodeId="ns=2;i=1000">
+        <DisplayName>FinalResultData</DisplayName>
+        <Description>Contains results of the SkillElement.</Description>
+        <References>
+            <Reference ReferenceType="HasTypeDefinition">ns=1;i=1005</Reference>
+            <Reference ReferenceType="HasModellingRule">i=80</Reference>
+            <Reference ReferenceType="HasComponent">ns=2;i=6015</Reference>
+        </References>
+    </UAObject>
+    <UAObject NodeId="ns=2;i=5002" BrowseName="2:Monitoring" ParentNodeId="ns=2;i=1000">
+        <DisplayName>Monitoring</DisplayName>
+        <Description>Contains data to monitor the SkillElement.</Description>
+        <References>
+            <Reference ReferenceType="HasTypeDefinition">ns=1;i=1005</Reference>
+            <Reference ReferenceType="HasModellingRule">i=80</Reference>
+            <Reference ReferenceType="HasComponent">ns=2;i=6017</Reference>
+            <Reference ReferenceType="HasProperty">ns=2;i=6018</Reference>
+        </References>
+    </UAObject>
+    <UAObject NodeId="ns=2;i=5003" BrowseName="2:ParameterSet" ParentNodeId="ns=2;i=1000">
+        <DisplayName>ParameterSet</DisplayName>
+        <Description>ontains variables to configure the SkillElement.</Description>
+        <References>
+            <Reference ReferenceType="HasTypeDefinition">ns=1;i=1005</Reference>
+            <Reference ReferenceType="HasModellingRule">i=80</Reference>
+        </References>
+    </UAObject>
+    <UAObject NodeId="ns=2;i=5004" BrowseName="2:StateMachine" ParentNodeId="ns=2;i=1000">
+        <DisplayName>StateMachine</DisplayName>
+        <Description>State machine of the SkillElement.</Description>
+        <References>
+            <Reference ReferenceType="HasTypeDefinition">i=2771</Reference>
+            <Reference ReferenceType="HasModellingRule">i=78</Reference>
+            <Reference ReferenceType="HasComponent">i=2772</Reference>
+        </References>
+    </UAObject>
+    <UAObjectType IsAbstract="true" NodeId="ns=2;i=1001" BrowseName="2:BaseSkillType">
+        <DisplayName>BaseSkillType</DisplayName>
+        <References>
+            <Reference ReferenceType="HasSubtype" IsForward="false">i=58</Reference>
+            <Reference ReferenceType="HasComponent">ns=2;i=5005</Reference>
+            <Reference ReferenceType="HasComponent">ns=2;i=5006</Reference>
+            <Reference ReferenceType="HasComponent">ns=2;i=5008</Reference>
+            <Reference ReferenceType="HasComponent">ns=2;i=6012</Reference>
+            <Reference ReferenceType="HasComponent">ns=2;i=5011</Reference>
+        </References>
+    </UAObjectType>
+    <UAObject NodeId="ns=2;i=5005" BrowseName="2:PreconditionCheck" ParentNodeId="ns=2;i=1001">
+        <DisplayName>PreconditionCheck</DisplayName>
+        <Description>Used to ensure the imminent executability of a skill.</Description>
+        <References>
+            <Reference ReferenceType="HasTypeDefinition">ns=2;i=1000</Reference>
+            <Reference ReferenceType="HasModellingRule">i=80</Reference>
+            <Reference ReferenceType="HasComponent">ns=2;i=5004</Reference>
+            <Reference ReferenceType="HasComponent">ns=2;i=5013</Reference>
+            <Reference ReferenceType="HasProperty">ns=2;i=6011</Reference>
+        </References>
+    </UAObject>
+    <UAObject NodeId="ns=2;i=5006" BrowseName="2:SkillExecution" ParentNodeId="ns=2;i=1001">
+        <DisplayName>SkillExecution</DisplayName>
+        <Description>Contains nodes for the skill execution.</Description>
+        <References>
+            <Reference ReferenceType="HasTypeDefinition">ns=2;i=1000</Reference>
+            <Reference ReferenceType="HasModellingRule">i=78</Reference>
+            <Reference ReferenceType="HasComponent">ns=2;i=5007</Reference>
+            <Reference ReferenceType="HasComponent">ns=2;i=5015</Reference>
+            <Reference ReferenceType="HasProperty">ns=2;i=6011</Reference>
+        </References>
+    </UAObject>
+    <UAObject NodeId="ns=2;i=5007" BrowseName="2:StateMachine" ParentNodeId="ns=2;i=5006">
+        <DisplayName>StateMachine</DisplayName>
+        <Description>State machine of the SkillElement.</Description>
+        <References>
+            <Reference ReferenceType="HasTypeDefinition">i=2771</Reference>
+            <Reference ReferenceType="HasModellingRule">i=78</Reference>
+            <Reference ReferenceType="HasComponent">i=2772</Reference>
+        </References>
+    </UAObject>
+    <UAObject NodeId="ns=2;i=5008" BrowseName="2:FeasibilityCheck" ParentNodeId="ns=2;i=1001">
+        <DisplayName>FeasibilityCheck</DisplayName>
+        <Description>Used to ensure the general executability of a skill.</Description>
+        <References>
+            <Reference ReferenceType="HasTypeDefinition">ns=2;i=1000</Reference>
+            <Reference ReferenceType="HasModellingRule">i=80</Reference>
+            <Reference ReferenceType="HasComponent">ns=2;i=5009</Reference>
+            <Reference ReferenceType="HasComponent">ns=2;i=5012</Reference>
+            <Reference ReferenceType="HasProperty">ns=2;i=6011</Reference>
+        </References>
+    </UAObject>
+    <UAObject NodeId="ns=2;i=5009" BrowseName="2:StateMachine" ParentNodeId="ns=2;i=5008">
+        <DisplayName>StateMachine</DisplayName>
+        <Description>State machine of the SkillElement.</Description>
+        <References>
+            <Reference ReferenceType="HasTypeDefinition">i=2771</Reference>
+            <Reference ReferenceType="HasModellingRule">i=78</Reference>
+            <Reference ReferenceType="HasComponent">i=2772</Reference>
+        </References>
+    </UAObject>
+    <UAVariable DataType="String" NodeId="ns=2;i=6012" BrowseName="2:Name" ParentNodeId="ns=2;i=1001">
+        <DisplayName>Name</DisplayName>
+        <References>
+            <Reference ReferenceType="HasTypeDefinition">i=63</Reference>
+            <Reference ReferenceType="HasModellingRule">i=78</Reference>
+        </References>
+    </UAVariable>
+    <UAObjectType NodeId="ns=2;i=1002" BrowseName="2:SkillSetType">
+        <DisplayName>SkillSetType</DisplayName>
+        <References>
+            <Reference ReferenceType="HasSubtype" IsForward="false">i=58</Reference>
+            <Reference ReferenceType="HasComponent">ns=2;i=5010</Reference>
+            <Reference ReferenceType="HasProperty">ns=2;i=6014</Reference>
+        </References>
+    </UAObjectType>
+    <UAObject SymbolicName="Skill_no_" NodeId="ns=2;i=5010" BrowseName="2:Skill&lt;no>" ParentNodeId="ns=2;i=1002">
+        <DisplayName>Skill&lt;no&gt;</DisplayName>
+        <References>
+            <Reference ReferenceType="HasTypeDefinition">ns=2;i=1001</Reference>
+            <Reference ReferenceType="HasModellingRule">i=11508</Reference>
+            <Reference ReferenceType="HasComponent">ns=2;i=6012</Reference>
+            <Reference ReferenceType="HasComponent">ns=2;i=5006</Reference>
+        </References>
+    </UAObject>
+    <UAVariableType DataType="Number" NodeId="ns=2;i=2000" BrowseName="2:CurrencyItemType">
+        <DisplayName>CurrencyItemType</DisplayName>
+        <References>
+            <Reference ReferenceType="HasSubtype" IsForward="false">i=63</Reference>
+            <Reference ReferenceType="HasProperty">ns=2;i=6013</Reference>
+        </References>
+    </UAVariableType>
+    <UAVariable DataType="i=23498" NodeId="ns=2;i=6013" BrowseName="2:CurrencyUnit" ParentNodeId="ns=2;i=2000">
+        <DisplayName>CurrencyUnit</DisplayName>
+        <References>
+            <Reference ReferenceType="HasTypeDefinition">i=68</Reference>
+            <Reference ReferenceType="HasModellingRule">i=78</Reference>
+        </References>
+    </UAVariable>
+    <UAVariable DataType="QualifiedName" NodeId="ns=2;i=6014" BrowseName="DefaultInstanceBrowseName" ParentNodeId="ns=2;i=1002" UserAccessLevel="3" AccessLevel="3">
+        <DisplayName>DefaultInstanceBrowseName</DisplayName>
+        <References>
+            <Reference ReferenceType="HasTypeDefinition">i=68</Reference>
+        </References>
+        <Value>
+            <uax:QualifiedName>
+                <uax:NamespaceIndex>2</uax:NamespaceIndex>
+                <uax:Name>SkillSet</uax:Name>
+            </uax:QualifiedName>
+        </Value>
+    </UAVariable>
+    <UAObject NodeId="ns=2;i=5011" BrowseName="2:Requirements" ParentNodeId="ns=2;i=1001">
+        <DisplayName>Requirements</DisplayName>
+        <Description>Contains results of the SkillElement.</Description>
+        <References>
+            <Reference ReferenceType="HasTypeDefinition">ns=1;i=1005</Reference>
+            <Reference ReferenceType="HasModellingRule">i=80</Reference>
+        </References>
+    </UAObject>
+    <UAVariable DataType="UInt32" NodeId="ns=2;i=6015" BrowseName="2:SuccessfulExecutionsCount" ParentNodeId="ns=2;i=5001">
+        <DisplayName>SuccessfulExecutionsCount</DisplayName>
+        <References>
+            <Reference ReferenceType="HasTypeDefinition">i=63</Reference>
+            <Reference ReferenceType="HasModellingRule">i=80</Reference>
+        </References>
+        <Value>
+            <uax:UInt32>0</uax:UInt32>
+        </Value>
+    </UAVariable>
+    <UAVariable DataType="Duration" NodeId="ns=2;i=6017" BrowseName="2:TimeUntilCompleted" ParentNodeId="ns=2;i=5002">
+        <DisplayName>TimeUntilCompleted</DisplayName>
+        <References>
+            <Reference ReferenceType="HasModellingRule">i=80</Reference>
+            <Reference ReferenceType="HasTypeDefinition">i=17497</Reference>
+            <Reference ReferenceType="HasProperty">ns=2;i=6041</Reference>
+        </References>
+        <Value>
+            <uax:Double>NaN</uax:Double>
+        </Value>
+    </UAVariable>
+    <UAVariable DataType="Float" NodeId="ns=2;i=6018" BrowseName="2:Progress" ParentNodeId="ns=2;i=5002">
+        <DisplayName>Progress</DisplayName>
+        <References>
+            <Reference ReferenceType="HasTypeDefinition">i=68</Reference>
+            <Reference ReferenceType="HasModellingRule">i=80</Reference>
+        </References>
+        <Value>
+            <uax:Float>0</uax:Float>
+        </Value>
+    </UAVariable>
+    <UAObject NodeId="ns=2;i=5012" BrowseName="2:FinalResultData" ParentNodeId="ns=2;i=5008">
+        <DisplayName>FinalResultData</DisplayName>
+        <Description>Contains results of the SkillElement.</Description>
+        <References>
+            <Reference ReferenceType="HasTypeDefinition">ns=1;i=1005</Reference>
+            <Reference ReferenceType="HasModellingRule">i=80</Reference>
+            <Reference ReferenceType="HasInterface">ns=2;i=1003</Reference>
+            <Reference ReferenceType="HasComponent">ns=2;i=6027</Reference>
+            <Reference ReferenceType="HasComponent">ns=2;i=6042</Reference>
+            <Reference ReferenceType="HasComponent">ns=2;i=6044</Reference>
+            <Reference ReferenceType="HasComponent">ns=2;i=6045</Reference>
+            <Reference ReferenceType="HasComponent">ns=2;i=6046</Reference>
+        </References>
+    </UAObject>
+    <UAObjectType IsAbstract="true" NodeId="ns=2;i=1003" BrowseName="2:IMetricsType">
+        <DisplayName>IMetricsType</DisplayName>
+        <References>
+            <Reference ReferenceType="HasSubtype" IsForward="false">i=17602</Reference>
+            <Reference ReferenceType="HasComponent">ns=2;i=6019</Reference>
+            <Reference ReferenceType="HasComponent">ns=2;i=6020</Reference>
+            <Reference ReferenceType="HasComponent">ns=2;i=6024</Reference>
+            <Reference ReferenceType="HasComponent">ns=2;i=6026</Reference>
+        </References>
+    </UAObjectType>
+    <UAVariable DataType="Float" NodeId="ns=2;i=6019" BrowseName="2:Co2Equivalent" ParentNodeId="ns=2;i=1003">
+        <DisplayName>Co2Equivalent</DisplayName>
+        <References>
+            <Reference ReferenceType="HasTypeDefinition">i=17497</Reference>
+            <Reference ReferenceType="HasModellingRule">i=80</Reference>
+            <Reference ReferenceType="HasProperty">ns=2;i=6033</Reference>
+        </References>
+    </UAVariable>
+    <UAVariable DataType="Float" NodeId="ns=2;i=6020" BrowseName="2:EnergyConsumption" ParentNodeId="ns=2;i=1003">
+        <DisplayName>EnergyConsumption</DisplayName>
+        <References>
+            <Reference ReferenceType="HasTypeDefinition">i=17497</Reference>
+            <Reference ReferenceType="HasModellingRule">i=80</Reference>
+            <Reference ReferenceType="HasProperty">ns=2;i=6021</Reference>
+        </References>
+    </UAVariable>
+    <UAVariable DataType="EUInformation" NodeId="ns=2;i=6021" BrowseName="EngineeringUnits" ParentNodeId="ns=2;i=6020">
+        <DisplayName>EngineeringUnits</DisplayName>
+        <References>
+            <Reference ReferenceType="HasTypeDefinition">i=68</Reference>
+            <Reference ReferenceType="HasModellingRule">i=78</Reference>
+        </References>
+    </UAVariable>
+    <UAVariable DataType="Float" NodeId="ns=2;i=6024" BrowseName="2:ExecutionTime" ParentNodeId="ns=2;i=1003">
+        <DisplayName>ExecutionTime</DisplayName>
+        <References>
+            <Reference ReferenceType="HasTypeDefinition">i=17497</Reference>
+            <Reference ReferenceType="HasModellingRule">i=80</Reference>
+            <Reference ReferenceType="HasProperty">ns=2;i=6025</Reference>
+        </References>
+    </UAVariable>
+    <UAVariable DataType="EUInformation" NodeId="ns=2;i=6025" BrowseName="EngineeringUnits" ParentNodeId="ns=2;i=6024">
+        <DisplayName>EngineeringUnits</DisplayName>
+        <References>
+            <Reference ReferenceType="HasTypeDefinition">i=68</Reference>
+            <Reference ReferenceType="HasModellingRule">i=78</Reference>
+        </References>
+    </UAVariable>
+    <UAVariable DataType="Float" NodeId="ns=2;i=6026" BrowseName="2:ExecutionCost" ParentNodeId="ns=2;i=1003">
+        <DisplayName>ExecutionCost</DisplayName>
+        <References>
+            <Reference ReferenceType="HasTypeDefinition">ns=2;i=2000</Reference>
+            <Reference ReferenceType="HasModellingRule">i=80</Reference>
+            <Reference ReferenceType="HasProperty">ns=2;i=6035</Reference>
+        </References>
+    </UAVariable>
+    <UAVariable DataType="Boolean" NodeId="ns=2;i=6027" BrowseName="2:IsFeasible" ParentNodeId="ns=2;i=5012">
+        <DisplayName>IsFeasible</DisplayName>
+        <References>
+            <Reference ReferenceType="HasTypeDefinition">i=63</Reference>
+            <Reference ReferenceType="HasModellingRule">i=80</Reference>
+        </References>
+        <Value>
+            <uax:Boolean>false</uax:Boolean>
+        </Value>
+    </UAVariable>
+    <UAObject NodeId="ns=2;i=5013" BrowseName="2:FinalResultData" ParentNodeId="ns=2;i=5005">
+        <DisplayName>FinalResultData</DisplayName>
+        <Description>Contains results of the SkillElement.</Description>
+        <References>
+            <Reference ReferenceType="HasTypeDefinition">ns=1;i=1005</Reference>
+            <Reference ReferenceType="HasModellingRule">i=80</Reference>
+            <Reference ReferenceType="HasComponent">ns=2;i=6036</Reference>
+        </References>
+    </UAObject>
+    <UAVariable DataType="Boolean" NodeId="ns=2;i=6036" BrowseName="2:IsFeasible" ParentNodeId="ns=2;i=5013">
+        <DisplayName>IsFeasible</DisplayName>
+        <References>
+            <Reference ReferenceType="HasTypeDefinition">i=63</Reference>
+            <Reference ReferenceType="HasModellingRule">i=80</Reference>
+        </References>
+        <Value>
+            <uax:Boolean>false</uax:Boolean>
+        </Value>
+    </UAVariable>
+    <UAObject NodeId="ns=2;i=5015" BrowseName="2:FinalResultData" ParentNodeId="ns=2;i=5006">
+        <DisplayName>FinalResultData</DisplayName>
+        <Description>Contains results of the SkillElement.</Description>
+        <References>
+            <Reference ReferenceType="HasTypeDefinition">ns=1;i=1005</Reference>
+            <Reference ReferenceType="HasModellingRule">i=80</Reference>
+            <Reference ReferenceType="HasInterface">ns=2;i=1003</Reference>
+            <Reference ReferenceType="HasComponent">ns=2;i=6051</Reference>
+            <Reference ReferenceType="HasComponent">ns=2;i=6052</Reference>
+            <Reference ReferenceType="HasComponent">ns=2;i=6053</Reference>
+            <Reference ReferenceType="HasComponent">ns=2;i=6054</Reference>
+        </References>
+    </UAObject>
+    <UAVariable DataType="EUInformation" NodeId="ns=2;i=6033" BrowseName="EngineeringUnits" ParentNodeId="ns=2;i=6019">
+        <DisplayName>EngineeringUnits</DisplayName>
+        <References>
+            <Reference ReferenceType="HasTypeDefinition">i=68</Reference>
+            <Reference ReferenceType="HasModellingRule">i=78</Reference>
+        </References>
+    </UAVariable>
+    <UAVariable DataType="i=23498" NodeId="ns=2;i=6035" BrowseName="2:CurrencyUnit" ParentNodeId="ns=2;i=6026">
+        <DisplayName>CurrencyUnit</DisplayName>
+        <References>
+            <Reference ReferenceType="HasTypeDefinition">i=68</Reference>
+            <Reference ReferenceType="HasModellingRule">i=78</Reference>
+        </References>
+    </UAVariable>
+    <UAVariable DataType="EUInformation" NodeId="ns=2;i=6041" BrowseName="EngineeringUnits" ParentNodeId="ns=2;i=6017">
+        <DisplayName>EngineeringUnits</DisplayName>
+        <References>
+            <Reference ReferenceType="HasTypeDefinition">i=68</Reference>
+            <Reference ReferenceType="HasModellingRule">i=78</Reference>
+        </References>
+        <Value>
+            <uax:ExtensionObject>
+                <uax:TypeId>
+                    <uax:Identifier>i=888</uax:Identifier>
+                </uax:TypeId>
+                <uax:Body>
+                    <uax:EUInformation>
+                        <uax:NamespaceUri>http://www.opcfoundation.org/UA/units/un/cefact</uax:NamespaceUri>
+                        <uax:UnitId>5457219</uax:UnitId>
+                        <uax:DisplayName>
+                            <uax:Text>s</uax:Text>
+                        </uax:DisplayName>
+                        <uax:Description>
+                            <uax:Text>second [unit of time]</uax:Text>
+                        </uax:Description>
+                    </uax:EUInformation>
+                </uax:Body>
+            </uax:ExtensionObject>
+        </Value>
+    </UAVariable>
+    <UAVariable DataType="Float" NodeId="ns=2;i=6042" BrowseName="2:Co2Equivalent" ParentNodeId="ns=2;i=5012">
+        <DisplayName>Co2Equivalent</DisplayName>
+        <References>
+            <Reference ReferenceType="HasTypeDefinition">i=17497</Reference>
+            <Reference ReferenceType="HasModellingRule">i=80</Reference>
+            <Reference ReferenceType="HasProperty">ns=2;i=6047</Reference>
+        </References>
+    </UAVariable>
+    <UAVariable DataType="Float" NodeId="ns=2;i=6044" BrowseName="2:EnergyConsumption" ParentNodeId="ns=2;i=5012">
+        <DisplayName>EnergyConsumption</DisplayName>
+        <References>
+            <Reference ReferenceType="HasTypeDefinition">i=17497</Reference>
+            <Reference ReferenceType="HasModellingRule">i=80</Reference>
+            <Reference ReferenceType="HasProperty">ns=2;i=6048</Reference>
+        </References>
+    </UAVariable>
+    <UAVariable DataType="Float" NodeId="ns=2;i=6045" BrowseName="2:ExecutionCost" ParentNodeId="ns=2;i=5012">
+        <DisplayName>ExecutionCost</DisplayName>
+        <References>
+            <Reference ReferenceType="HasTypeDefinition">ns=2;i=2000</Reference>
+            <Reference ReferenceType="HasModellingRule">i=80</Reference>
+            <Reference ReferenceType="HasProperty">ns=2;i=6049</Reference>
+        </References>
+    </UAVariable>
+    <UAVariable DataType="Float" NodeId="ns=2;i=6046" BrowseName="2:ExecutionTime" ParentNodeId="ns=2;i=5012">
+        <DisplayName>ExecutionTime</DisplayName>
+        <References>
+            <Reference ReferenceType="HasTypeDefinition">i=17497</Reference>
+            <Reference ReferenceType="HasModellingRule">i=80</Reference>
+            <Reference ReferenceType="HasProperty">ns=2;i=6050</Reference>
+        </References>
+    </UAVariable>
+    <UAVariable DataType="EUInformation" NodeId="ns=2;i=6047" BrowseName="EngineeringUnits" ParentNodeId="ns=2;i=6042">
+        <DisplayName>EngineeringUnits</DisplayName>
+        <References>
+            <Reference ReferenceType="HasTypeDefinition">i=68</Reference>
+            <Reference ReferenceType="HasModellingRule">i=78</Reference>
+        </References>
+        <Value>
+            <uax:ExtensionObject>
+                <uax:TypeId>
+                    <uax:Identifier>i=888</uax:Identifier>
+                </uax:TypeId>
+                <uax:Body>
+                    <uax:EUInformation>
+                        <uax:NamespaceUri>http://www.opcfoundation.org/UA/units/un/cefact</uax:NamespaceUri>
+                        <uax:UnitId>4933453</uax:UnitId>
+                        <uax:DisplayName>
+                            <uax:Text>kg</uax:Text>
+                        </uax:DisplayName>
+                        <uax:Description>
+                            <uax:Text>kilogram</uax:Text>
+                        </uax:Description>
+                    </uax:EUInformation>
+                </uax:Body>
+            </uax:ExtensionObject>
+        </Value>
+    </UAVariable>
+    <UAVariable DataType="EUInformation" NodeId="ns=2;i=6048" BrowseName="EngineeringUnits" ParentNodeId="ns=2;i=6044">
+        <DisplayName>EngineeringUnits</DisplayName>
+        <References>
+            <Reference ReferenceType="HasTypeDefinition">i=68</Reference>
+            <Reference ReferenceType="HasModellingRule">i=78</Reference>
+        </References>
+        <Value>
+            <uax:ExtensionObject>
+                <uax:TypeId>
+                    <uax:Identifier>i=888</uax:Identifier>
+                </uax:TypeId>
+                <uax:Body>
+                    <uax:EUInformation>
+                        <uax:NamespaceUri>http://www.opcfoundation.org/UA/units/un/cefact</uax:NamespaceUri>
+                        <uax:UnitId>4937544</uax:UnitId>
+                        <uax:DisplayName>
+                            <uax:Text>kW·h</uax:Text>
+                        </uax:DisplayName>
+                        <uax:Description>
+                            <uax:Text>kilowatt hour</uax:Text>
+                        </uax:Description>
+                    </uax:EUInformation>
+                </uax:Body>
+            </uax:ExtensionObject>
+        </Value>
+    </UAVariable>
+    <UAVariable DataType="i=23498" NodeId="ns=2;i=6049" BrowseName="2:CurrencyUnit" ParentNodeId="ns=2;i=6045">
+        <DisplayName>CurrencyUnit</DisplayName>
+        <References>
+            <Reference ReferenceType="HasTypeDefinition">i=68</Reference>
+            <Reference ReferenceType="HasModellingRule">i=78</Reference>
+        </References>
+        <Value>
+            <uax:ExtensionObject>
+                <uax:TypeId>
+                    <uax:Identifier>i=23520</uax:Identifier>
+                </uax:TypeId>
+                <uax:Body>
+                    <uax:CurrencyUnitType>
+                        <uax:NumericCode>978</uax:NumericCode>
+                        <uax:Exponent>2</uax:Exponent>
+                        <uax:AlphabeticCode>EUR</uax:AlphabeticCode>
+                        <uax:Currency>
+                            <uax:Text>Euro</uax:Text>
+                        </uax:Currency>
+                    </uax:CurrencyUnitType>
+                </uax:Body>
+            </uax:ExtensionObject>
+        </Value>
+    </UAVariable>
+    <UAVariable DataType="EUInformation" NodeId="ns=2;i=6050" BrowseName="EngineeringUnits" ParentNodeId="ns=2;i=6046">
+        <DisplayName>EngineeringUnits</DisplayName>
+        <References>
+            <Reference ReferenceType="HasTypeDefinition">i=68</Reference>
+            <Reference ReferenceType="HasModellingRule">i=78</Reference>
+        </References>
+        <Value>
+            <uax:ExtensionObject>
+                <uax:TypeId>
+                    <uax:Identifier>i=888</uax:Identifier>
+                </uax:TypeId>
+                <uax:Body>
+                    <uax:EUInformation>
+                        <uax:NamespaceUri>http://www.opcfoundation.org/UA/units/un/cefact</uax:NamespaceUri>
+                        <uax:UnitId>5457219</uax:UnitId>
+                        <uax:DisplayName>
+                            <uax:Text>s</uax:Text>
+                        </uax:DisplayName>
+                        <uax:Description>
+                            <uax:Text>second [unit of time]</uax:Text>
+                        </uax:Description>
+                    </uax:EUInformation>
+                </uax:Body>
+            </uax:ExtensionObject>
+        </Value>
+    </UAVariable>
+    <UAVariable DataType="Float" NodeId="ns=2;i=6051" BrowseName="2:Co2Equivalent" ParentNodeId="ns=2;i=5015">
+        <DisplayName>Co2Equivalent</DisplayName>
+        <References>
+            <Reference ReferenceType="HasTypeDefinition">i=17497</Reference>
+            <Reference ReferenceType="HasModellingRule">i=80</Reference>
+            <Reference ReferenceType="HasProperty">ns=2;i=6055</Reference>
+        </References>
+    </UAVariable>
+    <UAVariable DataType="Float" NodeId="ns=2;i=6052" BrowseName="2:EnergyConsumption" ParentNodeId="ns=2;i=5015">
+        <DisplayName>EnergyConsumption</DisplayName>
+        <References>
+            <Reference ReferenceType="HasTypeDefinition">i=17497</Reference>
+            <Reference ReferenceType="HasModellingRule">i=80</Reference>
+            <Reference ReferenceType="HasProperty">ns=2;i=6056</Reference>
+        </References>
+    </UAVariable>
+    <UAVariable DataType="Float" NodeId="ns=2;i=6053" BrowseName="2:ExecutionCost" ParentNodeId="ns=2;i=5015">
+        <DisplayName>ExecutionCost</DisplayName>
+        <References>
+            <Reference ReferenceType="HasTypeDefinition">ns=2;i=2000</Reference>
+            <Reference ReferenceType="HasModellingRule">i=80</Reference>
+            <Reference ReferenceType="HasProperty">ns=2;i=6057</Reference>
+        </References>
+    </UAVariable>
+    <UAVariable DataType="Float" NodeId="ns=2;i=6054" BrowseName="2:ExecutionTime" ParentNodeId="ns=2;i=5015">
+        <DisplayName>ExecutionTime</DisplayName>
+        <References>
+            <Reference ReferenceType="HasTypeDefinition">i=17497</Reference>
+            <Reference ReferenceType="HasModellingRule">i=80</Reference>
+            <Reference ReferenceType="HasProperty">ns=2;i=6058</Reference>
+        </References>
+    </UAVariable>
+    <UAVariable DataType="EUInformation" NodeId="ns=2;i=6055" BrowseName="EngineeringUnits" ParentNodeId="ns=2;i=6051">
+        <DisplayName>EngineeringUnits</DisplayName>
+        <References>
+            <Reference ReferenceType="HasTypeDefinition">i=68</Reference>
+            <Reference ReferenceType="HasModellingRule">i=78</Reference>
+        </References>
+        <Value>
+            <uax:ExtensionObject>
+                <uax:TypeId>
+                    <uax:Identifier>i=888</uax:Identifier>
+                </uax:TypeId>
+                <uax:Body>
+                    <uax:EUInformation>
+                        <uax:NamespaceUri>http://www.opcfoundation.org/UA/units/un/cefact</uax:NamespaceUri>
+                        <uax:UnitId>4933453</uax:UnitId>
+                        <uax:DisplayName>
+                            <uax:Text>kg</uax:Text>
+                        </uax:DisplayName>
+                        <uax:Description>
+                            <uax:Text>kilogram</uax:Text>
+                        </uax:Description>
+                    </uax:EUInformation>
+                </uax:Body>
+            </uax:ExtensionObject>
+        </Value>
+    </UAVariable>
+    <UAVariable DataType="EUInformation" NodeId="ns=2;i=6056" BrowseName="EngineeringUnits" ParentNodeId="ns=2;i=6052">
+        <DisplayName>EngineeringUnits</DisplayName>
+        <References>
+            <Reference ReferenceType="HasTypeDefinition">i=68</Reference>
+            <Reference ReferenceType="HasModellingRule">i=78</Reference>
+        </References>
+        <Value>
+            <uax:ExtensionObject>
+                <uax:TypeId>
+                    <uax:Identifier>i=888</uax:Identifier>
+                </uax:TypeId>
+                <uax:Body>
+                    <uax:EUInformation>
+                        <uax:NamespaceUri>http://www.opcfoundation.org/UA/units/un/cefact</uax:NamespaceUri>
+                        <uax:UnitId>4937544</uax:UnitId>
+                        <uax:DisplayName>
+                            <uax:Text>kW·h</uax:Text>
+                        </uax:DisplayName>
+                        <uax:Description>
+                            <uax:Text>kilowatt hour</uax:Text>
+                        </uax:Description>
+                    </uax:EUInformation>
+                </uax:Body>
+            </uax:ExtensionObject>
+        </Value>
+    </UAVariable>
+    <UAVariable DataType="i=23498" NodeId="ns=2;i=6057" BrowseName="2:CurrencyUnit" ParentNodeId="ns=2;i=6053">
+        <DisplayName>CurrencyUnit</DisplayName>
+        <References>
+            <Reference ReferenceType="HasTypeDefinition">i=68</Reference>
+            <Reference ReferenceType="HasModellingRule">i=78</Reference>
+        </References>
+        <Value>
+            <uax:ExtensionObject>
+                <uax:TypeId>
+                    <uax:Identifier>i=23520</uax:Identifier>
+                </uax:TypeId>
+                <uax:Body>
+                    <uax:CurrencyUnitType>
+                        <uax:NumericCode>978</uax:NumericCode>
+                        <uax:Exponent>2</uax:Exponent>
+                        <uax:AlphabeticCode>EUR</uax:AlphabeticCode>
+                        <uax:Currency>
+                            <uax:Text>Euro</uax:Text>
+                        </uax:Currency>
+                    </uax:CurrencyUnitType>
+                </uax:Body>
+            </uax:ExtensionObject>
+        </Value>
+    </UAVariable>
+    <UAVariable DataType="EUInformation" NodeId="ns=2;i=6058" BrowseName="EngineeringUnits" ParentNodeId="ns=2;i=6054">
+        <DisplayName>EngineeringUnits</DisplayName>
+        <References>
+            <Reference ReferenceType="HasTypeDefinition">i=68</Reference>
+            <Reference ReferenceType="HasModellingRule">i=78</Reference>
+        </References>
+        <Value>
+            <uax:ExtensionObject>
+                <uax:TypeId>
+                    <uax:Identifier>i=888</uax:Identifier>
+                </uax:TypeId>
+                <uax:Body>
+                    <uax:EUInformation>
+                        <uax:NamespaceUri>http://www.opcfoundation.org/UA/units/un/cefact</uax:NamespaceUri>
+                        <uax:UnitId>5457219</uax:UnitId>
+                        <uax:DisplayName>
+                            <uax:Text>s</uax:Text>
+                        </uax:DisplayName>
+                        <uax:Description>
+                            <uax:Text>second [unit of time]</uax:Text>
+                        </uax:Description>
+                    </uax:EUInformation>
+                </uax:Body>
+            </uax:ExtensionObject>
+        </Value>
+    </UAVariable>
+    <UAObjectType NodeId="ns=2;i=1004" BrowseName="2:BaseMethodType">
+        <DisplayName>BaseMethodType</DisplayName>
+        <References>
+            <Reference ReferenceType="HasSubtype" IsForward="false">i=58</Reference>
+            <Reference ReferenceType="Organizes">ns=2;i=5014</Reference>
+            <Reference ReferenceType="Organizes">ns=2;i=5017</Reference>
+            <Reference ReferenceType="Organizes">ns=2;i=5018</Reference>
+            <Reference ReferenceType="HasComponent">ns=2;i=7000</Reference>
+            <Reference ReferenceType="HasComponent">ns=2;i=6016</Reference>
+            <Reference ReferenceType="HasProperty">ns=2;i=6023</Reference>
+        </References>
+    </UAObjectType>
+    <UAObject NodeId="ns=2;i=5014" BrowseName="2:FinalResultData" ParentNodeId="ns=2;i=1004">
+        <DisplayName>FinalResultData</DisplayName>
+        <References>
+            <Reference ReferenceType="HasTypeDefinition">ns=1;i=1005</Reference>
+            <Reference ReferenceType="HasModellingRule">i=80</Reference>
+        </References>
+    </UAObject>
+    <UAObject NodeId="ns=2;i=5017" BrowseName="2:ParameterSet" ParentNodeId="ns=2;i=1004">
+        <DisplayName>ParameterSet</DisplayName>
+        <References>
+            <Reference ReferenceType="HasTypeDefinition">ns=1;i=1005</Reference>
+            <Reference ReferenceType="HasModellingRule">i=80</Reference>
+        </References>
+    </UAObject>
+    <UAObject NodeId="ns=2;i=5018" BrowseName="2:Monitoring" ParentNodeId="ns=2;i=1004">
+        <DisplayName>Monitoring</DisplayName>
+        <References>
+            <Reference ReferenceType="HasTypeDefinition">ns=1;i=1005</Reference>
+            <Reference ReferenceType="HasModellingRule">i=80</Reference>
+            <Reference ReferenceType="HasComponent">ns=2;i=6008</Reference>
+        </References>
+    </UAObject>
+    <UAVariable DataType="Boolean" NodeId="ns=2;i=6008" BrowseName="2:IsRunning" ParentNodeId="ns=2;i=5018" UserAccessLevel="3" AccessLevel="3">
+        <DisplayName>IsRunning</DisplayName>
+        <References>
+            <Reference ReferenceType="HasTypeDefinition">i=63</Reference>
+            <Reference ReferenceType="HasModellingRule">i=80</Reference>
+        </References>
+    </UAVariable>
+    <UAMethod NodeId="ns=2;i=7000" BrowseName="2:Call" ParentNodeId="ns=2;i=1004">
+        <DisplayName>Call</DisplayName>
+        <References>
+            <Reference ReferenceType="HasModellingRule">i=78</Reference>
+            <Reference ReferenceType="HasProperty">ns=2;i=6009</Reference>
+            <Reference ReferenceType="HasProperty">ns=2;i=6010</Reference>
+        </References>
+    </UAMethod>
+    <UAVariable DataType="i=296" ValueRank="1" NodeId="ns=2;i=6009" BrowseName="InputArguments" ParentNodeId="ns=2;i=7000">
+        <DisplayName>InputArguments</DisplayName>
+        <Description>the definition of the input argument of method 2:BaseMethodType.2:Start</Description>
+        <References>
+            <Reference ReferenceType="HasTypeDefinition">i=68</Reference>
+            <Reference ReferenceType="HasModellingRule">i=78</Reference>
+        </References>
+    </UAVariable>
+    <UAVariable DataType="i=296" ValueRank="1" NodeId="ns=2;i=6010" BrowseName="OutputArguments" ParentNodeId="ns=2;i=7000">
+        <DisplayName>OutputArguments</DisplayName>
+        <Description>the definition of the output arguments of method 2:BaseMethodType.2:Start</Description>
+        <References>
+            <Reference ReferenceType="HasTypeDefinition">i=68</Reference>
+            <Reference ReferenceType="HasModellingRule">i=78</Reference>
+        </References>
+    </UAVariable>
+    <UAVariable DataType="String" NodeId="ns=2;i=6016" BrowseName="2:Name" ParentNodeId="ns=2;i=1004">
+        <DisplayName>Name</DisplayName>
+        <References>
+            <Reference ReferenceType="HasTypeDefinition">i=63</Reference>
+            <Reference ReferenceType="HasModellingRule">i=78</Reference>
+        </References>
+    </UAVariable>
+    <UAObjectType NodeId="ns=2;i=1005" BrowseName="2:MethodSetType">
+        <DisplayName>MethodSetType</DisplayName>
+        <References>
+            <Reference ReferenceType="HasSubtype" IsForward="false">i=58</Reference>
+            <Reference ReferenceType="HasComponent">ns=2;i=5019</Reference>
+            <Reference ReferenceType="HasProperty">ns=2;i=6022</Reference>
+        </References>
+    </UAObjectType>
+    <UAObject SymbolicName="Method_no_" NodeId="ns=2;i=5019" BrowseName="2:Method&lt;no>" ParentNodeId="ns=2;i=1005">
+        <DisplayName>Method&lt;no&gt;</DisplayName>
+        <References>
+            <Reference ReferenceType="HasTypeDefinition">ns=2;i=1004</Reference>
+            <Reference ReferenceType="HasModellingRule">i=11508</Reference>
+            <Reference ReferenceType="HasComponent">ns=2;i=7000</Reference>
+            <Reference ReferenceType="HasComponent">ns=2;i=6016</Reference>
+        </References>
+    </UAObject>
+    <UAVariable DataType="QualifiedName" NodeId="ns=2;i=6022" BrowseName="DefaultInstanceBrowseName" ParentNodeId="ns=2;i=1005" UserAccessLevel="3" AccessLevel="3">
+        <DisplayName>DefaultInstanceBrowseName</DisplayName>
+        <References>
+            <Reference ReferenceType="HasTypeDefinition">i=68</Reference>
+        </References>
+        <Value>
+            <uax:QualifiedName>
+                <uax:NamespaceIndex>2</uax:NamespaceIndex>
+                <uax:Name>MethodSet</uax:Name>
+            </uax:QualifiedName>
+        </Value>
+    </UAVariable>
+    <UAVariable DataType="Int32" NodeId="ns=2;i=6011" BrowseName="2:MinAccessLevel" ParentNodeId="ns=2;i=1000" UserAccessLevel="3" AccessLevel="3">
+        <DisplayName>MinAccessLevel</DisplayName>
+        <References>
+            <Reference ReferenceType="HasTypeDefinition">i=68</Reference>
+            <Reference ReferenceType="HasModellingRule">i=78</Reference>
+        </References>
+        <Value>
+            <uax:Int32>0</uax:Int32>
+        </Value>
+    </UAVariable>
+    <UAVariable DataType="Int32" NodeId="ns=2;i=6023" BrowseName="2:MinAccessLevel" ParentNodeId="ns=2;i=1004" UserAccessLevel="3" AccessLevel="3">
+        <DisplayName>MinAccessLevel</DisplayName>
+        <References>
+            <Reference ReferenceType="HasTypeDefinition">i=68</Reference>
+            <Reference ReferenceType="HasModellingRule">i=80</Reference>
+        </References>
+        <Value>
+            <uax:Int32>0</uax:Int32>
+        </Value>
+    </UAVariable>
+</UANodeSet>

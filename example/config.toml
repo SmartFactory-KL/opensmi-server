@@ -1,0 +1,93 @@
+# General server configuration
+debug = false
+
+
+[logging]
+
+format = "automatic"
+
+[logging.minimum_levels]
+# Logger name -> minimum logging level.
+"open_smi" = "DEBUG"
+"open_smi.Lock" = "INFO"
+"open_smi.common" = "INFO"
+"open_smi.UaFiniteStateMachine" = "INFO"
+"open_smi.UaVariable" = "INFO"
+"asyncua" = "ERROR"
+
+
+[ua_server]
+
+name = "Dummy Machine OPC-UA Server"
+namespace_uri = "urn:smartfactory.de:machine:Dummy"
+endpoint_address = "opc.tcp://0.0.0.0:4843/server"
+
+encryption = false
+certificate = "server_certificate.der"
+private_key = "server_private_key.pem"
+
+# Possible values: "memory", "sqlite"
+history_db = "memory"
+
+
+[discovery]
+
+register = false
+server_address = "opc.tcp://172.17.10.20:4840"
+
+
+[access_control]
+
+max_inactive_lock_time_milliseconds = 600000
+minimum_access_level = 1
+allow_reconnection_from_same_host = true
+
+
+#[[access_control.users]]
+#name = "visitor"
+#password = "visitor"
+#priority = 0
+#maximum_access_level = 0
+#allow_multiple = true
+#
+#[[access_control.users]]
+#name = "planner"
+#password = "planner"
+#priority = 5
+#maximum_access_level = 5
+#allow_multiple = false
+#
+#[[access_control.users]]
+#name = "orchestrator"
+#password = "orchestrator"
+#priority = 10
+#maximum_access_level = 10
+#allow_multiple = false
+#
+#[[access_control.users]]
+#name = "remote"
+#password = "remote"
+#priority = 15
+#maximum_access_level = 15
+#allow_multiple = false
+#
+#[[access_control.users]]
+#name = "operator"
+#password = "operator"
+#priority = 20
+#maximum_access_level = 20
+#allow_multiple = false
+#
+#[[access_control.users]]
+#name = "watchdog"
+#password = "watchdog"
+#priority = 25
+#maximum_access_level = 20
+#allow_multiple = false
+#
+#[[access_control.users]]
+#name = "developer"
+#password = "developer"
+#priority = 100
+#maximum_access_level = 100
+#allow_multiple = false

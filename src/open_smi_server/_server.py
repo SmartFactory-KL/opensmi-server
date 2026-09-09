@@ -1,0 +1,474 @@
+# SPDX-FileCopyrightText: 2026 OpenSMI Contributors
+#
+# SPDX-License-Identifier: MIT
+
+from __future__ import annotations
+
+# Note: Due to Python import conflict, this file is named `_server.py` instead of `server.py`
+import asyncio
+import sys
+import time
+from collections.abc import AsyncGenerator, Iterator
+from enum import IntEnum, auto
+from pathlib import Path
+from typing import TYPE_CHECKING, Self
+
+import asyncua
+import structlog
+from asyncua import ua
+from asyncua.common.node import Node
+from asyncua.common.structures104 import new_enum
+from asyncua.crypto.cert_gen import generate_private_key, generate_self_signed_app_certificate
+from asyncua.server.address_space import AddressSpace
+from asyncua.server.history_sql import HistorySQLite
+from asyncua.server.server import Server as UaServer
+from typing_extensions import TypeVar, override
+
+import open_smi_common
+import open_smi_server
+from open_smi_common import AsyncTaskMixin, LifecycleState, setup_logging
+from open_smi_common.base_server import BaseServer
+from open_smi_common.lifecycle_mixin import LifecycleMixin, lifecycle
+from open_smi_common.nodesets import NODE_SETS, SmartFactoryMachineSetNodeIds
+from open_smi_common.protocols import NamespaceProvider
+from open_smi_common.repr_mixin import ReprStrMixin
+from open_smi_common.ua_node_util import get_child_without_ns
+from open_smi_server.config import HistoryOption, ServerConfiguration, UaServerConfiguration
+from open_smi_server.ua_object import UaObject
+
+if TYPE_CHECKING:
+    from open_smi_server import BaseMachine
+    from open_smi_server.access_control import AccessControl
+
+_MachineType = TypeVar("_MachineType", bound="BaseMachine", default="BaseMachine")
+
+
+class _FixedHistorySQLite(HistorySQLite):
+    @override
+    def _get_table_name(self, node_id: ua.NodeId) -> str:
+        if node_id.NodeIdType == ua.NodeIdType.String:
+            return f"{node_id.NamespaceIndex}_{node_id.Identifier}"  # repr creates invalid ' character
+        return f"{node_id.NamespaceIndex}_{node_id.Identifier!r}"
+
+
+# TODO add support for password-protected private keys
+
+
+def _create_key_and_certificate(config: UaServerConfiguration) -> None:
+    from cryptography import x509
+    from cryptography.hazmat._oid import ExtendedKeyUsageOID
+    from cryptography.hazmat.primitives import serialization
+
+    # Generate new key
+    key = generate_private_key()
+    with open(config.private_key, "wb") as f:
+        f.write(
+            key.private_bytes(
+                encoding=serialization.Encoding.PEM,
+                format=serialization.PrivateFormat.TraditionalOpenSSL,
+                encryption_algorithm=serialization.NoEncryption(),
+            )
+        )
+
+    # Generate new self-signed certificate based on that key
+    cert = generate_self_signed_app_certificate(
+        private_key=key,
+        common_name=config.name,
+        names={},
+        subject_alt_names=[x509.UniformResourceIdentifier(config.namespace_uri)],
+        extended=[ExtendedKeyUsageOID.SERVER_AUTH, ExtendedKeyUsageOID.CLIENT_AUTH],
+        days=3650,
+    )
+
+    with open(config.certificate, "wb") as f:
+        f.write(cert.public_bytes(serialization.Encoding.DER))
+
+
+class ServerState(IntEnum):
+    """Operating states of the `Server`."""
+
+    STOPPED = auto()
+    STARTING = auto()
+    RUNNING = auto()
+    STOPPING = auto()
+
+
+class Server(
+    AsyncTaskMixin,
+    LifecycleMixin,
+    ReprStrMixin,
+    BaseServer[UaObject],
+):
+    """Singleton PyUaAdapter `Server`.
+
+    Retrieve the instance with `get_server()`.
+
+    The `Server` needs to be initialized with a configuration before use.
+    Add machines before calling `start()`.
+    """
+
+    _ua_machines: Node
+
+    _access_control: AccessControl
+    _ua_server: UaServer
+    _ua_address_space: AddressSpace
+
+    def __init__(self, **kwargs) -> None:
+        super().__init__(**kwargs)
+
+        self._machines: list[BaseMachine] = []
+        self._state = ServerState.STOPPED
+        self._ua_enums: dict[type[IntEnum], ua.NodeId] = {}
+        """Maps created custom enums to OPC UA type nodes."""
+        self._config: ServerConfiguration = ServerConfiguration()
+
+    async def configure(self, path: str | Path) -> None:
+        """Load configuration from given ``path``."""
+        if self.lifecycle_state != LifecycleState.NEW:
+            msg = "Cannot configure server after initialization!"
+            raise RuntimeError(msg)
+
+        from open_smi_common.config import load_dataclass
+
+        self._config = load_dataclass(ServerConfiguration, path)
+
+    @lifecycle
+    async def _life_cycle(self) -> AsyncGenerator[None]:
+        await self._init()
+        yield
+        await self._shutdown()
+
+    async def _init(self) -> None:
+        setup_logging(log_levels=self.config.logging.minimum_levels, log_format=self.config.logging.format)
+        self._logger = structlog.stdlib.get_logger("open_smi.Server")
+        self.logger.info(
+            "Initializing server...",
+            version_open_smi_server=open_smi_server.__version__,
+            version_open_smi_common=open_smi_common.__version__,
+            version_asyncua=asyncua.__version__,
+        )
+
+        from .access_control import AccessControl, AccessControlAttributeService, AccessControlMethodService
+
+        self._access_control = AccessControl(server=self)
+
+        self._ua_server = UaServer(user_manager=self._access_control)
+        ua_iserver = self.ua_server.iserver
+        self._ua_address_space = ua_iserver.aspace
+
+        ua_iserver.method_service = AccessControlMethodService(ua_iserver.aspace)
+        ua_iserver.attribute_service = AccessControlAttributeService(aspace=ua_iserver.aspace, server=self)
+
+        await self._setup_ua_server()
+
+        # Import Nodeset (and its required nodesets)
+        await self.ua_import_nodeset(SmartFactoryMachineSetNodeIds)
+
+        self._ua_machines = await get_child_without_ns(self._ua_server.nodes.objects, display_name="Machines")
+
+    @property
+    def logger(self) -> structlog.stdlib.BoundLogger:
+        """Return the logger instance of the server. Read-only property."""
+        return self._logger
+
+    @property
+    def access_control(self) -> AccessControl:
+        return self._access_control
+
+    async def ua_import_xml(self, path: Path) -> int:
+        """Import XML nodeset from given ``path``. Returns the namespace index on success."""
+        time_start = time.monotonic()
+        nodes = await self.ua_server.import_xml(path)  # type: ignore
+        idx = nodes[0].NamespaceIndex
+        namespace_array = await self.ua_server.get_namespace_array()
+        uri: str = namespace_array[idx]
+        self.logger.info(
+            "Imported nodes from XML node set!",
+            file_name=path.name,
+            uri=uri,
+            ns_idx=idx,
+            no_of_nodes=len(nodes),
+            elapsed=time.monotonic() - time_start,
+        )
+        return idx
+
+    async def ua_import_nodeset(self, uri: str | type[NamespaceProvider]) -> int:
+        """Import the OPC UA XML nodeset specified by the given ``uri`` and return the namespace index.
+
+        Automatically loads all required nodesets beforehand.
+
+        :raises KeyError: If given URI is unknown.
+        """
+        if not isinstance(uri, str):
+            uri = uri.URI
+
+        index = self._namespace_map.get(uri)
+        if index is not None:
+            return index
+
+        namespace = NODE_SETS[uri]
+        for uri in namespace.REQUIRED_URIS:  # import all requirements first (transitive)
+            await self.ua_import_nodeset(uri)
+
+        index = await self.ua_import_xml(Path(__file__).parent / "nodesets" / namespace.FILE_NAME)
+
+        # update our namespace mapping
+        for ns_idx, namespace in enumerate(await self.ua_server.get_namespace_array()):
+            self._namespace_map[namespace] = ns_idx
+
+        return index
+
+    async def _setup_ua_server(self) -> None:
+        config: UaServerConfiguration = self.config.ua_server
+        # Configure server to use sqlite as history database (default is a simple memory dict)
+        if config.history_db == HistoryOption.SQLITE:
+            db_path = Path("./data/opcua_history.sql")
+            db_path.parent.mkdir(exist_ok=True)  # noqa: ASYNC240
+            self._ua_server.iserver.history_manager.set_storage(_FixedHistorySQLite(db_path))  # pyright: ignore[reportArgumentType]
+            self.logger.info("History storage via SQLite!", path=str(db_path))
+
+        if config.encryption:
+            self.logger.info("Encryption enabled!")
+            try:
+                await self._ua_server.load_certificate(config.certificate)
+                await self._ua_server.load_private_key(config.private_key)
+                self.logger.info("Loaded existing encryption key and certificate!")
+            except FileNotFoundError:
+                self.logger.info("Creating new encryption key and certificate...")
+                _create_key_and_certificate(config)
+
+                await self._ua_server.load_certificate(config.certificate)
+                await self._ua_server.load_private_key(config.private_key)
+
+        await self._ua_server.init()
+
+        if self.config.debug:
+            self.logger.warning("DEBUG mode enabled!")
+            asyncio.get_event_loop().set_debug(True)
+
+        self._ua_server.set_endpoint(config.endpoint_address)
+        self._ua_server.set_server_name(config.name)
+        await self._ua_server.set_application_uri(config.namespace_uri)  # always namespace index 1
+
+        # TODO? SecurityPolicy "None" shall be disabled when Encryption is available according to OPC UA spec
+        #  https://profiles.opcfoundation.org/profile/762
+        if not config.encryption:
+            self._ua_server.set_security_policy([ua.SecurityPolicyType.NoSecurity])
+        self._ua_server.set_identity_tokens([ua.UserNameIdentityToken])
+
+    async def add_machine(self, machine: _MachineType) -> _MachineType:
+        """Add given machine to the server. Will initialize the machine if not yet initialized."""
+        if not self.is_initialized:
+            await self.init()
+
+        assert machine is not None
+
+        time_start = time.monotonic()
+        if not machine.is_initialized:
+            machine.server = self  # pyright: ignore[reportAttributeAccessIssue]
+            await machine.ua_create_node(self._ua_machines)
+            await machine.init()
+
+        self._machines.append(machine)
+        self.logger.info(
+            "Added machine.",
+            machine_name=machine.name,
+            elapsed=time.monotonic() - time_start,
+        )
+        return machine
+
+    @property
+    def state(self) -> ServerState:
+        """Read-only. Return the state of the server."""
+        return self._state
+
+    @property
+    def machines(self) -> list[BaseMachine]:
+        """Read-only. Return all machines added to the server."""
+        return list(self._machines)
+
+    @property
+    def ua_server(self) -> UaServer:
+        """Read-only. Return the internal OPC UA server instance."""
+        return self._ua_server  # exists after instantiation
+
+    @property
+    def ua_address_space(self) -> AddressSpace:
+        """Read-only. Return the internal OPC UA address space instance."""
+        return self._ua_address_space
+
+    @property
+    def config(self) -> ServerConfiguration:
+        """Return the server-wide configuration. Read-only property."""
+        if not hasattr(self, "_config") or self._config is None:
+            msg = "Server is not yet configured! Call configure() first."
+            raise RuntimeError(msg)
+
+        return self._config
+
+    async def _register_server(self, retry_seconds: float = 10.0):
+        lds_client = asyncua.client.client.Client(self.config.discovery.server_address)
+        while self._state == ServerState.RUNNING:
+            try:
+                await lds_client.register_server(self._ua_server)
+            except Exception:
+                try:
+                    await lds_client.connect()
+                except Exception:
+                    self.logger.exception(
+                        f"Failed to register to discovery server, retrying in {retry_seconds} seconds.",
+                        discovery_server_address=self.config.discovery.server_address,
+                    )
+            await asyncio.sleep(retry_seconds)
+
+    async def start(self, blocking: bool = True) -> None:
+        """Start the internal OPC UA server.
+
+        Server must be initialized beforehand, and must be in state `STOPPED`.
+
+        :param blocking If True, block until server shutdown or KeyboardInterrupt is caught
+        """
+        if not self.is_initialized:
+            msg = "Server is not initialized!"
+            raise RuntimeError(msg)
+        if self.state != ServerState.STOPPED:
+            msg = "Server is not stopped!"
+            raise RuntimeError(msg)
+
+        self._state = ServerState.STARTING
+        await self._ua_server.start()
+        for endpoint in await self._ua_server.get_endpoints():
+            self.logger.info(
+                "Serving OPC UA server at:",
+                endpoint_url=endpoint.EndpointUrl,
+                security_policy_uri=endpoint.SecurityPolicyUri,
+            )
+        self._state = ServerState.RUNNING
+
+        if self.config.discovery.register:
+            self._create_task(self._register_server(), name="DiscoveryRegisterTask")
+        else:
+            self.logger.warning("Register at Discovery server is disabled!")
+
+        if blocking:
+            try:
+                await self._watchdog_loop()
+            except asyncio.CancelledError:
+                self.logger.info("Received CancelledError, exiting endless loop!")
+            except KeyboardInterrupt:
+                self.logger.info("Received KeyboardInterrupt, exiting endless loop!")
+        else:
+            self._create_task(self._watchdog_loop(), name="WatchdogTask")
+
+    async def _watchdog_loop(
+        self,
+        *,
+        interval: float = 0.2,
+        warning_threshold: float = 0.1,
+    ) -> None:
+        """Monitor how busy the event loop is and warn if it is probably too busy."""
+        loop = asyncio.get_running_loop()
+        deadline: float = loop.time() + interval
+
+        while self.running:
+            await asyncio.sleep(max(0, deadline - loop.time()))
+
+            now = loop.time()
+            lag = now - deadline
+
+            if lag >= warning_threshold:
+                self.logger.warning(
+                    "Event loop lag detected",
+                    lag=round(lag, 3),
+                    threshold=warning_threshold,
+                )
+
+            deadline = now + interval
+
+    async def _shutdown(self) -> None:
+        self._state = ServerState.STOPPING
+
+        for machine in self.machines:
+            self.logger.debug("Trying to call shutdown()...", machine_name=machine.name)
+            try:
+                await machine.shutdown()
+            except (Exception, asyncio.CancelledError):  # shutdown() is implemented by user, might raise some exception
+                self.logger.exception("Error during machine shutdown!", machine_name=machine.name)
+
+        self.access_control.running = False
+        await self._cancel_tasks()
+        await self.ua_server.stop()
+
+        self._state = ServerState.STOPPED
+
+    @property
+    def running(self) -> bool:
+        """Whether the server is running."""
+        return self._state == ServerState.RUNNING
+
+    @property
+    def stopped(self) -> bool:
+        """Whether the server is stopped."""
+        return self._state == ServerState.STOPPED
+
+    async def get_enum(self, enum_type: type[IntEnum], *, option_set: bool = False) -> ua.NodeId:
+        """Return OPC UA Node representation of given enum type."""
+        try:
+            return self._ua_enums[enum_type]
+        except KeyError:
+            ua_node = await new_enum(
+                server=self.ua_server,
+                idx=1,
+                name=enum_type.__name__,  # type: ignore
+                fields=[enum_type(index).name for index in enum_type],
+                option_set=option_set,
+            )
+            self._ua_enums[enum_type] = ua_node.nodeid
+            self.logger.info("Created new enum type", name=enum_type.__name__, ua_node_id=str(ua_node))
+            return ua_node.nodeid
+
+    def __del__(self) -> None:
+        if self.lifecycle_state in (
+            LifecycleState.INITIALIZING,
+            LifecycleState.INITIALIZED,
+            LifecycleState.SHUTTING_DOWN,
+        ):
+            # Note: At this point, we cannot (async) shut down properly anymore
+            # try to warn the user to prevent the same mistake next time
+            print(
+                f"Server was not properly shut down! life_cycle={self.lifecycle_state.name}",
+                file=sys.stderr,
+                flush=True,
+            )
+
+    async def __aenter__(self) -> Self:
+        """Enter the asynchronous context manager; no setup required."""
+        return self
+
+    async def __aexit__(self, exc_type, exc, tb) -> None:  # noqa: ANN001
+        """Exit the asynchronous context manager and shut down the server."""
+        await self.shutdown()
+
+    @override
+    def _repr_items(self) -> Iterator[tuple[str, object]]:
+        yield from super()._repr_items()
+        yield "state", self._state.name
+        yield "life_cycle_state", self.lifecycle_state.name
+
+
+_instance = Server()
+""" Singleton instance of Server. """
+
+
+def get_server() -> Server:
+    """Return the Singleton `Server` instance."""
+    return _instance
+
+
+def _reset_server() -> None:  # pyright: ignore[reportUnusedFunction]
+    """Reset the singleton instance and any other globals related to it.
+
+    Note: Do not do this while the server is running! Main use case is testing.
+    """
+    global _instance
+    _instance = Server()
