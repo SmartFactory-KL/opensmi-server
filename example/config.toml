@@ -9,7 +9,6 @@ format = "automatic"
 [logging.minimum_levels]
 # Logger name -> minimum logging level.
 "opensmi" = "INFO"
-"open_smi" = "INFO"  # TODO remove
 "asyncua" = "ERROR"
 
 
