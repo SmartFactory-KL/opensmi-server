@@ -114,9 +114,9 @@ class AccessControl(UserManager, AsyncTaskMixin):
             await asyncio.sleep(interval)
 
     @override
-    def get_user(
+    def get_user(  # pyright: ignore[reportIncompatibleMethodOverride]
         self,
-        iserver: InternalServer,  # pyright: ignore[reportIncompatibleMethodOverride]
+        iserver: InternalServer,
         username: str | None = None,
         password: str | bytes | None = None,
         certificate: bytes | None = None,
