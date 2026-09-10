@@ -133,7 +133,7 @@ class BaseMachineryItem(UaObject, AbstractUaLogger):
     async def set_current_state(self, state: MachineryItemState) -> None:
         """Set the current state of this machinery item without any transition logic checks."""
         assert isinstance(state, MachineryItemState)
-        if self._current_state == state:
+        if self._current_state == state and self.is_initialized:
             return
 
         self._current_state = state
@@ -147,7 +147,7 @@ class BaseMachineryItem(UaObject, AbstractUaLogger):
     async def set_current_operation_mode(self, mode: MachineryOperationMode) -> None:
         """Set the current operation mode of this machinery item without any transition logic checks."""
         assert isinstance(mode, MachineryOperationMode)
-        if self._current_operation_mode == mode:
+        if self._current_operation_mode == mode and self.is_initialized:
             return
 
         self._current_operation_mode = mode
