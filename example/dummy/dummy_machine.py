@@ -94,7 +94,7 @@ class DummyMachine(
 
         # Skills
         # await self.add_skill(DummySkillImpl(name="DummySkill", dependencies=[self.components.Port_1]))
-        await self.add_skill(DummySkillImpl(name="DummySkillWithoutGateRequirement"))
+        await self.add_skill(DummySkillImpl(name="DummySkillWithoutGateRequirement", delay=0))
         # await self.add_skill(DummySkillResources())
         await self.add_skill(ContinuousSkill(name="ContinuousSkill"))
         await self.add_skill(ContinuousSkillSelfHalting())

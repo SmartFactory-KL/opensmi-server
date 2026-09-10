@@ -4,6 +4,7 @@
 
 from __future__ import annotations
 
+import time
 from typing import TYPE_CHECKING
 
 from opensmi.core import Unit
@@ -65,6 +66,7 @@ class CompositeDummySkill(
         # define logic that is executed in the RUNNING state
         total = 0.0
         params = [(1, 2), (3, 4), (5, 6), (7, 8)]
+        time_start = time.monotonic()
         for index, (x, y) in enumerate(params):
             await self.monitoring.progress.write(float(index / len(params) * 100))
             await self._other_skill.parameter_set.x.write(x)
@@ -73,6 +75,8 @@ class CompositeDummySkill(
                 result = await self._other_skill.final_result_data.ComputationResult.read()
                 self.logger.info("intermediate result", index=index, x=x, y=y, result=result)
                 total += result
+
+        self.logger.info(f"{len(params)} calls took {time.monotonic() - time_start} seconds!")
 
         await self.final_result_data.total.write(total)
         await self.monitoring.progress.write(100.0)
