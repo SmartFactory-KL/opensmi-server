@@ -2,6 +2,8 @@
 #
 # SPDX-License-Identifier: MIT
 
+"""Abstract base class for a Smart Machine."""
+
 from __future__ import annotations
 
 from typing import TYPE_CHECKING
@@ -27,7 +29,7 @@ class BaseMachine(
     IdentificationMixin[MachineIdentification],
     BaseMachineryItem,
 ):
-    """Base class representing a new SmartFactory-KL demo plant module."""
+    """Abstract base class for a Smart Machine."""
 
     def __init__(
         self,
@@ -52,16 +54,6 @@ class BaseMachine(
 
         await self._init_status()
         await self._init_users()  # needs the MachineryBuildingBlocks node
-
-    # @override
-    # async def _after_init(self) -> None:
-    #     await super()._after_init()
-    #
-    #     self._validate()
-    #
-    #     # depending on start up and initials start up might be executed automatically
-    #     while self.startup_skill.current_state == SkillState.Starting:
-    #         await asyncio.sleep(0.1)
 
     async def _init_users(self) -> None:
         """Initialize OPC UA representation of users."""
