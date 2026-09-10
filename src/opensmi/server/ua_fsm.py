@@ -5,7 +5,7 @@
 from __future__ import annotations
 
 import contextlib
-from collections.abc import Sequence
+from collections.abc import Awaitable, Callable, Sequence
 from enum import Enum, IntEnum
 
 import structlog
@@ -17,7 +17,7 @@ from asyncua.ua.uaerrors import BadNoMatch
 from transitions import MachineError, State
 from transitions.extensions.asyncio import AsyncMachine, AsyncState, AsyncTransition
 
-from opensmi.server.protocols import HasLocalizedText, UserProtocol
+from opensmi.server.protocols import UserProtocol
 
 
 class _UaTypes:
@@ -46,9 +46,11 @@ class UaFiniteStateMachine:
 
     def __init__(
         self,
+        *,
         name: str,
         states: Sequence[Enum],
         initial: AsyncState | Enum,
+        write_func: Callable[[Enum], Awaitable[None]],
         represent_transitions: bool = False,
         represent_states: bool = False,
         exclude_states: Sequence[Enum] | None = None,
@@ -67,11 +69,11 @@ class UaFiniteStateMachine:
             initial=initial,
             auto_transitions=False,
             after_state_change=self._after_state_change,
-            before_state_change=self._before_state_change,
         )
         # Note: do not use set on_exception parameter of the AsyncMachine constructor, exceptions are required for
         # normal operation!
         self.exclude_states = exclude_states
+        self._write_func = write_func
 
         self.ua_available_state_node_ids: dict[str, NodeId] = {}
         """Maps the state name to an OPC UA node ID representing the state in the OPC UA address space."""
@@ -120,7 +122,7 @@ class UaFiniteStateMachine:
             await self._init_ua_transitions()
 
         await self._add_available_states_transitions()
-        await self._set_ua_state(self.current_state)
+        await self._write_func(self.current_state.value)  # type: ignore
 
     async def _init_ua_states(self) -> None:
         """Add all states to OPC-UA state machine representation and sets the initial state of the FSM."""
@@ -156,17 +158,6 @@ class UaFiniteStateMachine:
     #     except KeyError:
     #         self.logger.warning("Could not find state in available states, state ID not written!",
     #                             state=state_name)
-
-    async def _set_ua_state(self, new_state: HasLocalizedText | AsyncState) -> None:
-        if isinstance(new_state, AsyncState):
-            new_state = new_state.value  # type: ignore
-
-        old_state = self.before_state.name if self.before_state is not None else None
-        self.logger.info("Updating state in OPC UA", new_state=new_state, old_state=old_state)
-
-        # await self._set_ua_state_id(new_state) # TODO?
-        await self.ua_state_variable.write_value(new_state.localized_text)  # pyright: ignore[reportAttributeAccessIssue]
-        # await self._set_last_transition(new_state)
 
     async def _init_state(self, state: State, parent_node: Node | None = None) -> None:
         """Add ua_node_id attribute to given state.
@@ -240,13 +231,9 @@ class UaFiniteStateMachine:
     def current_state(self) -> AsyncState:
         return self._internal_machine.get_state(self._internal_machine.model.state)  # type: ignore
 
-    def _before_state_change(self, *args, **kwargs) -> None:
-        """Handle callback from state machine before a state changes. Used to update the OPC-UA representation."""
-        self.before_state = self.current_state
-
     async def _after_state_change(self, *args, **kwargs) -> None:
         """Handle callback from state machine after a state changes. Used to update the OPC-UA representation."""
-        await self._set_ua_state(self.current_state)
+        await self._write_func(self.current_state.value)  # type: ignore
 
     async def try_trigger(self, user: UserProtocol | None, trigger_func: str) -> ua.StatusCode:
         """Try to trigger an event in the internal state machine.

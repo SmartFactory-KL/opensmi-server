@@ -63,6 +63,7 @@ class _SkillLogicMixin(AbstractSkill, AbstractUaLogger):
             states=SkillState,  # type: ignore
             initial=SkillState.HALTED,
             exclude_states=[] if self.is_finite else [SkillState.COMPLETED, SkillState.COMPLETING],
+            write_func=self._write_current_state,
         )
         """Skill Finite State Machine."""
         self._add_transitions()
@@ -309,12 +310,6 @@ class _SkillLogicMixin(AbstractSkill, AbstractUaLogger):
     @override
     async def halt(self) -> None:
         await self._machine.trigger("halt", INTERNAL_USER)  # type: ignore
-
-    @property
-    @override
-    def current_state(self) -> SkillState:
-        """Current state of the skill."""
-        return self._machine.state  # type: ignore
 
     async def _condition_start_allowed(self, _user: UserAuthorization) -> bool:
         """Implement additional custom conditions checked before starting the skill.

@@ -38,7 +38,7 @@ class BaseSkill(BaseCallable, AbstractSkill):
 
     _ua_state_machine: Node
     """OPC UA base node of state machine."""
-    ua_state_variable: Node
+    _ua_current_state: Node
     """OPC UA node if the state variable of the state machine."""
 
     def __init__(
@@ -65,6 +65,7 @@ class BaseSkill(BaseCallable, AbstractSkill):
         self._precondition_check = precondition_check
         self._feasibility_check = feasibility_check
         self._called_skills: list[BaseSkill] = []
+        self._current_state = SkillState.HALTED
 
     @override
     async def _get_sub_node(self) -> Node:
@@ -79,7 +80,7 @@ class BaseSkill(BaseCallable, AbstractSkill):
         ns_machine_set = self.server.ua_get_namespace_index(SmartFactoryMachineSetNodeIds)
 
         self._ua_state_machine = await ua_sub_node.get_child(QualifiedName("StateMachine", ns_skill_set))
-        self.ua_state_variable = await self.ua_state_machine.get_child("CurrentState")
+        self._ua_current_state = await self.ua_state_machine.get_child("CurrentState")
 
         node_start = await self.ua_state_machine.get_child(f"{ns_machine_set}:Start")
         node_halt = await self.ua_state_machine.get_child(f"{ns_machine_set}:Halt")
@@ -130,11 +131,25 @@ class BaseSkill(BaseCallable, AbstractSkill):
             # await self._feasibility_check.ua_create_node(_ua_feasibility_check)
             # await self._feasibility_check.init()
 
-    async def _set_current_state(self, state: SkillState) -> None:
-        """Set the current state of this skill to the given state without any logic checks."""
+    async def _write_current_state(self, state: SkillState) -> None:
+        """Write the given ``state`` without any transition logic checks.
+
+        Does nothing if given ``state`` is already ``current_state``.
+        """
         assert isinstance(state, SkillState), f"'{state}' is not of type SkillStates"
 
-        await self.ua_state_variable.write_value(ua.LocalizedText(state.name, "en-US"))
+        if state == self.current_state and self.is_initialized:
+            return
+
+        self.logger.info("Updating current state", new_state=state, old_state=self.current_state)
+        self._current_state = state
+        await self._ua_current_state.write_value(state.localized_text)
+
+    @property
+    @override
+    def current_state(self) -> SkillState:
+        """Return the current state of the skill."""
+        return self._current_state
 
     @property
     @override
