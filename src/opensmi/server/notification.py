@@ -96,14 +96,17 @@ class Notification(UaObject, ParentMixin[BaseMachineryItem], AbstractUaLogger):
 
     @override
     async def ua_log_info(self, msg: str, *, severity: int = 0, source: AbstractUaObject | None = None) -> None:
+        self.logger.info("UA Log", msg=msg, severity=severity, source=source)
         await self._generate_info_event(msg=msg, severity=severity, source=source)
 
     @override
     async def ua_log_warning(self, msg: str, *, severity: int = 555, source: AbstractUaObject | None = None) -> None:
+        self.logger.warning("UA Log", msg=msg, severity=severity, source=source)
         await self._generate_info_event(msg=msg, severity=severity, source=source)
 
     @override
     async def ua_log_error(
         self, msg: str, *, severity: int = 999, code: str = "", source: AbstractUaObject | None = None
     ) -> None:
+        self.logger.error("UA Log", msg=msg, severity=severity, code=code, source=source)
         await self._generate_alert_event(msg=msg, severity=severity, code=code, source=source)
