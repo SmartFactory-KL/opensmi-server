@@ -8,6 +8,7 @@ from __future__ import annotations
 import asyncio
 import sys
 import time
+import warnings
 from collections.abc import AsyncGenerator, Iterator
 from enum import IntEnum, auto
 from pathlib import Path
@@ -47,7 +48,6 @@ class _FixedHistorySQLite(HistorySQLite):
         if node_id.NodeIdType == ua.NodeIdType.String:
             return f"{node_id.NamespaceIndex}_{node_id.Identifier}"  # repr creates invalid ' character
         return f"{node_id.NamespaceIndex}_{node_id.Identifier!r}"
-
 
 
 def _create_key_and_certificate(config: UaServerConfiguration) -> None:
@@ -95,7 +95,6 @@ class Server(
     ReprStrMixin,
     BaseServer[UaObject],
 ):
-
     _ua_machines: Node
 
     _access_control: AccessControl
@@ -241,6 +240,8 @@ class Server(
         if self.config.debug:
             self.logger.warning("DEBUG mode enabled!")
             asyncio.get_event_loop().set_debug(True)
+            warnings.simplefilter("always", ResourceWarning)
+            warnings.simplefilter("always", DeprecationWarning)
 
         self._ua_server.set_endpoint(config.endpoint_address)
         self._ua_server.set_server_name(config.name)

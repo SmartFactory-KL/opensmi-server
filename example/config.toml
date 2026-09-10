@@ -1,5 +1,5 @@
 # General server configuration
-debug = false
+debug = true
 
 
 [logging]

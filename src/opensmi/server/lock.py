@@ -197,7 +197,7 @@ class Lock(UaObject, ParentMixin[UaObject]):
         self.server.access_control.on_session_closed.connect(self._on_session_closed)
 
         self._task_check_inactivity = asyncio.create_task(
-            self._check_inactivity_loop(), name=f"{self.full_name}.inactivity_check"
+            self._check_inactivity_loop(), name=f"{self.path}.inactivity_check"
         )
 
         self.logger.debug("Initialized lock")
