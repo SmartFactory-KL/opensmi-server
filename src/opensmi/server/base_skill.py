@@ -66,6 +66,7 @@ class BaseSkill(BaseCallable, AbstractSkill):
         self._feasibility_check = feasibility_check
         self._called_skills: list[BaseSkill] = []
         self._current_state = SkillState.HALTED
+        self._condition = asyncio.Condition()  # for wait_for_state
 
     @override
     async def _get_sub_node(self) -> Node:
@@ -142,7 +143,11 @@ class BaseSkill(BaseCallable, AbstractSkill):
             return
 
         self.logger.info("Updating current state", new_state=state, old_state=self.current_state)
-        self._current_state = state
+
+        async with self._condition:
+            self._current_state = state
+            self._condition.notify_all()
+
         await self._ua_current_state.write_value(state.localized_text)
 
     @property
@@ -169,28 +174,21 @@ class BaseSkill(BaseCallable, AbstractSkill):
         return True
 
     @override
-    async def wait_for_state(self, state: SkillState, *, timeout: float | None = 60) -> None:
-        if self.current_state == state:
+    async def wait_for_state(self, state: SkillState) -> None:
+        if self._current_state == state:
             return
 
-        source_state = self.current_state
-        self.logger.debug(
-            "Waiting for state...", source_state=source_state.name, target_state=state.name, timeout=timeout
-        )
+        source_state = self._current_state
+        self.logger.debug("Waiting for state...", source_state=source_state.name, target_state=state.name)
 
-        async def _wait():
-            while True:
-                if self.current_state == state:
-                    break
-                if source_state != SkillState.HALTED and self.current_state == SkillState.HALTED:
-                    msg = f"Skill '{self.path}' halted while waiting for state '{state.name}'!"
-                    raise SkillHaltedError(msg)
-                await asyncio.sleep(0.1)
+        async with self._condition:
+            await self._condition.wait_for(
+                lambda: self._current_state == state or self._current_state == SkillState.HALTED
+            )
 
-        if timeout is not None:
-            await asyncio.wait_for(_wait(), timeout)
-        else:
-            await _wait()
+            if self._current_state == SkillState.HALTED and state != SkillState.HALTED:
+                msg = f"Skill '{self.path}' halted unexpectedly while waiting for state '{state.name}'!"
+                raise SkillHaltedError(msg)
 
     async def _halt_running_called_skills(self):
         for skill in self._called_skills:
@@ -223,7 +221,7 @@ class BaseSkill(BaseCallable, AbstractSkill):
             msg = "Wrong type of skill given, a finite skill is required!"
             raise TypeError(msg)
 
-        logger = self.logger.bind(other_skill=skill.full_name)
+        logger = self.logger.bind(other_skill=skill.path)
 
         if skill not in getattr(self, "_dependencies", ()):
             logger.warning("Calling other skill that is not in dependencies!")
@@ -235,9 +233,10 @@ class BaseSkill(BaseCallable, AbstractSkill):
             case SkillState.READY:
                 pass  # Already in Ready, nothing to do
             case SkillState.COMPLETED:  # Safe to reset
-                self.logger.info("Resetting completed skill dependency...", skill=skill.full_name)
+                self.logger.info("Resetting completed skill dependency...", skill=skill.path)
                 await skill.reset()
-                await skill.wait_for_state(SkillState.READY, timeout=timeout)
+                async with asyncio.timeout(timeout):
+                    await skill.wait_for_state(SkillState.READY)
             case _:  # Potentially unsafe to reset
                 msg = f"Other skill in unsupported state '{skill.current_state.name}'!"
                 raise OpenSmiRuntimeError(msg)
@@ -251,14 +250,16 @@ class BaseSkill(BaseCallable, AbstractSkill):
             return  # we are done
         # else:
         logger.debug("Waiting for other skill to be completed.", timeout=timeout)
-        await skill.wait_for_state(SkillState.COMPLETED, timeout=timeout)
+        async with asyncio.timeout(timeout):
+            await skill.wait_for_state(SkillState.COMPLETED)
 
         if reset_after_completion and skill.is_finite:
             # reset seems not to be suitable for conti skills
             logger.debug("Trying to reset other skill after completion...")
             await skill.reset()  # needs to be reset to be ready again (Skill V3+)
             logger.debug("Waiting for other skill to be ready again.", timeout=timeout)
-            await skill.wait_for_state(SkillState.READY, timeout=timeout)
+            async with asyncio.timeout(timeout):
+                await skill.wait_for_state(SkillState.READY)
 
     # TODO(CaHa): asynccontextmanager for continuous skills?
     async def call_other_continuous_skill(
@@ -281,7 +282,7 @@ class BaseSkill(BaseCallable, AbstractSkill):
             msg = "Wrong type of skill given, a continuous skill is required!"
             raise TypeError(msg)
 
-        logger = self.logger.bind(other_skill=skill.full_name)
+        logger = self.logger.bind(other_skill=skill.path)
 
         if skill not in getattr(self, "_dependencies", ()):
             logger.warning("Calling other skill that is not in dependencies!")
@@ -294,4 +295,5 @@ class BaseSkill(BaseCallable, AbstractSkill):
 
         if wait_for_running:
             logger.debug("Waiting for other skill to be running", timeout=timeout)
-            await skill.wait_for_state(SkillState.RUNNING, timeout=timeout)
+            async with asyncio.timeout(timeout):
+                await skill.wait_for_state(SkillState.RUNNING)

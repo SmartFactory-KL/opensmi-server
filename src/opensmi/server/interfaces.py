@@ -132,12 +132,11 @@ class AbstractSkill(AbstractCallable):
         raise NotImplementedError
 
     @abstractmethod
-    async def wait_for_state(self, state: SkillState, *, timeout: float | None = 60) -> None:
-        """Blocks until this skill either reached the given ``state`` or was halted or the ``timeout`` was reached.
+    async def wait_for_state(self, state: SkillState) -> None:
+        """Blocks until this skill either reached the given ``state`` or was unexpectedly halted.
 
         :param state: the state of this skill to wait for.
-        :param timeout: timeout in seconds, maximum wait time.
-        :raises asyncio.TimeoutError: if the ``timeout`` is reached.
+        :raises SkillHaltedError: If skill has unexpectedly halted.
         """
 
     @property

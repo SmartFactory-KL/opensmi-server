@@ -29,22 +29,25 @@ async def reset_skill_and_wait(skill: AbstractSkill, *, timeout: float | None = 
     """
     # we need to wait for skills still in halting state to reach halted
     if skill.current_state == SkillState.HALTING:
-        await skill.wait_for_state(SkillState.HALTED, timeout=timeout)
+        async with asyncio.timeout(timeout):
+            await skill.wait_for_state(SkillState.HALTED)
 
     if skill.current_state in (SkillState.HALTED, SkillState.SUSPENDED, SkillState.COMPLETED):
-        _LOGGER.debug("Resetting skill...", skill_name=skill.full_name)
+        _LOGGER.debug("Resetting skill...", skill_name=skill.path)
         await skill.reset()
         # resetting takes time, we need to wait until the skill is actually ready!
-        await skill.wait_for_state(SkillState.READY, timeout=timeout)
+        async with asyncio.timeout(timeout):
+            await skill.wait_for_state(SkillState.READY)
 
 
 async def halt_skill_and_wait(skill: AbstractSkill, *, timeout: float | None = 60.0) -> None:
     """Halt the given skill and wait until it finished and is in the Halted state."""
     try:
-        _LOGGER.debug("Trying to halt skill...", skill_name=skill.full_name)
+        _LOGGER.debug("Trying to halt skill...", skill_name=skill.path)
         await skill.halt()
         # halting takes time, we need to wait until the skill is actually halted!
-        await skill.wait_for_state(SkillState.HALTED, timeout=timeout)
+        async with asyncio.timeout(timeout):
+            await skill.wait_for_state(SkillState.HALTED)
     except (BadInvalidState, MachineError):
         pass  # assume that skill is already halted
     except (Exception, asyncio.CancelledError) as ex:
