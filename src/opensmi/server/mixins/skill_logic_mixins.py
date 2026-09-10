@@ -71,16 +71,10 @@ class _SkillLogicMixin(AbstractSkill, AbstractUaLogger):
     async def lifecycle_skill_state_machine(self) -> AsyncGenerator[None]:
         """Initialize the skill state machine."""
         # ensure initialization comes first
-        await self._machine.init(
-            self.ua_state_machine, self.server.ua_get_node_id(SmartFactoryMachineSetNodeIds.SkillStateMachineType)
-        )
+        await self._machine.init(self.ua_state_machine)
+        # self.server.ua_get_node_id(SmartFactoryMachineSetNodeIds.SkillStateMachineType),
         yield
         # no shutdown
-
-    @override
-    async def enable_historizing(self, *, count: int = 1000) -> None:
-        await super().enable_historizing(count=count)
-        await self._machine.enable_historizing(count=count)
 
     def _add_transitions(self) -> None:
         self._machine.add_transition(

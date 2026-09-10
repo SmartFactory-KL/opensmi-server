@@ -7,12 +7,11 @@
 
 ## Design Goals
 
-- Breaking API changes only when MAJOR version increases
 - API as simple to use as possible, ideally little to no asyncua contact for end users
     - Self-explaining where possible
   - As many type hints as possible
 - API of server and client should be as similar as possible
-- API should be generic enough to not require changes when naming of underlying SF Skill node set changes, i.e. Module (v1-v3) →
+- API should be generic enough to not require changes when naming of underlying Skill node set changes, i.e. Module (v1-v3) →
   Machine (v4)
 - Expose raw OPC UA as little as possible, abstract the communication away
   - Later: Communication via OPC UA, shared memory, etc. (⇒ "OT-Bus")
@@ -23,8 +22,8 @@
 
 ## Design Decisions
 
+- No mutable globals
 - No async properties - too confusing, no support for setters
-- Server module singleton - More than one server per Python program is not feasible due to the performance of Python.
 - Multiple clients must be supported, that is required for some use cases
 - OPC UA related variables/methods/etc. shall be prefixed by `ua_`. Most if not all such variables should be kept
   private, so the prefix is `_ua_`. (Goal: abstract communication)

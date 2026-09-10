@@ -6,13 +6,11 @@ import asyncio
 
 from dummy.dummy_machine import DummyMachine
 
-from opensmi.server import get_server
+from opensmi.server import Server
 
 
 async def main() -> None:
-    async with get_server() as server:  # will properly shut down the server
-        await server.configure("config.toml")
-        await server.init()  # initialize it
+    async with Server(config_path="config.toml") as server:  # will properly shut down the server
         await server.add_machine(DummyMachine())  # add machine(s)
         await server.start(blocking=True)  # start the server and block while it is running
 

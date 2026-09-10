@@ -8,7 +8,6 @@ from importlib import metadata
 
 from opensmi.server import mixins as mixins
 from opensmi.server._server import Server as Server
-from opensmi.server._server import get_server as get_server
 from opensmi.server.access_control import AccessControl as AccessControl
 from opensmi.server.base_callable import BaseCallable as BaseCallable
 from opensmi.server.base_machine import BaseMachine as BaseMachine

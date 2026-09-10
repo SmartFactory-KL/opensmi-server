@@ -8,7 +8,8 @@ format = "automatic"
 
 [logging.minimum_levels]
 # Logger name -> minimum logging level.
-"opensmi" = "INFO"
+"opensmi" = "DEBUG"
+"open_smi" = "DEBUG"  # TODO remove
 "opensmi.UaFiniteStateMachine" = "WARNING"
 "asyncua" = "ERROR"
 

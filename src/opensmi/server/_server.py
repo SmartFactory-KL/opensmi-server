@@ -49,8 +49,6 @@ class _FixedHistorySQLite(HistorySQLite):
         return f"{node_id.NamespaceIndex}_{node_id.Identifier!r}"
 
 
-# TODO add support for password-protected private keys
-
 
 def _create_key_and_certificate(config: UaServerConfiguration) -> None:
     from cryptography import x509
@@ -97,13 +95,6 @@ class Server(
     ReprStrMixin,
     BaseServer[UaObject],
 ):
-    """Singleton PyUaAdapter `Server`.
-
-    Retrieve the instance with `get_server()`.
-
-    The `Server` needs to be initialized with a configuration before use.
-    Add machines before calling `start()`.
-    """
 
     _ua_machines: Node
 
@@ -111,16 +102,19 @@ class Server(
     _ua_server: UaServer
     _ua_address_space: AddressSpace
 
-    def __init__(self, **kwargs) -> None:
-        super().__init__(**kwargs)
+    def __init__(self, *, config_path: str | Path | None = None) -> None:
+        super().__init__()
 
         self._machines: list[BaseMachine] = []
         self._state = ServerState.STOPPED
         self._ua_enums: dict[type[IntEnum], ua.NodeId] = {}
         """Maps created custom enums to OPC UA type nodes."""
-        self._config: ServerConfiguration = ServerConfiguration()
+        if config_path:
+            self.load_config(config_path)
+        else:
+            self._config: ServerConfiguration = ServerConfiguration()
 
-    async def configure(self, path: str | Path) -> None:
+    def load_config(self, path: str | Path) -> None:
         """Load configuration from given ``path``."""
         if self.lifecycle_state != LifecycleState.NEW:
             msg = "Cannot configure server after initialization!"
@@ -445,6 +439,7 @@ class Server(
 
     async def __aenter__(self) -> Self:
         """Enter the asynchronous context manager; no setup required."""
+        await self.init()
         return self
 
     async def __aexit__(self, exc_type, exc, tb) -> None:  # noqa: ANN001
@@ -456,21 +451,3 @@ class Server(
         yield from super()._repr_items()
         yield "state", self._state.name
         yield "life_cycle_state", self.lifecycle_state.name
-
-
-_instance = Server()
-""" Singleton instance of Server. """
-
-
-def get_server() -> Server:
-    """Return the Singleton `Server` instance."""
-    return _instance
-
-
-def _reset_server() -> None:  # pyright: ignore[reportUnusedFunction]
-    """Reset the singleton instance and any other globals related to it.
-
-    Note: Do not do this while the server is running! Main use case is testing.
-    """
-    global _instance
-    _instance = Server()

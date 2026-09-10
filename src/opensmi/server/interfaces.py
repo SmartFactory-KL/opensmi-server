@@ -116,10 +116,6 @@ class AbstractCallable(AbstractUaObject):
 class AbstractSkill(AbstractCallable):
     """Skill interface for internal and external OPC UA access."""
 
-    @abstractmethod
-    async def enable_historizing(self, *, count: int = 1000) -> None:
-        pass
-
     @property
     @abstractmethod
     def is_finite(self) -> bool:

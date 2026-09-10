@@ -11,14 +11,13 @@ from enum import Enum, IntEnum
 import structlog
 from asyncua import ua
 from asyncua.common.node import Node
-from asyncua.ua import NodeId, UaError, VariantType
+from asyncua.ua import NodeId, VariantType
 from asyncua.ua.status_codes import StatusCodes as UaStatusCodes
 from asyncua.ua.uaerrors import BadNoMatch
 from transitions import MachineError, State
 from transitions.extensions.asyncio import AsyncMachine, AsyncState, AsyncTransition
 
-from ._server import get_server
-from .protocols import HasLocalizedText, UserProtocol
+from opensmi.server.protocols import HasLocalizedText, UserProtocol
 
 
 class _UaTypes:
@@ -86,7 +85,7 @@ class UaFiniteStateMachine:
         """
         self._internal_machine.add_transition(**kwargs)
 
-    async def init(self, state_machine_node: Node, state_machine_type: Node | NodeId | None = None) -> None:
+    async def init(self, state_machine_node: Node, state_machine_type: Node | None = None) -> None:
         """Asynchronous initialization of the instance.
 
         Adds a new OPC-UA object to the given parent node of some
@@ -98,8 +97,6 @@ class UaFiniteStateMachine:
                                    is expected, None is used as default cause lock is no opc ua state machine
         """
         self.ua_node = state_machine_node
-        if isinstance(state_machine_type, NodeId):
-            state_machine_type = get_server().ua_server.get_node(state_machine_type)
         self.ua_node_type_definition = state_machine_type
 
         try:
@@ -125,18 +122,6 @@ class UaFiniteStateMachine:
         await self._add_available_states_transitions()
         await self._set_ua_state(self.current_state)
 
-    async def enable_historizing(self, count: int = 1000) -> None:
-        """Enable historizing of state and last transition OPC-UA variables.
-
-        :param count: how many changes should be stored in history
-        """
-        # TODO waiting for node set
-        # nodes = [await self.ua_state_variable.get_child("0:Id")]
-        try:
-            await get_server().ua_server.historize_node_data_change(self.ua_state_variable, count=count)
-        except UaError as err:
-            self.logger.warning("Could not historize nodes", error=err)
-
     async def _init_ua_states(self) -> None:
         """Add all states to OPC-UA state machine representation and sets the initial state of the FSM."""
         self.logger.debug("Initializing UA states...")
@@ -144,7 +129,7 @@ class UaFiniteStateMachine:
             await self._init_state(state)
 
         # needs to be done *after* state initialization
-        await self._set_ua_state(self._internal_machine.initial)
+        await self._set_ua_state(self._internal_machine.initial)  # pyright: ignore[reportArgumentType]
 
     async def _init_ua_transitions(self) -> None:
         """Add all transitions to OPC-UA state machine representation."""
