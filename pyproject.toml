@@ -42,8 +42,14 @@ dependencies = [
     "typing-extensions>=4.16.0", # backported type hints; already a dep of asyncua
 ]
 
-[tool.uv.sources]  # TODO remove when published
-OpenSMI-Core = { path = "../open_smi_common", editable = true }
+# TODO remove when published properly
+[tool.uv.sources]
+OpenSMI-Core = { index = "testpypi" }
+
+[[tool.uv.index]]
+name = "testpypi"
+url = "https://test.pypi.org/simple/"
+explicit = true
 
 [project.optional-dependencies]
 rich = [
