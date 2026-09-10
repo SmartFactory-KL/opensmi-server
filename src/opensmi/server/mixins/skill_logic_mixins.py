@@ -374,8 +374,11 @@ class ContinuousSkillLogicMixin(_SkillLogicMixin):
 
     @override
     async def condition_as_dependency_ready(self, _user: UserAuthorization) -> bool:
-        if not self.current_state not in [SkillState.READY, SkillState.RUNNING]:
-            msg = f"Denied, required continuous skill '{self.path}' is neither ready nor running!"
+        if self.current_state not in [SkillState.READY, SkillState.RUNNING]:
+            msg = (
+                f"Denied, required continuous skill '{self.path}' is neither ready nor "
+                f"running (state={self.current_state})!"
+            )
             await self.ua_log_error(msg)
             raise ua.UaStatusCodeError(UaStatusCodes.BadStateNotActive)
 
@@ -432,8 +435,11 @@ class FiniteSkillLogicMixin(_SkillLogicMixin):
 
     @override
     async def condition_as_dependency_ready(self, _user: UserAuthorization) -> bool:
-        if not self.current_state not in [SkillState.READY, SkillState.COMPLETED]:
-            msg = f"Denied, required finite skill '{self.path}' is neither ready nor completed!"
+        if self.current_state not in [SkillState.READY, SkillState.COMPLETED]:
+            msg = (
+                f"Denied, required finite skill '{self.path}' is neither ready nor completed!"
+                f" (state={self.current_state})!"
+            )
             await self.ua_log_error(msg)
             raise ua.UaStatusCodeError(UaStatusCodes.BadStateNotActive)
 
