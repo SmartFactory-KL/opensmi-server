@@ -57,7 +57,7 @@ class UaFiniteStateMachine:
         self.represent_transitions = represent_transitions
         self.represent_states = represent_states
         self.name = name
-        self.logger = structlog.getLogger("open_smi.UaFiniteStateMachine", name=name)
+        self.logger = structlog.getLogger("opensmi.UaFiniteStateMachine", name=name)
         self.state_number = 0
         self.transition_number = 0
         self.before_state: AsyncState | None = None  # keeps track of state before a transition is taken

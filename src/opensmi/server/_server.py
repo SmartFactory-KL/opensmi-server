@@ -142,7 +142,7 @@ class Server(
         import opensmi.server
 
         setup_logging(log_levels=self.config.logging.minimum_levels, log_format=self.config.logging.format)
-        self._logger = structlog.stdlib.get_logger("open_smi.Server")
+        self._logger = structlog.stdlib.get_logger("opensmi.Server")
         self.logger.info(
             "Initializing server...",
             version_opensmi_server=opensmi.server.__version__,

@@ -34,30 +34,8 @@ class LoggingConfiguration:
     format: LogFormat = LogFormat.AUTOMATIC
     minimum_levels: dict[str, str] = field(
         default_factory=lambda: {
-            "open_smi.Server": "INFO",
-            "open_smi.Module": "WARNING",
-            "open_smi.Component": "WARNING",
-            "open_smi.Port": "WARNING",
-            "open_smi.Axis": "WARNING",
-            "open_smi.SafetyState": "WARNING",
-            "open_smi.Gripper": "WARNING",
-            "open_smi.PowerTrain": "WARNING",
-            "open_smi.Controller": "WARNING",
-            "open_smi.Software": "WARNING",
-            "open_smi.TaskControl": "WARNING",
-            "open_smi.Motor": "WARNING",
-            "open_smi.MotionDevice": "WARNING",
-            "open_smi.MotionDeviceSystem": "WARNING",
-            "open_smi.Laser": "WARNING",
-            "open_smi.Resource": "WARNING",
-            "open_smi.Storage": "WARNING",
-            "open_smi.StorageSlot": "WARNING",
-            "open_smi.Safety": "WARNING",
-            "open_smi.Shuttle": "WARNING",
-            "open_smi.Skill": "WARNING",
-            "open_smi.AccessControl": "INFO",
-            "open_smi.Lock": "INFO",
-            "open_smi.UaFiniteStateMachine": "ERROR",
+            "opensmi.Server": "INFO",
+            "opensmi": "WARNING",
             "asyncua": "ERROR",
         }
     )

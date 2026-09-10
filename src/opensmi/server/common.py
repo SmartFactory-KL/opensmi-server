@@ -19,7 +19,7 @@ from transitions import MachineError
 
 from opensmi.server.interfaces import AbstractSkill
 
-_LOGGER = structlog.get_logger("open_smi.common")
+_LOGGER = structlog.get_logger("opensmi.common")
 
 
 async def reset_skill_and_wait(skill: AbstractSkill, *, timeout: float | None = 60.0) -> None:

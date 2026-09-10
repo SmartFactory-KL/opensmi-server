@@ -46,7 +46,7 @@ class AccessControl(UserManager, AsyncTaskMixin):
         """Construct new instance using ``server``."""
         super().__init__()
 
-        self.logger: structlog.stdlib.BoundLogger = structlog.getLogger("open_smi.AccessControl")
+        self.logger: structlog.stdlib.BoundLogger = structlog.getLogger("opensmi.AccessControl")
         self._server: Server = server
         self._sessions: list[SessionProtocol] = []
         self.minimum_access: int = int(self._server.config.access_control.minimum_access_level)

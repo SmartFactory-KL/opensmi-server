@@ -27,7 +27,7 @@ from opensmi.server.ua_variable_containers import (
     init_container,
 )
 
-_LOGGER = structlog.get_logger("open_smi." + __name__)
+_LOGGER = structlog.get_logger("opensmi." + __name__)
 
 AttributesType = TypeVar("AttributesType", bound="Attributes")
 """Attributes type for the `UaObject`. Defaults to base `Attributes` type."""
