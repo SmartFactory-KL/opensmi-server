@@ -1,4 +1,4 @@
-# SPDX-FileCopyrightText: 2026 The Authors
+# SPDX-FileCopyrightText: 2026 OpenSMI Contributors
 #
 # SPDX-License-Identifier: MIT
 
@@ -10,11 +10,16 @@ from typing import Never
 from asyncua import ua
 from typing_extensions import override
 
-from open_smi_server import BaseComponent, BaseMachine, BaseMachineryItem, Monitoring, ParameterSet, UaVariable
-from open_smi_server.mixins import MonitoringMixin, ParameterSetMixin, ParentMixin
-from open_smi_server.mixins import NotificationForwarderMixin
-from open_smi_server.mixins import MethodSetMixin, SkillSetMixin
-from open_smi_server.ua_object_containers import MethodSet, SkillSet
+from opensmi.server import BaseComponent, BaseMachine, BaseMachineryItem, Monitoring, ParameterSet, UaVariable
+from opensmi.server.mixins import (
+    MethodSetMixin,
+    MonitoringMixin,
+    NotificationForwarderMixin,
+    ParameterSetMixin,
+    ParentMixin,
+    SkillSetMixin,
+)
+from opensmi.server.ua_object_containers import MethodSet, SkillSet
 
 from .dummy_method import DummyMethod
 from .dummy_skill_simple import DummySkillSimple

@@ -1,4 +1,4 @@
-# SPDX-FileCopyrightText: 2026 The Authors
+# SPDX-FileCopyrightText: 2026 OpenSMI Contributors
 #
 # SPDX-License-Identifier: MIT
 
@@ -6,7 +6,7 @@ import asyncio
 
 from dummy.dummy_machine import DummyMachine
 
-from open_smi_server import get_server
+from opensmi.server import get_server
 
 
 async def main() -> None:

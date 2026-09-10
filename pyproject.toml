@@ -35,7 +35,7 @@ classifiers = [
 requires-python = ">=3.11"
 
 dependencies = [
-    "OpenSMI-Common>=0.1",
+    "OpenSMI-Core>=0.1",
     "asyncua>=2.0.1,<3", # OPC UA, main dep; has quite a few deps
     "transitions>=0.9, <1", # FSM; TODO remove it
     "structlog>=26", # structured logging; has no deps
@@ -43,7 +43,7 @@ dependencies = [
 ]
 
 [tool.uv.sources]  # TODO remove when published
-OpenSMI-Common = { path = "../open_smi_common", editable = true }
+OpenSMI-Core = { path = "../open_smi_common", editable = true }
 
 [project.optional-dependencies]
 rich = [
@@ -73,6 +73,7 @@ include-package-data = true
 
 [tool.setuptools.packages.find]
 where = ["src"]
+namespaces = true
 # exclude = ["tests", "doc*", "examples"]
 
 [tool.ruff]
@@ -137,7 +138,7 @@ author = "OpenSMI Contributors"
 [tool.ruff.lint.per-file-ignores]
 "tests/**" = ["ANN", "D", "T", "SLF001"]
 "tools/**" = ["T"]
-"src/open_smi/common/unit_all.py" = ["Q000"]  # auto-generated with repr
+
 
 [tool.ruff.format]
 quote-style = "double"
@@ -160,7 +161,7 @@ docstring-code-format = true
 docstring-code-line-length = "dynamic"
 
 [tool.mypy]
-packages = "src/open_smi"
+packages = "src/opensmi/server"
 
 warn_unused_configs = true
 pretty = true
@@ -174,7 +175,7 @@ executionEnvironments = [{ root = "src" }]
 
 [tool.pydoctor]
 project-name = "OpenSMI"
-add-package = ["src/open_smi"]
+add-package = ["src/opensmi/server"]
 docformat = "restructuredtext"
 theme = "readthedocs"
 # verbose = 1

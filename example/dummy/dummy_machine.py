@@ -1,4 +1,4 @@
-# SPDX-FileCopyrightText: 2026 The Authors
+# SPDX-FileCopyrightText: 2026 OpenSMI Contributors
 #
 # SPDX-License-Identifier: MIT
 
@@ -7,13 +7,12 @@ import math
 from asyncua import ua
 from typing_extensions import override
 
-from open_smi_server import BaseMachine, Components, MethodSet, ParameterSet, Resource, SkillSet, UaVariable
-from open_smi_server.mixins import (
+from opensmi.server import BaseMachine, Components, MethodSet, ParameterSet, SkillSet, UaVariable
+from opensmi.server.mixins import (
     ComponentsMixin,
     MethodSetMixin,
     MonitoringMixin,
     ParameterSetMixin,
-    ResourcesMixin,
     SkillSetMixin,
 )
 
@@ -25,7 +24,6 @@ from .continuous_skill_self_halting import ContinuousSkillSelfHalting
 from .dummy_component import DummyComponent
 from .dummy_method import DummyMethod
 from .dummy_skill import DummySkill as DummySkillImpl
-from .dummy_skill_resources import DummySkillResources
 from .startup_skill import StartupSkill
 from .suspendable_dummy_skill import SuspendableDummySkill
 

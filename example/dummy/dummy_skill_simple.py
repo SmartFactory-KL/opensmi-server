@@ -1,4 +1,4 @@
-# SPDX-FileCopyrightText: 2026 The Authors
+# SPDX-FileCopyrightText: 2026 OpenSMI Contributors
 #
 # SPDX-License-Identifier: MIT
 
@@ -8,8 +8,8 @@ import asyncio
 
 from typing_extensions import override
 
-from open_smi_server import BaseMachineryItem, BaseSkillFinalResultData, BaseSkillFinite, ParameterSet, UaVariable
-from open_smi_server.mixins import FinalResultDataMixin, ParameterSetMixin, ParentMixin
+from opensmi.server import BaseMachineryItem, BaseSkillFinalResultData, BaseSkillFinite, ParameterSet, UaVariable
+from opensmi.server.mixins import FinalResultDataMixin, ParameterSetMixin, ParentMixin
 
 
 class DummySkillSimpleParameterSet(ParameterSet):

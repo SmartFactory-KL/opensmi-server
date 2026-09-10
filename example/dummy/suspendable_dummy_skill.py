@@ -1,4 +1,4 @@
-# SPDX-FileCopyrightText: 2026 The Authors
+# SPDX-FileCopyrightText: 2026 OpenSMI Contributors
 #
 # SPDX-License-Identifier: MIT
 
@@ -6,11 +6,12 @@ from __future__ import annotations
 
 import asyncio
 
+from opensmi.core import SkillState
 from typing_extensions import override
 
-from open_smi_common.enums import SkillState
-from open_smi_server import BaseMachineryItem, BaseSkillFinite, Monitoring, UaVariable
-from open_smi_server.mixins import FinalResultDataMixin, MonitoringMixin, ParameterSetMixin, ParentMixin
+from opensmi.server import BaseMachineryItem, BaseSkillFinite, Monitoring, UaVariable
+from opensmi.server.mixins import FinalResultDataMixin, MonitoringMixin, ParameterSetMixin, ParentMixin
+
 from .dummy_skill_simple import DummySkillSimpleFinalResultData, DummySkillSimpleParameterSet
 
 MAX_STEPS = 100

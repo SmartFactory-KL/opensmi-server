@@ -1,4 +1,4 @@
-# SPDX-FileCopyrightText: 2026 The Authors
+# SPDX-FileCopyrightText: 2026 OpenSMI Contributors
 #
 # SPDX-License-Identifier: MIT
 
@@ -7,8 +7,8 @@ from typing import TYPE_CHECKING
 from asyncua import ua
 from typing_extensions import override
 
-from open_smi_server import BaseMachineryItem, BaseSkillFinite, FinalResultData, ParameterSet, Resource, UaVariable
-from open_smi_server.mixins import FinalResultDataMixin, ParameterSetMixin, ParentMixin
+from opensmi.server import BaseMachineryItem, BaseSkillFinite, FinalResultData, ParameterSet, Resource, UaVariable
+from opensmi.server.mixins import FinalResultDataMixin, ParameterSetMixin, ParentMixin
 
 if TYPE_CHECKING:
     from tests.dummy_module.dummy_machine import DummyMachine  # prevent circular import

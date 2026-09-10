@@ -1,4 +1,4 @@
-# SPDX-FileCopyrightText: 2026 The Authors
+# SPDX-FileCopyrightText: 2026 OpenSMI Contributors
 #
 # SPDX-License-Identifier: MIT
 
@@ -9,8 +9,9 @@ from enum import IntEnum
 
 from typing_extensions import override
 
-from open_smi_server import BaseMachineryItem, BaseSkillFinite, UaVariable
-from open_smi_server.mixins import FinalResultDataMixin, ParameterSetMixin, ParentMixin, RequirementsMixin
+from opensmi.server import BaseMachineryItem, BaseSkillFinite, UaVariable
+from opensmi.server.mixins import FinalResultDataMixin, ParameterSetMixin, ParentMixin, RequirementsMixin
+
 from .dummy_skill_simple import DummySkillSimpleFinalResultData, DummySkillSimpleParameterSet
 
 

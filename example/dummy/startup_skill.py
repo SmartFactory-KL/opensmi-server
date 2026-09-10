@@ -1,8 +1,8 @@
 from typing_extensions import override
 
-from open_smi_server import BaseSkillFinalResultData
-from open_smi_server.base_startup_skill import BaseStartupSkill
-from open_smi_server.mixins import FinalResultDataMixin
+from opensmi.server import BaseSkillFinalResultData
+from opensmi.server.base_startup_skill import BaseStartupSkill
+from opensmi.server.mixins import FinalResultDataMixin
 
 
 class StartupSkill(BaseStartupSkill, FinalResultDataMixin[BaseSkillFinalResultData]):

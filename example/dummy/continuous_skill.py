@@ -1,4 +1,4 @@
-# SPDX-FileCopyrightText: 2026 The Authors
+# SPDX-FileCopyrightText: 2026 OpenSMI Contributors
 #
 # SPDX-License-Identifier: MIT
 
@@ -10,7 +10,7 @@ import time
 
 from typing_extensions import override
 
-from open_smi_server import (
+from opensmi.server import (
     BaseMachineryItem,
     BaseSkillContinuous,
     BaseSkillFinalResultData,
@@ -18,7 +18,7 @@ from open_smi_server import (
     ParameterSet,
     UaVariable,
 )
-from open_smi_server.mixins import FinalResultDataMixin, MonitoringMixin, ParameterSetMixin, ParentMixin
+from opensmi.server.mixins import FinalResultDataMixin, MonitoringMixin, ParameterSetMixin, ParentMixin
 
 
 class ContinuousSkillParameterSet(ParameterSet):

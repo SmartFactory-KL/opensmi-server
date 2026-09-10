@@ -1,4 +1,4 @@
-# SPDX-FileCopyrightText: 2026 The Authors
+# SPDX-FileCopyrightText: 2026 OpenSMI Contributors
 #
 # SPDX-License-Identifier: MIT
 
@@ -8,11 +8,11 @@ import asyncio
 import random
 import time
 
-from open_smi_common.errors import OpenSmiRuntimeError
+from opensmi.core.errors import OpenSmiRuntimeError
 from typing_extensions import override
 
-from open_smi_server import BaseMachineryItem, BaseSkillContinuous, BaseSkillFinalResultData, UaVariable
-from open_smi_server.mixins import FinalResultDataMixin, MonitoringMixin, ParameterSetMixin, ParentMixin
+from opensmi.server import BaseMachineryItem, BaseSkillContinuous, BaseSkillFinalResultData, UaVariable
+from opensmi.server.mixins import FinalResultDataMixin, MonitoringMixin, ParameterSetMixin, ParentMixin
 
 from .continuous_skill import ContinuousSkillMonitoring, ContinuousSkillParameterSet
 

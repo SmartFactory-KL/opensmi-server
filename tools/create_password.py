@@ -1,11 +1,11 @@
-# SPDX-FileCopyrightText: 2026 The Authors
+# SPDX-FileCopyrightText: 2026 OpenSMI Contributors
 #
 # SPDX-License-Identifier: MIT
 
 import base64
 import os
 
-from open_smi_server.common import SECRET_KEY_NAME, get_scrypt_instance
+from opensmi.server.common import SECRET_KEY_NAME, get_scrypt_instance
 
 
 def main() -> None:
@@ -25,8 +25,7 @@ def main() -> None:
             print("Here is the password for use with the access control:")
             print(scrypt.derive(bytes(cleartext_password, "utf-8")))
             return
-        else:
-            print("The entered password do not match! Please try again.")
+        print("The entered password do not match! Please try again.")
 
 
 if __name__ == "__main__":

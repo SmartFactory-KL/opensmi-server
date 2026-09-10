@@ -1,4 +1,4 @@
-# SPDX-FileCopyrightText: 2026 The Authors
+# SPDX-FileCopyrightText: 2026 OpenSMI Contributors
 #
 # SPDX-License-Identifier: MIT
 
@@ -8,11 +8,10 @@ import asyncio
 import random
 
 from asyncua import Node
+from opensmi.core import OpenSmiRuntimeError
 from typing_extensions import override
 
-from open_smi_common import OpenSmiRuntimeError
-from open_smi_server import BaseSkillFinite
-from open_smi_server import BaseFeasibilityCheck
+from opensmi.server import BaseFeasibilityCheck, BaseSkillFinite
 
 # this would probably be a database or similar for real applications
 feasibility_check_map = {}

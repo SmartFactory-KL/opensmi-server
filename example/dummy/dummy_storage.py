@@ -1,4 +1,4 @@
-# SPDX-FileCopyrightText: 2026 The Authors
+# SPDX-FileCopyrightText: 2026 OpenSMI Contributors
 #
 # SPDX-License-Identifier: MIT
 
@@ -8,13 +8,13 @@ import asyncio
 import time
 
 from asyncua import ua
-from typing_extensions import override
-
-from open_smi_server import BaseMachine, BaseSkillContinuous, Monitoring, ParameterSet
-from open_smi_server.mixins import MonitoringMixin, ParameterSetMixin, ParentMixin
-from open_smi_server.ua_variable import UaVariable
 from pyuaadapter_sfkl.components.base_storage import BaseStorage
 from pyuaadapter_sfkl.skills.storage_skills import StoreAllEmptySkill, update_storage_random
+from typing_extensions import override
+
+from opensmi.server import BaseMachine, BaseSkillContinuous, Monitoring, ParameterSet
+from opensmi.server.mixins import MonitoringMixin, ParameterSetMixin, ParentMixin
+from opensmi.server.ua_variable import UaVariable
 
 
 class _ParameterSet(ParameterSet):

@@ -1,4 +1,4 @@
-# SPDX-FileCopyrightText: 2026 The Authors
+# SPDX-FileCopyrightText: 2026 OpenSMI Contributors
 #
 # SPDX-License-Identifier: MIT
 
@@ -6,11 +6,11 @@ from __future__ import annotations
 
 from typing import TYPE_CHECKING
 
-from open_smi_common import Unit
+from opensmi.core import Unit
 from typing_extensions import override
 
-from open_smi_server import BaseSkillFinalResultData, BaseSkillFinite, Monitoring, UaVariable
-from open_smi_server.mixins import FinalResultDataMixin, MonitoringMixin, ParentMixin, RequirementsMixin
+from opensmi.server import BaseSkillFinalResultData, BaseSkillFinite, Monitoring, UaVariable
+from opensmi.server.mixins import FinalResultDataMixin, MonitoringMixin, ParentMixin, RequirementsMixin
 
 if TYPE_CHECKING:
     from .dummy_machine import DummyMachine as DummyMachine

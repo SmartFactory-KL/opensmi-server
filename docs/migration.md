@@ -34,7 +34,7 @@ This guide should help users to upgrade to the newest version.
 - OPC UA based Logging:
   - `_log_*` methods are named `ua_log_*`, i.e. `_log_error` methods are now `ua_log_error`.
   - Components have to either need to inherit the `NotificationMixin` or `NotificationForwardMixin`
-    (see [notification_mixins.py](../src/open_smi_server/mixins/notification_mixins.py) for details)
+    (see [notification_mixins.py](../src/opensmi/server/mixins/notification_mixins.py) for details)
   - Modules automatically inherit `NotificationMixin`
 - AccessControl now in server, Lock in machines and optionally in components.
   - `server.access_control`
@@ -46,7 +46,7 @@ This guide should help users to upgrade to the newest version.
 ```python
 import asyncio
 
-from open_smi_server import get_server
+from opensmi.server import get_server
 from tests.dummy_module.config import TestConfig
 from tests.dummy_module.dummy_machine import DummyMachine
 
@@ -238,7 +238,7 @@ respective ```_handle_XXX``` methods. For continuous skills, you need to split t
 #### StartupSkill
 
 > [!note]
-> There is now a [BaseStartupSkill](../src/open_smi_server/base_startup_skill.py) available.
+> There is now a [BaseStartupSkill](../src/opensmi/server/base_startup_skill.py) available.
 
 A Startup skill is required for the module and optional for components. The startup skill for components is only 
 required, if that component requires special startup sequences etc. Else, the only all sub-components and all skills 
