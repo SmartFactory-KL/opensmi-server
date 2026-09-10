@@ -12,29 +12,15 @@ from typing import Final
 from opensmi.core.protocols import NamespaceProvider
 
 from .di import DiNodeIds as DiNodeIds
-from .ecm import ECMNodeIds as ECMNodeIds
-from .ia import IANodeIds as IANodeIds
-from .laser_systems import LaserSystemsNodeIds as LaserSystemsNodeIds
-from .machine_tool import MachineToolNodeIds as MachineToolNodeIds
 from .machinery import MachineryNodeIds as MachineryNodeIds
-from .robotics import RoboticsNodeIds as RoboticsNodeIds
 from .rsl import RSLNodeIds as RSLNodeIds
-from .smart_factory_energy_consumption_management import (
-    SmartFactoryEnergyConsumptionManagementNodeIds as SmartFactoryEnergyConsumptionManagementNodeIds,
-)
 from .smart_factory_machine_set import SmartFactoryMachineSetNodeIds as SmartFactoryMachineSetNodeIds
 from .smart_factory_skill_set import SmartFactorySkillSetNodeIds as SmartFactorySkillSetNodeIds
 
 NODE_SETS: Final[dict[str, type[NamespaceProvider]]] = {
     "http://opcfoundation.org/UA/DI/": DiNodeIds,
-    "http://opcfoundation.org/UA/ECM/": ECMNodeIds,
-    "http://opcfoundation.org/UA/IA/": IANodeIds,
-    "http://opcfoundation.org/UA/LaserSystems/": LaserSystemsNodeIds,
     "http://opcfoundation.org/UA/Machinery/": MachineryNodeIds,
-    "http://opcfoundation.org/UA/MachineTool/": MachineToolNodeIds,
-    "http://opcfoundation.org/UA/Robotics/": RoboticsNodeIds,
     "http://opcfoundation.org/UA/RSL/": RSLNodeIds,
-    "http://smartfactory.de/UA/EnergyConsumptionManagement": SmartFactoryEnergyConsumptionManagementNodeIds,
     "http://smartfactory.de/UA/MachineSet": SmartFactoryMachineSetNodeIds,
     "http://smartfactory.de/UA/SkillSet": SmartFactorySkillSetNodeIds,
 }
