@@ -1,0 +1,49 @@
+default:
+  image: python:3.14-alpine
+  cache:
+    key: "$CI_COMMIT_REF_SLUG"
+    paths:
+      - .cache/pip
+  tags:
+    - k8s
+
+#test:
+#  stage: test
+#  parallel:
+#    matrix:
+#      - PYTHON_VERSION: [ "3.11", "3.14" ]
+#  image: python:${PYTHON_VERSION}-alpine
+#  before_script:
+#    - apk add --no-cache git
+#    - python --version
+#    - python -m pip install --cache-dir .cache/pip --upgrade pip setuptools wheel
+#    - python -m pip install --cache-dir .cache/pip . --group dev
+#  script:
+#    - python -m pytest --timeout=120 --html=report.html --self-contained-html --junitxml=result.xml --cov=open_smi --cov-report term --cov-report xml:coverage.xml -v -n 8
+#  coverage: '/TOTAL.+ ([0-9]{1,3}%)/'
+#  artifacts:
+#    when: always
+#    paths:
+#      - report.html
+#      - result.xml
+#      - coverage.xml
+#      - .coverage
+#    reports:
+#      junit: result.xml
+#      coverage_report:
+#        coverage_format: cobertura
+#        path: coverage.xml
+
+package:
+  stage: deploy
+  variables:
+    TWINE_USERNAME: ${CICD_GENERIC_PIP_DEPLOY_USERNAME}
+    TWINE_PASSWORD: ${CICD_GENERIC_PIP_DEPLOY_TOKEN}
+    TWINE_REPOSITORY_URL: https://ifs.dfki.de/api/v4/projects/1954/packages/pypi
+  script:
+    - apk add --no-cache git
+    - pip install build twine
+    - python -m build
+    - python -m twine upload dist/* --verbose
+  rules:
+    - if: $CI_COMMIT_TAG
