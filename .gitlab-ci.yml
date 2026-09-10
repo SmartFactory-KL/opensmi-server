@@ -37,9 +37,9 @@ default:
 package:
   stage: deploy
   variables:
-    TWINE_USERNAME: ${CICD_GENERIC_PIP_DEPLOY_USERNAME}
-    TWINE_PASSWORD: ${CICD_GENERIC_PIP_DEPLOY_TOKEN}
-    TWINE_REPOSITORY_URL: https://ifs.dfki.de/api/v4/projects/1954/packages/pypi
+    TWINE_USERNAME: __token__
+    TWINE_PASSWORD: ${TEST_PYPI_PASSWORD}
+    TWINE_REPOSITORY_URL: https://test.pypi.org/legacy/
   script:
     - apk add --no-cache git
     - pip install build twine
