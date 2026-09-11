@@ -58,6 +58,10 @@ class _SkillLogicMixin(AbstractSkill, AbstractUaLogger):
         """Keeps track of tasks related to skill execution and their name. 
         These tasks will get canceled and emptied before handle_halting() is called."""
 
+        self._resume_event: asyncio.Event = asyncio.Event()
+        self._resume_event.set()  # not suspended by default
+        self._paused_event: asyncio.Event = asyncio.Event()
+
         self._machine: UaFiniteStateMachine = UaFiniteStateMachine(
             name=f"{self.name}_StateMachine",
             states=SkillState,  # type: ignore
@@ -149,6 +153,9 @@ class _SkillLogicMixin(AbstractSkill, AbstractUaLogger):
 
     async def _after_starting(self, *args, **kwargs) -> None:
         """Is called by the finite state machine after the `SkillState.STARTING` state is entered."""
+        # covers both a fresh start (Ready) and a resume (from Suspended)
+        self._resume_event.set()
+
         await self._wrap_handle_method(handle_method=self._handle_starting, success_trigger="starting_done")
 
     @abstractmethod
@@ -157,7 +164,13 @@ class _SkillLogicMixin(AbstractSkill, AbstractUaLogger):
 
     async def _after_suspending(self, *args, **kwargs):
         """Is called by the finite state machine after the `SkillState.SUSPENDING` state is entered."""
-        await self._wrap_handle_method(handle_method=self._handle_suspending, success_trigger="suspending_done")
+        self._resume_event.clear()
+
+        async def _suspend_and_wait_for_pause() -> None:
+            await self._handle_suspending()
+            await self._paused_event.wait()
+
+        await self._wrap_handle_method(handle_method=_suspend_and_wait_for_pause, success_trigger="suspending_done")
 
     async def _wrap_handle_method(
         self,
@@ -264,6 +277,22 @@ class _SkillLogicMixin(AbstractSkill, AbstractUaLogger):
 
         After this function is returns, the skill will automatically advance to the `SkillState.SUSPENDED` state.
         """
+
+    async def _suspend_point(self) -> None:
+        """Blocks if current_state is `SkillState.SUSPENDING` and allow advance to `SkillState.SUSPENDED`.
+
+        Call from `_handle_running` at any point where it's safe to pause.
+        """
+        if self._resume_event.is_set():
+            return
+
+        self._paused_event.set()
+        try:
+            self.logger.debug("Paused at checkpoint, awaiting resume...")
+            await self._resume_event.wait()
+            self.logger.debug("Resumed from checkpoint")
+        finally:
+            self._paused_event.clear()
 
     ######################################
     # OPC-UA Callbacks
