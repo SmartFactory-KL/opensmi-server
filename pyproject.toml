@@ -5,20 +5,24 @@ build-backend = "setuptools.build_meta"
 [project]
 name = "OpenSMI-Server"
 dynamic = ["version"]
-
-description = "Smart Machine Interface Server according to the SmartFactory-KL OPC-UA information model specifications."
+readme = "README.md"
+description = "Asyncronous Python framework for building Smart Machine Interface-compliant OPC UA servers."
 authors = [
     { name = "Carsten Harms", email = "Carsten.Harms@dfki.de" },
     { name = "Simon Jungbluth", email = "Simon.Jungbluth@smartfactory.de" },
 ]
+license = "MIT"
+license-files = ["LICENSES/MIT.txt"]
 
 # see https://pypi.org/classifiers/
 classifiers = [
     "Development Status :: 4 - Beta",
+    "Framework :: AsyncIO",
     "Intended Audience :: Developers",
     "Intended Audience :: Information Technology",
     "Intended Audience :: Manufacturing",
     "Intended Audience :: Science/Research",
+    "License :: OSI Approved :: MIT License",
     "Programming Language :: Python :: 3",
     "Programming Language :: Python :: 3.11",
     "Programming Language :: Python :: 3.12",
