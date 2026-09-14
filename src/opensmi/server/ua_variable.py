@@ -6,7 +6,7 @@
 
 from collections.abc import AsyncGenerator, Iterator
 from datetime import timedelta
-from enum import IntEnum
+from enum import Enum, IntEnum
 from typing import Generic
 
 from asyncua import ua
@@ -62,6 +62,22 @@ def _get_initial_value_and_type(
     raise ValueError(msg)
 
 
+def _validate_enum_type(enum_type: type[Enum]) -> None:
+    """Ensure given ``enum_type`` satisfies OPC UA's enumeration requirements."""
+    if not issubclass(enum_type, IntEnum):
+        msg = "Enums are only supported as IntEnums!"
+        raise TypeError(msg)
+
+    values = [member.value for member in enum_type]
+    expected = list(range(len(values)))
+    if values != expected:
+        msg = (
+            f"OPC UA compatible IntEnums must start at 0 and increase by 1 per member; "
+            f"{enum_type.__name__} has values {values}, expected {expected}."
+        )
+        raise ValueError(msg)
+
+
 class UaVariable(UaObject, ParentMixin[UaObject], Generic[_VariableType]):
     """OPC UA Variable for use in `ParameterSet`, `Monitoring`, `FinalResultData`, etc.
 
@@ -99,12 +115,14 @@ class UaVariable(UaObject, ParentMixin[UaObject], Generic[_VariableType]):
         :param historize: Whether to keep a history of past values of this variable.
         :param bypass_lock: Whether the variable can be written to without ownership of corresponding lock.
         :param variable_type: The Python type of the variable. Is only required if type cannot be determined from
-            ``inital_value``, i.e. when ``None`` is provided.
+            ``initial_value``, i.e. when ``None`` is provided.
         """
         super().__init__(minimum_access_level=minimum_access_level, bypass_lock=bypass_lock, **kwargs)  # pyright: ignore[reportArgumentType]
 
         self._initial_value, self._initial_value_type = _get_initial_value_and_type(initial_value, variable_type)
         assert self._initial_value.VariantType != ua.VariantType.Null
+        if issubclass(self._initial_value_type, Enum):
+            _validate_enum_type(self._initial_value_type)
 
         if isinstance(unit, Unit):
             self._unit = unit.ua_eu_information
@@ -265,7 +283,7 @@ class UaVariable(UaObject, ParentMixin[UaObject], Generic[_VariableType]):
         Defines valid values for `UaObject` variable types.
         """
         if not issubclass(self._initial_value_type, UaObject):
-            msg = f"Variable type of {self.full_name} is not of type UaObject: {self._initial_value_type}!"
+            msg = f"Variable type of {self.path} is not of type UaObject: {self._initial_value_type}!"
             raise TypeError(msg)
         assert isinstance(target, UaObject)
         self._references.add(target)
@@ -278,7 +296,7 @@ class UaVariable(UaObject, ParentMixin[UaObject], Generic[_VariableType]):
             target=target.ua_node,
             reftype=ua.FourByteNodeId(ua.Int32(ua.object_ids.ObjectIds.Utilizes)),
         )
-        self.logger.debug("Added utilizes reference", target=target.full_name)
+        self.logger.debug("Added utilizes reference", target=target.path)
 
     async def remove_reference(self, target: UaObject) -> None:
         """Remove the existing reference to the given ``target`` `UaObject`."""
@@ -288,7 +306,7 @@ class UaVariable(UaObject, ParentMixin[UaObject], Generic[_VariableType]):
             target=target.ua_node,
             reftype=ua.FourByteNodeId(ua.Int32(ua.object_ids.ObjectIds.Utilizes)),
         )
-        self.logger.debug("Removed utilizes reference", target=target.full_name)
+        self.logger.debug("Removed utilizes reference", target=target.path)
 
     def write_check(self, value: _VariableType | ua.Variant | None) -> None:
         """Check whether given ``value`` can be written to this variable.
@@ -298,14 +316,14 @@ class UaVariable(UaObject, ParentMixin[UaObject], Generic[_VariableType]):
         self.logger.debug("write check", value=value)
 
         if value is None and not self.optional_ok and self._initial_value_type is not str:
-            msg = f"None is not a valid value for {self.full_name}!"
+            msg = f"None is not a valid value for {self.path}!"
             raise OutOfRangeError(msg)
 
         if isinstance(value, ua.Variant):
             value = value.Value
 
         if isinstance(value, UaObject) and value not in self._references:
-            msg = f"{value=} is not referenced as a valid value for {self.full_name}!"
+            msg = f"{value=} is not referenced as a valid value for {self.path}!"
             raise OutOfRangeError(msg)
         if isinstance(value, ua.NodeId):
             if value.is_null() and self.optional_ok:
@@ -314,7 +332,7 @@ class UaVariable(UaObject, ParentMixin[UaObject], Generic[_VariableType]):
             try:
                 obj = self.server.get_ua_object(value)
                 if obj not in self._references:
-                    msg = f"{value=} is a valid {obj}, but not referenced as a valid value for {self.full_name}!"
+                    msg = f"{value=} is a valid {obj}, but not referenced as a valid value for {self.path}!"
                     raise OutOfRangeError(msg)
             except KeyError:
                 msg = f"{value=} is not a valid UaObject!"
@@ -322,16 +340,16 @@ class UaVariable(UaObject, ParentMixin[UaObject], Generic[_VariableType]):
 
         if not self.check_range(value):
             assert self._range is not None
-            msg = f"Value {value} is out of range for {self.full_name}! Must be between {self._range[0]} and {self._range[1]}!"
+            msg = (
+                f"Value {value} is out of range for {self.path}! Must be between {self._range[0]} and {self._range[1]}!"
+            )
             raise OutOfRangeError(msg)
 
         if issubclass(self._initial_value_type, IntEnum):
             try:
                 value = self._initial_value_type(value)
             except ValueError as err:
-                msg = (
-                    f"{self.full_name}: Given value {value} is outside of valid values for {self._initial_value_type}!"
-                )
+                msg = f"{self.path}: Given value {value} is outside of valid values for {self._initial_value_type}!"
                 raise OutOfRangeError(msg) from err
 
     async def write(self, value: _VariableType | ua.Variant | None) -> None:
@@ -356,7 +374,7 @@ class UaVariable(UaObject, ParentMixin[UaObject], Generic[_VariableType]):
                 value = value.nodeid
             assert isinstance(value, ua.NodeId), f"{value=} is not a valid NodeId!"
             if value.is_null():
-                msg = f"No valid value provided for '{self.full_name}'!"
+                msg = f"No valid value provided for '{self.path}'!"
                 raise NoValidValueReadError(msg)
             ua_object = self.server.get_ua_object(value)
             assert isinstance(ua_object, self._initial_value_type), (
@@ -394,7 +412,7 @@ class UaVariable(UaObject, ParentMixin[UaObject], Generic[_VariableType]):
             return True
         if isinstance(value, ua.Variant):
             value = value.Value
-        assert isinstance(value, (float, int)), f"{self.full_name}: {value} is not a float or int!"
+        assert isinstance(value, (float, int)), f"{self.path}: {value} is not a float or int!"
         low, high = self._range
         return low <= value <= high
 
