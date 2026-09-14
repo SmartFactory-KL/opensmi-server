@@ -2,16 +2,16 @@
 
 **Open Smart Machine Interface (SMI)** provides an abstract, standardized, vendor-neutral way to interact safely
 with real (or simulated) machines. **OpenSMI** is an asynchronous Python framework, built on top of
-[asyncua](https://github.com/FreeOpcUa/opcua-asyncio) for building SMI-compliant OPC-UA servers.
+[asyncua](https://github.com/FreeOpcUa/opcua-asyncio) for building SMI-compliant OPC UA servers.
 
 It gives you the building blocks for exposing manufacturing capabilities — axes, grippers, robots, conveyors, whole
-machines — over a standardized, hierarchical OPC-UA information model, without having to hand-roll everything yourself.
+machines — over a standardized, hierarchical OPC UA information model, without having to hand-roll everything yourself.
 
 ## Why OpenSMI
 
-A common real-world use case is as an **adapter in front of a PLC**: many PLCs can speak OPC-UA but don't natively
-expose SMI's richer skill model — suspendable/resumable skills, composite orchestration, feasibility/precondition
-checks, standardized locking. OpenSMI lets you sit in front of such a PLC and:
+A common real-world use case is as an **adapter in front of a Programmable Logic Controller (PLC)**: many PLCs can speak
+OPC UA but don't natively expose SMI's richer skill model — suspendable/resumable skills, composite orchestration,
+feasibility/precondition checks, standardized locking. OpenSMI lets you sit in front of such a PLC and:
 
 - **Adapt** what the PLC already exposes into proper SMI skills/methods, so any SMI-aware client can talk to it
   uniformly regardless of vendor or PLC platform.
@@ -29,12 +29,12 @@ coordination logic lives in a language better suited for rapid development.
 ## Installation
 
 ```bash
-pip install Opensmi-Server
+pip install opensmi-server
 ```
 
 ## Quick Start
 
-Define a skill, add it to a machine, and start the OPC-UA server:
+Define a skill, add it to a machine, and start the OPC UA server:
 
 ```python
 import asyncio
@@ -108,7 +108,7 @@ if __name__ == "__main__":
 
 ### Usage
 
-1. Connect to the server with any OPC-UA client
+1. Connect to the server with any OPC UA client
    (e.g. [UaExpert](https://www.unified-automation.com/products/development-tools/uaexpert.html))
    at `opc.tcp://localhost:4841`, authenticating as user `operator` with password `operator`.
 2. Navigate to `Objects/Machines/ExampleMachine`.
@@ -144,7 +144,7 @@ See [here](example) for more OpenSMI server examples.
 ## Project Status
 
 OpenSMI began as a closed-source project at [SmartFactory-KL](https://smartfactory.de/), in active use in our model
-factory since 2020. Its OPC-UA information model has been refined across many iterations of research and
+factory since 2020. Its OPC UA information model has been refined across many iterations of research and
 demonstrator use. The framework was open-sourced in 2026 following substantial refactoring and cleanup.
 
 Most of the framework is stable and well-tested, but it remains pre-1.0 — expect minor API changes before the 1.0
@@ -157,11 +157,37 @@ experimentation, but is generally **not recommended for industrial deployment**.
 e.g. C# on the [official OPC Foundation .NET stack](https://github.com/OPCFoundation/UA-.NETStandard), or C++ using
 > [open62541](https://open62541.org/). Get in touch if that's something you'd want to support.
 
+<!-- 
+## OPC UA Nodesets
+-->
+
+## Publications
+
+Get more information of OpenSMI by reading our publications:
+
+### Scientific Publications
+
+| Title                                                                                                                                                                                                 | Content                                                                            |
+|-------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------|------------------------------------------------------------------------------------|
+| [**Seamless Machine Integration in Smart Manufacturing: Utilizing OPC UA for Machinery with Skill-Based Engineering of Varying Granularity**](https://ieeexplore.ieee.org/abstract/document/11599075) | Application of skills in robotics and an introduction to OpenSMI's OPC UA modeling |
+| [**Developing a skill-based flexible transport system using OPC UA**](https://www.degruyterbrill.com/de/document/doi/10.1515/auto-2022-0115)                                                          | Application of skills in intralogistic                                             |
+| [**Interaction between FeasibilityCheck, PreconditionCheck and SkillExecution in skill-based machining**](https://ieeexplore.ieee.org/abstract/document/10275520)                                     | Application of skills in machining                                                 |
+
+### Joint Publications
+
+| Title                                                                                                                                                                                  | Content                                                                                                               |
+|----------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------|-----------------------------------------------------------------------------------------------------------------------|
+| [**Capabilities and Skills in Production Automation**](https://www.vdma.eu/documents/34570/77803117/Capabilities_and_Skills_in_Production_Automation_EN.pdf)                           | Guidline for capabilities and skills with a focus on OPC UA                                                           |
+| [**Information Model for Capabilities, Skills & Services**](https://www.plattform-i40.de/IP/Redaktion/DE/Downloads/Publikation/CapabilitiesSkillsServices.pdf)                         | Presenting an information model for flexible manufacturing in Industry 4.0 based on capabilities, skills and services |
+| [**Capabilities, Skills and Services CSS Model Extensions and Engineering Methodology**](https://www.plattform-i40.de/IP/Redaktion/DE/Downloads/Publikation/2025-i40-capabilities.pdf) | Refinement of the information model for capabilities, skills and services                                             |
+
+<!-- 
 ## Contributing
+-->
 
 ## License
 
-MIT — see [here](LICENSES/MIT.txt) for details.
+[MIT](LICENSES/MIT.txt)
 
 ---
 
