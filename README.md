@@ -1,6 +1,5 @@
 # OpenSMI Server
 
-
 **Open Smart Machine Interface (SMI)** provides an abstract, standardized, vendor-neutral way to interact safely
 with real (or simulated) machines. **OpenSMI** is an asynchronous Python framework, built on top of
 [asyncua](https://github.com/FreeOpcUa/opcua-asyncio) for building SMI-compliant OPC-UA servers.
@@ -30,7 +29,7 @@ coordination logic lives in a language better suited for rapid development.
 ## Installation
 
 ```bash
-pip install opensmi
+pip install Opensmi-Server
 ```
 
 ## Quick Start
