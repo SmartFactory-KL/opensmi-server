@@ -45,6 +45,9 @@ dependencies = [
     "typing-extensions>=4.16.0", # backported type hints; already a dep of asyncua
 ]
 
+[project.urls]
+Repository = "https://github.com/SmartFactory-KL/opensmi-server"
+
 [project.optional-dependencies]
 rich = [
     "rich>=15.0.0", # colorful logging; transitive deps: markdown-it-py, mdurl & pygments
@@ -74,7 +77,7 @@ include-package-data = true
 [tool.setuptools.packages.find]
 where = ["src"]
 namespaces = true
-# exclude = ["tests", "doc*", "examples"]
+exclude = ["tests", "docs", "examples"]
 
 [tool.ruff]
 # Exclude a variety of commonly ignored directories.
