@@ -47,6 +47,7 @@ dependencies = [
 
 [project.urls]
 Repository = "https://github.com/SmartFactory-KL/opensmi-server"
+Documentation = "https://smartfactory-kl.github.io/opensmi-server/"
 
 [project.optional-dependencies]
 rich = [
