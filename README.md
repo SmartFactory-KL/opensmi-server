@@ -123,6 +123,8 @@ if __name__ == "__main__":
 8. Once `StateMachine`'s `CurrentState` reads `Completed`, read the result from `ComputationResult` under
    `FinalResultData`.
 
+Or simply use our [OpenSMI-Client](https://github.com/SmartFactory-KL/opensmi-client).
+
 **Explore the safety features:**
 
 - Try writing parameters or calling skill methods *without* holding the Lock — it will be rejected.
@@ -187,7 +189,10 @@ Get more information of OpenSMI by reading our publications:
 
 ## License
 
-[MIT](LICENSES/MIT.txt)
+The library itself is licensed under the [MIT License](LICENSES/MIT.txt).
+
+Example code contained in the [examples](examples) directory is dedicated to the public domain under
+the [CC0 1.0 Universal license](LICENSES/CC0-1.0.txt).
 
 ---
 
