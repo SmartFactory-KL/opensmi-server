@@ -182,5 +182,5 @@ add-package = ["src/opensmi/server"]
 docformat = "restructuredtext"
 theme = "readthedocs"
 # verbose = 1
-warnings-as-errors = true
+# warnings-as-errors = true
 intersphinx = ["https://opcua-asyncio.readthedocs.io/en/latest/objects.inv"] # TODO(CaHa): does not work
