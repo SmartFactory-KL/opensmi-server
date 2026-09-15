@@ -1,3 +1,8 @@
+[![Docs](https://img.shields.io/badge/docs-online-blue)](https://smartfactory-kl.github.io/opensmi-server/)
+[![PyPI version](https://img.shields.io/pypi/v/opensmi-server.svg)](https://pypi.org/project/opensmi-server/)
+[![Python versions](https://img.shields.io/pypi/pyversions/opensmi-server.svg)](https://pypi.org/project/opensmi-server/)
+[![License](https://img.shields.io/badge/license-MIT-blue)](LICENSE)
+
 # OpenSMI Server
 
 **Open Smart Machine Interface (SMI)** provides an abstract, standardized, vendor-neutral way to interact safely
