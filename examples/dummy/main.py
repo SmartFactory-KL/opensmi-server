@@ -4,7 +4,7 @@
 
 import asyncio
 
-from dummy.dummy_machine import DummyMachine
+from dummy_machine import DummyMachine
 
 from opensmi.server import Server
 

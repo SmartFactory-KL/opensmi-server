@@ -7,12 +7,11 @@ from __future__ import annotations
 import asyncio
 from enum import IntEnum
 
+from dummy_skill_simple import DummySkillSimpleFinalResultData, DummySkillSimpleParameterSet
 from typing_extensions import override
 
 from opensmi.server import BaseMachineryItem, BaseSkillFinite, UaVariable
 from opensmi.server.mixins import FinalResultDataMixin, ParameterSetMixin, ParentMixin, RequirementsMixin
-
-from .dummy_skill_simple import DummySkillSimpleFinalResultData, DummySkillSimpleParameterSet
 
 
 # Enums are supported, too!

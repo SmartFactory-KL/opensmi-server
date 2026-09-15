@@ -8,6 +8,8 @@ import random
 from typing import Never
 
 from asyncua import ua
+from dummy_method import DummyMethod
+from dummy_skill_simple import DummySkillSimple
 from typing_extensions import override
 
 from opensmi.server import BaseComponent, BaseMachine, BaseMachineryItem, Monitoring, ParameterSet, UaVariable
@@ -20,9 +22,6 @@ from opensmi.server.mixins import (
     SkillSetMixin,
 )
 from opensmi.server.ua_object_containers import MethodSet, SkillSet
-
-from .dummy_method import DummyMethod
-from .dummy_skill_simple import DummySkillSimple
 
 
 class DummyComponentParameterSet(ParameterSet):

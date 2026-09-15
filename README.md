@@ -129,7 +129,7 @@ if __name__ == "__main__":
 - Try writing `x` or `y` outside their allowed range — it will be rejected.
 - Try acquiring the Lock while authenticated as user `visitor` with password `visitor` — it will be rejected.
 
-See [here](example) for more OpenSMI server examples.
+See [here](examples) for more OpenSMI server examples.
 
 ## Core Concepts
 

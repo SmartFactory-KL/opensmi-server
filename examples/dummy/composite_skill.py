@@ -14,7 +14,7 @@ from opensmi.server import BaseSkillFinalResultData, BaseSkillFinite, Monitoring
 from opensmi.server.mixins import FinalResultDataMixin, MonitoringMixin, ParentMixin, RequirementsMixin
 
 if TYPE_CHECKING:
-    from .dummy_machine import DummyMachine as DummyMachine
+    from dummy_machine import DummyMachine as DummyMachine
 
 
 class CompositeDummySkillMonitoring(Monitoring):
@@ -41,7 +41,7 @@ class CompositeDummySkill(
     async def _init(self) -> None:
         await super()._init()
 
-        self._other_skill = self.parent.skill_set.DummySkillWithoutGateRequirement
+        self._other_skill = self.parent.skill_set.DummySkill
 
         # It's important to model dependencies in OPC UA for clients to understand relations!
         await self.add_dependency(self._other_skill)

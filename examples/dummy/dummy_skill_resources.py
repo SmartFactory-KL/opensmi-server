@@ -11,7 +11,7 @@ from opensmi.server import BaseMachineryItem, BaseSkillFinite, FinalResultData, 
 from opensmi.server.mixins import FinalResultDataMixin, ParameterSetMixin, ParentMixin
 
 if TYPE_CHECKING:
-    from tests.dummy_module.dummy_machine import DummyMachine  # prevent circular import
+    from dummy_machine import DummyMachine  # prevent circular import
 
 
 class _ParameterSet(ParameterSet):
@@ -39,7 +39,7 @@ class DummySkillResources(
         # setup references so clients know which node IDs are accepted
         for resource in machine.resources:
             await self.parameter_set.TestResource.add_reference(resource)
-        self.parameter_set.TestResource.initial_value = machine.resources["Windshield_C_Blue"]
+        self.parameter_set.TestResource.initial_value = machine.resources["Cab_A_Blue"]
 
     @override
     async def _handle_resetting(self) -> None:

@@ -8,13 +8,12 @@ import asyncio
 import random
 import time
 
+from continuous_skill import ContinuousSkillMonitoring, ContinuousSkillParameterSet
 from opensmi.core.errors import OpenSmiRuntimeError
 from typing_extensions import override
 
 from opensmi.server import BaseMachineryItem, BaseSkillContinuous, BaseSkillFinalResultData, UaVariable
 from opensmi.server.mixins import FinalResultDataMixin, MonitoringMixin, ParameterSetMixin, ParentMixin
-
-from .continuous_skill import ContinuousSkillMonitoring, ContinuousSkillParameterSet
 
 
 class ContinuousSkillSelfHaltingParameterSet(ContinuousSkillParameterSet):
