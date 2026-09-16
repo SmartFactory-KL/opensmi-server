@@ -253,6 +253,7 @@ class ParameterSetMixin(Generic[ParameterSetType]):
             historize=historize,
             unit=unit,
             range=_range,
+            writable=True,
         )
         await self.parameter_set.add(variable, exist_ok=True)
         return variable.ua_node
