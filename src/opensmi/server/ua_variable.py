@@ -100,6 +100,7 @@ class UaVariable(UaObject, ParentMixin[UaObject], Generic[_VariableType]):
         bypass_lock: bool = False,
         variable_type: type[_VariableType] | None = None,
         optional_ok: bool = False,
+        name: str | None = None,
         **kwargs,
     ) -> None:
         """*Cooperative* constructor for a new variable instance.
@@ -117,7 +118,7 @@ class UaVariable(UaObject, ParentMixin[UaObject], Generic[_VariableType]):
         :param variable_type: The Python type of the variable. Is only required if type cannot be determined from
             ``initial_value``, i.e. when ``None`` is provided.
         """
-        super().__init__(minimum_access_level=minimum_access_level, bypass_lock=bypass_lock, **kwargs)  # pyright: ignore[reportArgumentType]
+        super().__init__(minimum_access_level=minimum_access_level, bypass_lock=bypass_lock, name=name, **kwargs)
 
         self._initial_value, self._initial_value_type = _get_initial_value_and_type(initial_value, variable_type)
         assert self._initial_value.VariantType != ua.VariantType.Null
