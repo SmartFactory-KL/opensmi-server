@@ -10,6 +10,7 @@ from typing import Any, Generic, cast
 
 import structlog
 from asyncua import ua
+from asyncua.common.node import Node
 from opensmi.core.errors import ValidationError
 from opensmi.core.lifecycle_mixin import lifecycle
 from opensmi.core.meta import resolve_generic_arguments
@@ -74,6 +75,33 @@ class AttributesMixin(Generic[AttributesType]):
             get_logger(self, _LOGGER).debug("Instantiated Container", type=type_)
         return self.__attributes
 
+    @deprecated("Please use a typed Attributes subclass instead!")
+    async def add_attribute_variable(
+        self,
+        name: str,
+        val: Any,
+        *,
+        varianttype: ua.VariantType | None = None,
+        datatype: ua.NodeId | int | None = None,
+        historize: bool = False,
+        unit: str | int | None = None,
+        _range: tuple[float, float] | None = None,
+    ) -> Node:
+        """Add a new monitoring variable to this UaObject."""
+        if datatype is not None:
+            raise NotImplementedError
+        if varianttype is not None:
+            val = ua.Variant(val, varianttype)
+        variable = UaVariable(
+            initial_value=val,
+            name=name,
+            historize=historize,
+            unit=unit,
+            range=_range,
+        )
+        await self.attributes.add(variable, exist_ok=True)
+        return variable.ua_node
+
     def __init_subclass__(cls, **kwargs) -> None:
         """Extract type for attributes."""
         super().__init_subclass__(**kwargs)
@@ -113,6 +141,33 @@ class MonitoringMixin(Generic[MonitoringType]):
         Keys are the display name of OPC UA nodes, values the corresponding values.
         """
         return await self.monitoring.read_all()
+
+    @deprecated("Please use a typed Monitoring subclass instead!")
+    async def add_monitoring_variable(
+        self,
+        name: str,
+        val: Any,
+        *,
+        varianttype: ua.VariantType | None = None,
+        datatype: ua.NodeId | int | None = None,
+        historize: bool = False,
+        unit: str | int | None = None,
+        _range: tuple[float, float] | None = None,
+    ) -> Node:
+        """Add a new monitoring variable to this UaObject."""
+        if datatype is not None:
+            raise NotImplementedError
+        if varianttype is not None:
+            val = ua.Variant(val, varianttype)
+        variable = UaVariable(
+            initial_value=val,
+            name=name,
+            historize=historize,
+            unit=unit,
+            range=_range,
+        )
+        await self.monitoring.add(variable, exist_ok=True)
+        return variable.ua_node
 
     def __init_subclass__(cls, **kwargs) -> None:
         """Extract type for monitoring."""
@@ -175,6 +230,33 @@ class ParameterSetMixin(Generic[ParameterSetType]):
         """Write given value to parameter with given name."""
         await self.parameter_set[name].write(value)
 
+    @deprecated("Please use a typed ParameterSet subclass instead!")
+    async def add_parameter_variable(
+        self,
+        name: str,
+        val: Any,
+        *,
+        varianttype: ua.VariantType | None = None,
+        datatype: ua.NodeId | int | None = None,
+        historize: bool = False,
+        unit: str | int | None = None,
+        _range: tuple[float, float] | None = None,
+    ) -> Node:
+        """Add a new parameter variable to this UaObject."""
+        if datatype is not None:
+            raise NotImplementedError
+        if varianttype is not None:
+            val = ua.Variant(val, varianttype)
+        variable = UaVariable(
+            initial_value=val,
+            name=name,
+            historize=historize,
+            unit=unit,
+            range=_range,
+        )
+        await self.parameter_set.add(variable, exist_ok=True)
+        return variable.ua_node
+
     def __init_subclass__(cls, **kwargs) -> None:
         """Extract type for monitoring."""
         super().__init_subclass__(**kwargs)
@@ -216,6 +298,33 @@ class FinalResultDataMixin(Generic[FinalResultDataType]):
     async def read_results(self) -> Mapping[str, Any]:
         """Read all results and provide them as a mapping from result name to value."""
         return await self.final_result_data.read_all()
+
+    @deprecated("Please use a typed FinalResultData subclass instead!")
+    async def add_result_variable(
+        self,
+        name: str,
+        val: Any,
+        *,
+        varianttype: ua.VariantType | None = None,
+        datatype: ua.NodeId | int | None = None,
+        historize: bool = False,
+        unit: str | int | None = None,
+        _range: tuple[float, float] | None = None,
+    ) -> Node:
+        """Add a new parameter variable to this UaObject."""
+        if datatype is not None:
+            raise NotImplementedError
+        if varianttype is not None:
+            val = ua.Variant(val, varianttype)
+        variable = UaVariable(
+            initial_value=val,
+            name=name,
+            historize=historize,
+            unit=unit,
+            range=_range,
+        )
+        await self.final_result_data.add(variable, exist_ok=True)
+        return variable.ua_node
 
     def __init_subclass__(cls, **kwargs) -> None:
         """Extract type for monitoring."""
