@@ -84,6 +84,9 @@ class DummyMachine(
         # Components
         await self.add_component(DummyComponent(name="DummyComponent", param=42))
 
+        # add component Monitoring variable to our own Monitoring
+        await self.monitoring.add(self.components.DummyComponent.monitoring.RandomValue)
+
         # Methods
         await self.add_method(DummyMethod(name="DummyMethod"))
 

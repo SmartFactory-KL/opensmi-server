@@ -152,6 +152,31 @@ class UaVariableContainer(UaObject, ParentMixin[UaObject]):
                 await variable.init()
         yield
 
+    async def add(
+        self,
+        variable: UaVariable,
+        *,
+        exist_ok: bool = False,
+        remove_existing: bool = False,
+    ) -> None:
+        """Add the given ``variable`` to the container. Can be used to add existing variables to other containers.
+
+        If the variable is not initialized yet, it will be initialized with this container as parent.
+
+        :param variable: UaVariable to add to the container.
+        :param exist_ok: Whether to reuse an existing OPC UA variable node if found during initialization.
+        :param remove_existing: Whether to remove existing OPC UA variable node if found during initialization.
+        """
+        setattr(self, variable.name, variable)
+        if not variable.is_initialized:
+            self.logger.debug("Initializing variable", variable=variable)
+            variable.parent = self
+            await variable.ua_create_node(self.ua_node, exist_ok=exist_ok, remove_existing=remove_existing)
+            await variable.init()
+        else:
+            self.logger.debug("Referencing variable!", variable=variable)
+            await self.ua_node.add_reference(variable.ua_node, reftype=ua.object_ids.ObjectIds.HasComponent)
+
     # @override
     # async def _after_init(self) -> None:
     #     await super()._after_init()
