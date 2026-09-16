@@ -12,7 +12,9 @@ from collections.abc import AsyncGenerator
 from asyncua import ua
 from asyncua.common.node import Node
 from asyncua.crypto.permission_rules import UserRole
+from asyncua.ua.uaerrors import BadNoMatch
 from opensmi.core.lifecycle_mixin import lifecycle
+from opensmi.core.ua_node_util import get_node_id
 from typing_extensions import override
 
 from opensmi.server.interfaces import AbstractCallable
@@ -66,8 +68,18 @@ class BaseCallable(UaObject, NotificationForwarderMixin, AbstractCallable):
         self._ua_sub_node = await self._get_sub_node()
         assert self._ua_sub_node is not None
 
-        ua_min_access_level_node = await self._ua_sub_node.get_child(f"{ns}:MinAccessLevel")
-        await ua_min_access_level_node.write_value(ua.Int32(self.minimum_access_level))
+        ua_min_access_level_browse_name = f"{ns}:MinAccessLevel"
+        try:
+            ua_min_access_level_node = await self._ua_sub_node.get_child(ua_min_access_level_browse_name)
+            await ua_min_access_level_node.write_value(ua.Int32(self.minimum_access_level))
+        except BadNoMatch:  # optional in nodeset
+            node_id = get_node_id(self._ua_sub_node, name=ua_min_access_level_browse_name, ns_idx=None)
+            await self._ua_sub_node.add_variable(
+                node_id,
+                ua_min_access_level_browse_name,
+                ua.Int32(self.minimum_access_level),
+            )
+
         yield
         # no shutdown
 

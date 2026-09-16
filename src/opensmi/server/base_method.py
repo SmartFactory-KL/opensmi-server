@@ -24,10 +24,7 @@ class BaseMethod(BaseCallable, AbstractMethod):
 
     @override
     async def _get_definition(self) -> UaObjectDefinition:
-        return UaObjectDefinition(
-            object_type=SmartFactorySkillSetNodeIds.BaseMethodType,
-            instantiate_optional=True,  # TODO(CaHa): instantiate only what is actually needed
-        )
+        return UaObjectDefinition(object_type=SmartFactorySkillSetNodeIds.BaseMethodType)
 
     @override
     async def _get_sub_node(self) -> Node:
