@@ -10,7 +10,9 @@ import sys
 import time
 import warnings
 from collections.abc import AsyncGenerator, Iterator
+from dataclasses import dataclass
 from enum import IntEnum, auto
+from importlib.resources import files
 from pathlib import Path
 from typing import TYPE_CHECKING, Self
 
@@ -80,6 +82,16 @@ def _create_key_and_certificate(config: UaServerConfiguration) -> None:
         f.write(cert.public_bytes(serialization.Encoding.DER))
 
 
+@dataclass(slots=True, frozen=True)
+class NodesetReference:
+    """A pointer to an XML asset. Resolved lazily via ``importlib.resources``."""
+
+    package: str
+    """The package the nodeset lives in."""
+    namespace: type[NamespaceProvider]
+    """The namespace provider of the nodeset."""
+
+
 class ServerState(IntEnum):
     """Operating states of the `Server`."""
 
@@ -108,6 +120,8 @@ class Server(
         self._state = ServerState.STOPPED
         self._ua_enums: dict[type[IntEnum], ua.NodeId] = {}
         """Maps created custom enums to OPC UA type nodes."""
+        self._ua_nodesets_xml: dict[str, NodesetReference] = {}
+        """Maps nodeset XML URIs to information how to load the corresponding XML file."""
         if config_path:
             self.load_config(config_path)
         else:
@@ -156,6 +170,10 @@ class Server(
 
         await self._setup_ua_server()
 
+        # register our nodesets
+        for namespace in NODE_SETS.values():
+            self.ua_register_nodeset_xml(namespace=namespace, package="opensmi.server.nodesets")
+
         # Import Nodeset (and its required nodesets)
         await self.ua_import_nodeset(SmartFactoryMachineSetNodeIds)
 
@@ -170,16 +188,26 @@ class Server(
     def access_control(self) -> AccessControl:
         return self._access_control
 
-    async def ua_import_xml(self, path: Path) -> int:
+    def ua_register_nodeset_xml(self, *, namespace: type[NamespaceProvider], package: str) -> None:
+        """Register the given nodeset XML file living in `package`. Overrides existing nodesets based on URI."""
+        self._ua_nodesets_xml[namespace.URI] = NodesetReference(
+            package=package,
+            namespace=namespace,
+        )
+        self.logger.debug("Registered nodeset XML", package=package, uri=namespace.URI)
+
+    async def ua_import_xml(self, *, path: Path | None = None, xml_string: str | None = None) -> int:
         """Import XML nodeset from given ``path``. Returns the namespace index on success."""
         time_start = time.monotonic()
-        nodes = await self.ua_server.import_xml(path)  # type: ignore
+        nodes = await self.ua_server.import_xml(
+            path=path,  # pyright: ignore[reportArgumentType]
+            xmlstring=xml_string,
+        )
         idx = nodes[0].NamespaceIndex
         namespace_array = await self.ua_server.get_namespace_array()
         uri: str = namespace_array[idx]
         self.logger.info(
             "Imported nodes from XML node set!",
-            file_name=path.name,
             uri=uri,
             ns_idx=idx,
             no_of_nodes=len(nodes),
@@ -201,11 +229,12 @@ class Server(
         if index is not None:
             return index
 
-        namespace = NODE_SETS[uri]
-        for uri in namespace.REQUIRED_URIS:  # import all requirements first (transitive)
+        ref: NodesetReference = self._ua_nodesets_xml[uri]
+        for uri in ref.namespace.REQUIRED_URIS:  # import all requirements first (transitive)
             await self.ua_import_nodeset(uri)
 
-        index = await self.ua_import_xml(Path(__file__).parent / "nodesets" / namespace.FILE_NAME)
+        xml_string = files(ref.package).joinpath(ref.namespace.FILE_NAME).read_text(encoding="utf-8")
+        index = await self.ua_import_xml(xml_string=xml_string)
 
         # update our namespace mapping
         for ns_idx, namespace in enumerate(await self.ua_server.get_namespace_array()):
