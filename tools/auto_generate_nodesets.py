@@ -14,8 +14,8 @@ from typing import Final
 
 from asyncua.ua import NodeId
 
-NODESET_PATH: Final[Path] = Path("../src/opensmi/server/nodesets")
-OUTPUT_PATH: Final[Path] = Path("../src/opensmi/server/nodesets")
+# NODESET_PATH: Final[Path] = Path("../src/opensmi/server/nodesets")
+# OUTPUT_PATH: Final[Path] = Path("../src/opensmi/server/nodesets")
 TYPE_TAGS: Final[set[str]] = {"UAObjectType", "UADataType", "UAVariableType"}
 TEMPLATE: Final[Template] = Template(Path("nodeset.py.template").read_text(encoding="utf-8"))
 
@@ -60,8 +60,7 @@ def _write(parsed: _ParsedNodeSet) -> tuple[str, Path]:
         f"    {entry} = NodeIdDefinition(URI, ua.Int32({parsed.entries[entry]!r}))" for entry in sorted(parsed.entries)
     )
 
-    path = OUTPUT_PATH / Path(f"{_snake_case(parsed.name)}.py")
-
+    path = Path(f"{_snake_case(parsed.name)}.py")
     with path.open("w") as file:
         file.write(
             TEMPLATE.substitute(
@@ -80,7 +79,7 @@ def _write(parsed: _ParsedNodeSet) -> tuple[str, Path]:
 
 
 def _write__init__(files: list[_ProcessModelEntry]) -> None:
-    path = OUTPUT_PATH / "__init__.py"
+    path = Path(".") / "__init__.py"
     with path.open("w") as file:
         file.write("# SPDX-FileCopyrightText: 2026 OpenSMI Contributors\n")
         file.write("#\n")
@@ -182,7 +181,7 @@ def _parse_nodeset_xml(path: Path) -> _ParsedNodeSet:
 
 def main() -> None:  # noqa: D103
     files = []
-    for src_path in NODESET_PATH.glob("*.NodeSet2.xml"):
+    for src_path in Path(".").glob("*.NodeSet2.xml"):
         parsed = _parse_nodeset_xml(src_path)
         class_name, dest_path = _write(parsed)
         files.append(
