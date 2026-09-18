@@ -399,6 +399,7 @@ class BaseMachineryItem(UaObject, AbstractUaLogger):
             AttributesMixin.lifecycle_attributes,
             MonitoringMixin.lifecycle_monitoring,
             ParameterSetMixin.lifecycle_parameter_set,
+            IdentificationMixin.lifecycle_identification,
         )
     )
     async def lifecycle_machinery_item(self) -> AsyncGenerator[None]:

@@ -45,7 +45,7 @@ class ResourcesMixin:
     async def _init_resources(self) -> None:
         pass
 
-    @lifecycle
+    @lifecycle(before=BaseMachineryItem.lifecycle_machinery_item)
     async def lifecycle_resources(self) -> AsyncGenerator[None]:
         """Initialize the resources `UaObjectContainer`."""
         self.resources.parent = self  # pyright: ignore[reportAttributeAccessIssue]
