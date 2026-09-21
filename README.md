@@ -1,3 +1,5 @@
+![OpenSMI Logo](https://smartfactory.de/wp-content/uploads/2026/09/Logo_OpenSMI.png)
+
 [![Docs](https://img.shields.io/badge/docs-online-blue)](https://smartfactory-kl.github.io/opensmi-server/)
 [![PyPI version](https://img.shields.io/pypi/v/opensmi-server.svg)](https://pypi.org/project/opensmi-server/)
 [![Python versions](https://img.shields.io/pypi/pyversions/opensmi-server.svg)](https://pypi.org/project/opensmi-server/)
