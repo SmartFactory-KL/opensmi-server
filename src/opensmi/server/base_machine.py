@@ -42,7 +42,7 @@ class BaseMachine(
         """Create a new Machine instance. Server instance must be provided."""
         super().__init__(name=name, minimum_access_level=minimum_access_level, server=server, **kwargs)
 
-        self._users = Users()
+        self._users = Users(parent=self)
 
     @override
     async def _get_definition(self) -> UaObjectDefinition:
@@ -59,7 +59,6 @@ class BaseMachine(
         """Initialize OPC UA representation of users."""
         assert self._ua_machinery_building_blocks is not None
 
-        self._users.parent = self
         await self._users.ua_create_node(self._ua_machinery_building_blocks)
         await self._users.init()
 

@@ -67,9 +67,9 @@ class BaseMachineryItem(UaObject, AbstractUaLogger):
     ) -> None:
         """*Cooperative* constructor."""
         super().__init__(name=name, minimum_access_level=minimum_access_level, **kwargs)
-        self._components: Components = Components()
-        self._skill_set: SkillSet = SkillSet()
-        self._method_set: MethodSet = MethodSet()
+        self._components: Components = Components(parent=self)
+        self._skill_set: SkillSet = SkillSet(parent=self)
+        self._method_set: MethodSet = MethodSet(parent=self)
 
         self._current_state: MachineryItemState = INITIAL_STATE
         self._current_operation_mode: MachineryOperationMode = INITIAL_OPERATION_MODE
@@ -80,7 +80,6 @@ class BaseMachineryItem(UaObject, AbstractUaLogger):
         return self._components
 
     async def __init_components(self) -> None:
-        self._components.parent = self
         await self._components.ua_create_node(self.ua_node, remove_existing=True)
         await self._components.init()
 
@@ -162,7 +161,6 @@ class BaseMachineryItem(UaObject, AbstractUaLogger):
 
     async def __init_skill_set(self) -> None:
         """Initialize the skill set `UaObjectContainer`."""
-        self.skill_set.parent = self  # pyright: ignore[reportAttributeAccessIssue]
         await self.skill_set.ua_create_node(self.ua_node, exist_ok=True)  # pyright: ignore[reportAttributeAccessIssue]
         await self.skill_set.init()
 
@@ -202,7 +200,6 @@ class BaseMachineryItem(UaObject, AbstractUaLogger):
 
     async def __init_method_set(self) -> None:
         """Initialize the method set `UaObjectContainer`."""
-        self.method_set.parent = self  # pyright: ignore[reportAttributeAccessIssue]
         await self.method_set.ua_create_node(self.ua_node, exist_ok=True)  # pyright: ignore[reportAttributeAccessIssue]
         await self.method_set.init()
 

@@ -48,7 +48,6 @@ class ResourcesMixin:
     @lifecycle(before=BaseMachineryItem.lifecycle_machinery_item)
     async def lifecycle_resources(self) -> AsyncGenerator[None]:
         """Initialize the resources `UaObjectContainer`."""
-        self.resources.parent = self  # pyright: ignore[reportAttributeAccessIssue]
         await self.resources.ua_create_node(self.ua_node)  # pyright: ignore[reportAttributeAccessIssue]
         await self.resources.init()
 
@@ -61,7 +60,7 @@ class ResourcesMixin:
     def resources(self) -> Resources:
         """Return the `Resources` container."""
         if self.__resources is None:
-            self.__resources = Resources()
+            self.__resources = Resources(parent=self)  # pyright: ignore[reportArgumentType]
         return self.__resources
 
 
