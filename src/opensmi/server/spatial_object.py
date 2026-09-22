@@ -250,7 +250,7 @@ class SpatialObject(UaObject, ParentMixin[UaObject]):
     async def add_attach_point(self, attach_point: CartesianFrame) -> None:
         """Add given cartesian frame to the spatial object."""
         assert attach_point is not None, "Given attach_point cannot be None!"
-        assert attach_point.is_initialized, "Given attach_point must be be initialized!"
+        assert not attach_point.is_initialized, "Given attach_point must not be be initialized!"
         assert attach_point not in self._attach_points, "Given attach_point already added!"
 
         ns = self.server.ua_get_namespace_index(RSLNodeIds)
