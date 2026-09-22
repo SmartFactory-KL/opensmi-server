@@ -400,7 +400,8 @@ class BaseMachineryItem(UaObject, AbstractUaLogger):
             MonitoringMixin.lifecycle_monitoring,
             ParameterSetMixin.lifecycle_parameter_set,
             IdentificationMixin.lifecycle_identification,
-        )
+        ),
+        before=IdentificationMixin.validate_identification,
     )
     async def lifecycle_machinery_item(self) -> AsyncGenerator[None]:
         """Lifecycle method which calls `_init` for initialization and `_shutdown` for shutdown."""
