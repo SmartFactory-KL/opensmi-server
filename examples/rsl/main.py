@@ -14,7 +14,7 @@ from opensmi.server.mixins import (
     SpatialObjectListMixin,
     SpatialObjectMixin,
 )
-from opensmi.server.spatial_object import Orientation, Position, PositionFrame
+from opensmi.server.spatial_object import CartesianFrame, Orientation, Position, PositionFrame
 
 
 class DummyComponent(
@@ -43,6 +43,15 @@ class DummyComponent(
                     orientation=Orientation(a=4, b=5, c=6),
                     base=self.parent.spatial_object_list.world_frame,
                 ),
+            )
+        )
+
+        await self.spatial_object.add_attach_point(
+            CartesianFrame(
+                name="ApproachPoint",
+                position=Position(5, 5, 5),
+                orientation=Orientation(1, 1, 1),
+                base=self.spatial_object.position_frame,
             )
         )
 
