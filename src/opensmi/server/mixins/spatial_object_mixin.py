@@ -5,7 +5,6 @@
 """Mixins related to OPC UA spatial objects."""
 
 from collections.abc import AsyncGenerator
-from typing import TYPE_CHECKING
 
 from asyncua import ua
 from opensmi.core.errors import OpenSmiRuntimeError
@@ -15,9 +14,6 @@ from opensmi.server.mixins.ua_variable_container_mixins import MonitoringMixin
 from opensmi.server.nodesets import RSLNodeIds
 from opensmi.server.spatial_object import Orientation, Position, SpatialObject, SpatialObjectList, WorldFrame
 from opensmi.server.ua_object import UaObject
-
-if TYPE_CHECKING:
-    from opensmi.server.base_machine import BaseMachine
 
 
 class SpatialObjectMixin:
@@ -34,12 +30,8 @@ class SpatialObjectMixin:
             await spatial_object.init()
 
         root_parent = getattr(self, "root_parent", None)
-        assert isinstance(root_parent, BaseMachine)
-        spatial_object_list = getattr(root_parent, "spatial_object_list", None)
-        if not isinstance(spatial_object_list, SpatialObjectList):
-            msg = f"Spatial object list of {root_parent.name} was not initialized!"
-            raise OpenSmiRuntimeError(msg)
-        await spatial_object_list.add_spatial_object(spatial_object)
+        assert isinstance(root_parent, SpatialObjectListMixin)
+        await root_parent.spatial_object_list.add_spatial_object(spatial_object)
         self.__spatial_object = spatial_object
 
     @property
@@ -54,27 +46,27 @@ class SpatialObjectListMixin:
 
     __spatial_object_list: SpatialObjectList | None = None
 
-    @lifecycle(after=MonitoringMixin.lifecycle_monitoring, requires=MonitoringMixin.lifecycle_monitoring)
+    @lifecycle(after=MonitoringMixin.lifecycle_monitoring, requires=MonitoringMixin.lifecycle_monitoring)  # pyright: ignore[reportCallIssue]
     async def lifecycle_spatial_object_list(self) -> AsyncGenerator[None]:
         """Initialize the `SpatialObjectList`."""
         assert isinstance(self, UaObject)
-        self.__spatial_object_list = SpatialObjectList(
+        spatial_object_list = SpatialObjectList(
             world_frame=WorldFrame(
                 position=Position(0, 0, 0),
                 orientation=Orientation(0, 0, 0),
             ),
-            parent=self,  # pyright: ignore[reportArgumentType]
+            parent=self,
         )
-        await self.__spatial_object_list.ua_create_node(self.monitoring.ua_node)  # pyright: ignore[reportAttributeAccessIssue]
-        await self.__spatial_object_list.init()
+        await spatial_object_list.ua_create_node(self.monitoring.ua_node)  # pyright: ignore[reportAttributeAccessIssue]
+        await spatial_object_list.init()
 
         ns = self.server.ua_get_namespace_index(RSLNodeIds.URI)
-        ua_rsl_location = await self.server.ua_server.get_objects_node().get_child(  # pyright: ignore[reportAttributeAccessIssue]
-            f"{ns}:RelativeSpatialLocations"
-        )
+        ua_rsl_location = await self.server.ua_server.get_objects_node().get_child(f"{ns}:RelativeSpatialLocations")
         await ua_rsl_location.add_reference(
-            target=self.__spatial_object_list.ua_node, reftype=ua.object_ids.ObjectIds.Organizes
+            target=spatial_object_list.ua_node, reftype=ua.object_ids.ObjectIds.Organizes
         )
+
+        self.__spatial_object_list = spatial_object_list
 
         yield
         # no shutdown
