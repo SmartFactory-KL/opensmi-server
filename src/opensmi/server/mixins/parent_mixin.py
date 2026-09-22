@@ -71,7 +71,6 @@ class ParentMixin(Generic[_ParentType]):
 
         assert isinstance(self, UaObject)
         self.__parent = parent
-        self._logger = self.logger.bind(path=self.path)  # pyright: ignore[reportAttributeAccessIssue]
 
     @property
     def root_parent(self) -> "BaseMachine":
