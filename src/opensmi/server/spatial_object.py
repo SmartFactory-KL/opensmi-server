@@ -196,7 +196,7 @@ class PositionFrame(CartesianFrame):
     A position frame defines a Cartesian frame relative to a required base coordinate frame.
     """
 
-    def __init__(self, position: Position, orientation: Orientation, base: CartesianFrame, **kwargs) -> None:
+    def __init__(self, *, position: Position, orientation: Orientation, base: CartesianFrame, **kwargs) -> None:
         """*Cooperative* constructor."""
         super().__init__(name="PositionFrame", position=position, orientation=orientation, base=base, **kwargs)
 
@@ -207,7 +207,7 @@ class WorldFrame(CartesianFrame):
     The world frame defines a Cartesian frame without a base coordinate frame.
     """
 
-    def __init__(self, position: Position, orientation: Orientation, **kwargs) -> None:
+    def __init__(self, *, position: Position, orientation: Orientation, **kwargs) -> None:
         """*Cooperative* constructor."""
         super().__init__(name="WorldFrame", position=position, orientation=orientation, base=None, **kwargs)
 
