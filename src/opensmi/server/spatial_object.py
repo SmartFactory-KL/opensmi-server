@@ -131,6 +131,7 @@ class CartesianFrame(UaObject, ParentMixin[UaObject]):
         await self.write_base(self._base)
         await self.write_position(self._position)
         await self.write_orientation(self._orientation)
+        await self.write_3d_frame(position=self._position, orientation=self._orientation)
 
         yield
         # no shutdown
@@ -188,6 +189,24 @@ class CartesianFrame(UaObject, ParentMixin[UaObject]):
         unit = await read_unit(self._ua_orientation, engineering_unit="AngleUnit")
 
         return Orientation(a=float(a), b=float(b), c=float(c), unit=unit.DisplayName.Text)
+
+    async def write_3d_frame(self, *, position: Position, orientation: Orientation) -> None:
+        """Write given Cartesian ``position`` and angular ``orientation`` to the OPC UA server."""
+        try:
+            await self.ua_node.write_value(
+                ua.ThreeDFrame(
+                    CartesianCoordinates=ua.ThreeDCartesianCoordinates(X=position.x, Y=position.y, Z=position.z),  # type: ignore
+                    Orientation=ua.ThreeDOrientation(A=orientation.a, B=orientation.b, C=orientation.c),  # type: ignore
+                )
+            )
+        except ua.UaError as err:
+            self.logger.warning(
+                "Could not write 3D frame!",
+                reason=err,
+                position=position,
+                orientation=orientation,
+                ua_node_id=self.ua_node.nodeid.to_string(),
+            )
 
 
 class PositionFrame(CartesianFrame):
