@@ -142,7 +142,7 @@ class CartesianFrame(UaObject, ParentMixin[UaObject]):
                 await write_value(self._ua_base, None)
         else:
             assert isinstance(base, CartesianFrame), f"base {base.__class__.__name__} is no instance of CartesianFrame!"
-            await write_value(self._ua_base, base.ua_node.nodeid)
+            await write_value(self._ua_base, base.ua_node.nodeid, variant_type=ua.VariantType.NodeId)
 
     async def read_base(self) -> CartesianFrame | None:
         """Read the base coordinate frame reference from the OPC UA server."""
