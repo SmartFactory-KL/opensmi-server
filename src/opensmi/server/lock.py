@@ -19,13 +19,12 @@ from asyncua.ua.status_codes import StatusCodes
 from opensmi.core.lifecycle_mixin import lifecycle
 from typing_extensions import override
 
-from opensmi.server.mixins.parent_mixin import ParentMixin
 from opensmi.server.nodesets import DiNodeIds
 from opensmi.server.protocols import SessionProtocol, UserAuthorization
 from opensmi.server.ua_object import UaObject, UaObjectDefinition
 
 
-class Lock(UaObject, ParentMixin[UaObject]):
+class Lock(UaObject):
     """Manages exclusive write/execute access rights to the parent `UaObject` and its children.
 
     Locks are not hierarchical. A child (or children's child, etc.) with its own Lock will not be
@@ -51,13 +50,20 @@ class Lock(UaObject, ParentMixin[UaObject]):
 
     _task_check_inactivity: Task[None]
 
-    def __init__(self, *, minimum_access_level: int | None = None, **kwargs: dict[str, Any]) -> None:
+    def __init__(
+        self,
+        *,
+        minimum_access_level: int | None = None,
+        parent: UaObject | None = None,
+        **kwargs: dict[str, Any],
+    ) -> None:
         """Construct new ``Lock`` instance with given ``minimum_access_level``."""
         super().__init__(
             name="Lock",
             minimum_access_level=minimum_access_level,
             bypass_lock=False,
             server=None,
+            parent=parent,
             **kwargs,
         )
 

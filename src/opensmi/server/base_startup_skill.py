@@ -44,6 +44,7 @@ class BaseStartupSkill(ParentMixin["BaseMachineryItem"], BaseSkillContinuous):
         *,
         minimum_access_level: int = 2,
         handle_status_change: bool = True,
+        parent: BaseMachineryItem | None = None,
         **kwargs: dict[str, Any],
     ) -> None:
         """*Cooperative* constructor."""
@@ -53,6 +54,7 @@ class BaseStartupSkill(ParentMixin["BaseMachineryItem"], BaseSkillContinuous):
             minimum_access_level=minimum_access_level,
             precondition_check=None,
             feasibility_check=None,
+            parent=parent,
             **kwargs,
         )
 

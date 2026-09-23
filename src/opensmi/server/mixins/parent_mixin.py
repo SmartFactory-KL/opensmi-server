@@ -2,19 +2,22 @@
 #
 # SPDX-License-Identifier: MIT
 
-"""Mixin for an ``UaObject`` that *have* and *need* another ``UaObject`` as a parent to function."""
+"""Mixin for typing the parent of an `UaObject`."""
 
-from typing import TYPE_CHECKING, Any, ForwardRef, Generic, TypeVar, get_args, get_origin
+from typing import TYPE_CHECKING, Any, ForwardRef, Generic, cast, get_args, get_origin
 
 import structlog
+from opensmi.core.base_ua_object import BaseUaObject
+from typing_extensions import TypeVar
 
+from opensmi.server._server import Server
 from opensmi.server.ua_object import UaObject
 
 if TYPE_CHECKING:
     from opensmi.server.base_machine import BaseMachine
 
 
-_ParentType = TypeVar("_ParentType", bound=UaObject)
+_ParentType = TypeVar("_ParentType", bound=UaObject, default=UaObject)
 
 _LOGGER: structlog.stdlib.BoundLogger = structlog.getLogger(__name__)
 
@@ -42,21 +45,27 @@ def _get_generic_type(cls: type[Any], generic: type[Any]) -> type[Any] | None:
 
 
 class ParentMixin(Generic[_ParentType]):
-    """Mixin for an ``UaObject`` that *have* and *need* another ``UaObject`` as a parent to function.
+    """Mixin for typing the parent of an `UaObject`."""
 
-    For example, parents are required to check for ``Lock`` ownership when an ``UaObject`` does not have a lock itself.
-    """
+    _parent: BaseUaObject[Server] | None
 
-    __parent: _ParentType | None = None
+    if TYPE_CHECKING:
+
+        def __init__(self, *, parent: _ParentType | None = None, **kwargs: Any) -> None:
+            """Type-checking stub for typed ``parent`` parameter."""
 
     @property
     def parent(self) -> _ParentType:
-        """Parent of this ``UaObject`` instance."""
-        assert self.__parent is not None, f"Parent was not set yet: {self!r}"
-        return self.__parent
+        """Parent of this `UaObject` instance."""
+        assert self._parent is not None, f"Parent was not set yet: {self!r}"
+        return cast(_ParentType, self._parent)
 
     @parent.setter
-    def parent(self, parent: _ParentType) -> None:
+    def parent(self, parent: BaseUaObject[Server]) -> None:
+        """Set the parent of this `UaObject` instance.
+
+        Given ``parent`` will be runtime type-checked against the generic `_ParentType` of `ParentMixin`.
+        """
         assert isinstance(parent, UaObject), "No valid parent given, must be at least an UaObject!"
 
         try:
@@ -66,11 +75,13 @@ class ParentMixin(Generic[_ParentType]):
             raise
 
         if parent_type is not None and not isinstance(parent, parent_type):
-            msg = f"Invalid parent for '{type(self).__name__}': Expected {parent_type.__name__}, got {type(parent).__name__}"
+            msg = (
+                f"Invalid parent for '{type(self).__name__}': "
+                f"Expected {parent_type.__name__}, got {type(parent).__name__}"
+            )
             raise TypeError(msg)
 
-        assert isinstance(self, UaObject)
-        self.__parent = parent
+        self._parent = parent
 
     @property
     def root_parent(self) -> "BaseMachine":

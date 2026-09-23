@@ -20,7 +20,6 @@ class LockableMixin:
     @lifecycle
     async def lifecycle_lock(self) -> AsyncGenerator[None]:
         """Initialize the `Lock` for an `UaObject`."""
-        self.lock.parent = self  # pyright: ignore[reportAttributeAccessIssue]
         await self.lock.ua_create_node(self.ua_node, exist_ok=True)  # pyright: ignore[reportAttributeAccessIssue]
         await self.lock.init()
 
@@ -33,5 +32,5 @@ class LockableMixin:
         """Return the associated `Lock` for this `UaObject`."""
         if self.__lock is None:
             assert isinstance(self, UaObject)
-            self.__lock = Lock(minimum_access_level=self.minimum_access_level)
+            self.__lock = Lock(minimum_access_level=self.minimum_access_level, parent=self)
         return self.__lock

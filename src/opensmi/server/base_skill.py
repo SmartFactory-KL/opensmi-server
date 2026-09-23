@@ -24,6 +24,7 @@ from opensmi.server.base_callable import BaseCallable
 from opensmi.server.interfaces import AbstractSkill
 from opensmi.server.nodesets import SmartFactoryMachineSetNodeIds, SmartFactorySkillSetNodeIds
 from opensmi.server.protocols import UserAuthorization
+from opensmi.server.ua_object import UaObject
 
 
 class BaseSkill(BaseCallable, AbstractSkill):
@@ -49,6 +50,7 @@ class BaseSkill(BaseCallable, AbstractSkill):
         minimum_access_level: int | None = None,
         precondition_check: BaseSkill | None = None,
         feasibility_check: BaseSkill | None = None,
+        parent: UaObject | None = None,
         **kwargs,
     ) -> None:
         """*Cooperative* Constructor. Create a new skill instance.
@@ -59,7 +61,7 @@ class BaseSkill(BaseCallable, AbstractSkill):
         :param precondition_check: Optional reference to corresponding separate precondition check for this skill.
         :param feasibility_check: Optional reference to corresponding separate feasibility check for this skill.
         """
-        super().__init__(name=name, minimum_access_level=minimum_access_level, **kwargs)
+        super().__init__(name=name, minimum_access_level=minimum_access_level, parent=parent, **kwargs)
 
         self._suspendable = suspendable
         self._precondition_check = precondition_check

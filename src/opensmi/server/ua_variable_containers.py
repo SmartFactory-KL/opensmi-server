@@ -14,7 +14,6 @@ from opensmi.core.lifecycle_mixin import lifecycle
 from opensmi.core.ua_node_util import get_properties
 from typing_extensions import override
 
-from opensmi.server.mixins.parent_mixin import ParentMixin
 from opensmi.server.nodesets import (
     DiNodeIds,
     MachineryNodeIds,
@@ -25,7 +24,7 @@ from opensmi.server.ua_object import UaObject, UaObjectDefinition
 from opensmi.server.ua_variable import UaVariable
 
 
-class UaVariableContainer(UaObject, ParentMixin[UaObject]):
+class UaVariableContainer(UaObject):
     """Base class for `UaVariable` containers. Also provides a Pythonic container interface."""
 
     def __init__(
@@ -126,7 +125,7 @@ class UaVariableContainer(UaObject, ParentMixin[UaObject]):
                     unit=properties.unit,
                     range=properties.range,
                 )
-            variable.parent = self  # pyright: ignore[reportAttributeAccessIssue]
+            variable.parent = self
             variable.ua_node = ua_variable_node
             await variable.init()
             self.__setattr__(browse_name.Name, variable)

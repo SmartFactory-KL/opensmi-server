@@ -23,7 +23,7 @@ from opensmi.server.nodesets import SmartFactoryMachineSetNodeIds
 from opensmi.server.ua_object import UaObject, UaObjectDefinition
 
 
-class Notification(UaObject, ParentMixin[BaseMachineryItem], AbstractUaLogger):
+class Notification(ParentMixin[BaseMachineryItem], UaObject, AbstractUaLogger):
     """Implementation of the OPC UA Logging interface for `BaseMachine` and optionally `BaseMachineryItem`."""
 
     _ua_info_event_gen: EventGenerator

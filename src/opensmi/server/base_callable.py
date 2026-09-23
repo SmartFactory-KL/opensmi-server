@@ -29,7 +29,7 @@ from opensmi.server.protocols import UserAuthorization
 from opensmi.server.ua_object import UaObject
 
 
-class BaseCallable(UaObject, NotificationForwarderMixin, AbstractCallable):
+class BaseCallable(NotificationForwarderMixin, UaObject, AbstractCallable):
     """Abstract base class for all callables, i.e. skills (`BaseSkill`) and methods (`BaseMethod`)."""
 
     _ua_sub_node: Node
@@ -39,6 +39,7 @@ class BaseCallable(UaObject, NotificationForwarderMixin, AbstractCallable):
         *,
         name: str | None = None,
         minimum_access_level: int | None = None,
+        parent: UaObject | None = None,
         **kwargs,
     ) -> None:
         """Create a new callable instance.
@@ -46,7 +47,7 @@ class BaseCallable(UaObject, NotificationForwarderMixin, AbstractCallable):
         :param name: name of the callable.
         :param minimum_access_level: Minimum required access level to start the callable (see User for more info)
         """
-        super().__init__(name=name, minimum_access_level=minimum_access_level, **kwargs)
+        super().__init__(name=name, minimum_access_level=minimum_access_level, parent=parent, **kwargs)
 
     @abstractmethod
     async def _get_sub_node(self) -> Node:

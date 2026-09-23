@@ -40,7 +40,7 @@ class BaseMachine(
         **kwargs,
     ) -> None:
         """Create a new Machine instance. Server instance must be provided."""
-        super().__init__(name=name, minimum_access_level=minimum_access_level, server=server, **kwargs)
+        super().__init__(name=name, minimum_access_level=minimum_access_level, server=server, parent=None, **kwargs)
 
         self._users = Users(parent=self)
 

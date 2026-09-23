@@ -24,7 +24,6 @@ from opensmi.core.ua_node_util import (
 )
 from typing_extensions import TypeVar, override
 
-from opensmi.server.mixins.parent_mixin import ParentMixin
 from opensmi.server.ua_object import UaObject, UaObjectDefinition
 
 _VariableType = TypeVar("_VariableType")
@@ -78,7 +77,7 @@ def _validate_enum_type(enum_type: type[Enum]) -> None:
         raise ValueError(msg)
 
 
-class UaVariable(UaObject, ParentMixin[UaObject], Generic[_VariableType]):
+class UaVariable(UaObject, Generic[_VariableType]):
     """OPC UA Variable for use in `ParameterSet`, `Monitoring`, `FinalResultData`, etc.
 
     Abstracts raw OPC UA/``asyncua`` away and provides a simple, high-level interface.

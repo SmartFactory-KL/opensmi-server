@@ -63,10 +63,11 @@ class BaseMachineryItem(UaObject, AbstractUaLogger):
         *,
         name: str | None = None,
         minimum_access_level: int | None = None,
+        parent: UaObject | None = None,
         **kwargs,
     ) -> None:
         """*Cooperative* constructor."""
-        super().__init__(name=name, minimum_access_level=minimum_access_level, **kwargs)
+        super().__init__(name=name, minimum_access_level=minimum_access_level, parent=parent, **kwargs)
         self._components: Components = Components(parent=self)
         self._skill_set: SkillSet = SkillSet(parent=self)
         self._method_set: MethodSet = MethodSet(parent=self)
@@ -93,7 +94,7 @@ class BaseMachineryItem(UaObject, AbstractUaLogger):
 
         start_time = time.monotonic()
 
-        component.parent = self  # pyright: ignore[reportAttributeAccessIssue]
+        component.parent = self
         await component.ua_create_node(self._components.ua_node)
         await component.init()
 
@@ -182,7 +183,7 @@ class BaseMachineryItem(UaObject, AbstractUaLogger):
         start_time = time.monotonic()
 
         if not skill.is_initialized:
-            skill.parent = self  # pyright: ignore[reportAttributeAccessIssue]
+            skill.parent = self
             await skill.ua_create_node(self.skill_set.ua_node, remove_existing=True)
             await skill.init()
 
@@ -221,7 +222,7 @@ class BaseMachineryItem(UaObject, AbstractUaLogger):
         start_time = time.monotonic()
 
         if not method.is_initialized:
-            method.parent = self  # pyright: ignore[reportAttributeAccessIssue]
+            method.parent = self
             await method.ua_create_node(self.method_set.ua_node)
             await method.init()
 

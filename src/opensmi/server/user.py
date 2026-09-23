@@ -19,13 +19,12 @@ from typing_extensions import override
 
 from opensmi.server.common import get_scrypt_instance
 from opensmi.server.config import UserConfiguration
-from opensmi.server.mixins.parent_mixin import ParentMixin
 from opensmi.server.nodesets import SmartFactoryMachineSetNodeIds
 from opensmi.server.protocols import SessionProtocol, UserProtocol
 from opensmi.server.ua_object import UaObject, UaObjectDefinition
 
 
-class User(ParentMixin[UaObject], UaObject, UserProtocol):
+class User(UaObject, UserProtocol):
     """User (role), authentication and OPC UA representation."""
 
     _ua_is_present: Node

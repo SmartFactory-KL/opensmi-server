@@ -51,6 +51,7 @@ class UaObject(BaseUaObject["Server"], LifecycleMixin, ReprStrMixin, AbstractUaO
         minimum_access_level: int | None = None,
         bypass_lock: bool = False,
         server: "Server | None" = None,
+        parent: "UaObject | None" = None,
         **kwargs: dict[str, Any],
     ) -> None:
         """*Cooperative* constructor.
@@ -59,7 +60,7 @@ class UaObject(BaseUaObject["Server"], LifecycleMixin, ReprStrMixin, AbstractUaO
         :param minimum_access_level: Minimum access level of the UaObject (write/call). Read access is always allowed.
         :param bypass_lock: Whether the variable can be written to without ownership of corresponding lock.
         """
-        super().__init__(name=name, server=server, **kwargs)
+        super().__init__(name=name, server=server, parent=parent, **kwargs)
 
         self.minimum_access_level: int = 1 if minimum_access_level is None else int(minimum_access_level)
         """Minimum `User` access level required for write & method execution."""

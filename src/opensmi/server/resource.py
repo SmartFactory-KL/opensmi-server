@@ -62,19 +62,19 @@ class ResourceIdentification(Identification):
 
 
 class Resource(
-    UaObject,
     IdentificationMixin[ResourceIdentification],
     ParentMixin["Resources"],
     AttributesMixin[ResourceAttributes],
+    UaObject,
 ):
     """Base class for all resources."""
 
-    def __init__(self, *, definition: ResourceDefinition) -> None:
+    def __init__(self, *, definition: ResourceDefinition, parent: Resources) -> None:
         """*Cooperative* constructor."""
         assert definition is not None
         assert len(definition.component_name) > 1, f"component_name {definition.component_name} is too short"
         assert len(definition.resource_class) > 1, f"resource_class {definition.resource_class} is too short"
-        super().__init__(name=definition.component_name)
+        super().__init__(name=definition.component_name, parent=parent)
         self._resource_class: str = definition.resource_class
         self._definition = definition
 

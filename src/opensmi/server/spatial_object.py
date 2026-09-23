@@ -54,7 +54,7 @@ class Orientation:
     unit: str = "°"
 
 
-class CartesianFrame(UaObject, ParentMixin[UaObject]):
+class CartesianFrame(UaObject):
     """Describes the translation and rotation of an object relative to a base coordinate frame.
 
     The position is represented by the Cartesian coordinates X, Y, and Z.
@@ -212,7 +212,7 @@ class WorldFrame(CartesianFrame):
         super().__init__(name="WorldFrame", position=position, orientation=orientation, base=None, **kwargs)
 
 
-class SpatialObject(UaObject, ParentMixin[UaObject]):
+class SpatialObject(UaObject):
     """Spatial Object contains a `PositionFrame` and further `CartesianFrame` can be attached.
 
     See OPC UA Relative Spatial Location specification.
@@ -277,7 +277,7 @@ class SpatialObject(UaObject, ParentMixin[UaObject]):
         return self._attach_points
 
 
-class SpatialObjectList(UaObject, ParentMixin[UaObject]):
+class SpatialObjectList(ParentMixin[UaObject], UaObject):
     """Spatial Object List (SOL) from Relative Spatial Location specification."""
 
     def __init__(self, world_frame: WorldFrame, parent: UaObject, **kwargs) -> None:

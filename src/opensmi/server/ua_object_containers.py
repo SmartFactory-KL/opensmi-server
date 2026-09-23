@@ -34,9 +34,15 @@ class UaObjectContainer(UaObject, Generic[_ObjectType]):
         name: str,
         minimum_access_level: int | None = None,
         bypass_lock: bool = False,
+        parent: UaObject | None = None,
     ) -> None:
         """*Cooperative* constructor."""
-        super().__init__(name=name, minimum_access_level=minimum_access_level, bypass_lock=bypass_lock)
+        super().__init__(
+            name=name,
+            minimum_access_level=minimum_access_level,
+            bypass_lock=bypass_lock,
+            parent=parent,
+        )
         self._children: dict[str, _ObjectType] = {}
 
     #
@@ -87,13 +93,12 @@ class UaObjectContainer(UaObject, Generic[_ObjectType]):
         return iter(self._children.values())
 
 
-class Resources(UaObjectContainer[Resource], ParentMixin["BaseMachineryItem"]):
+class Resources(ParentMixin["BaseMachineryItem"], UaObjectContainer[Resource]):
     """Management of resources."""
 
     def __init__(self, parent: BaseMachineryItem) -> None:
         """Initialize the resources collection synchronously."""
-        super().__init__(name="Resources")
-        self.parent = parent
+        super().__init__(name="Resources", parent=parent)
 
     @override
     async def _get_definition(self) -> UaObjectDefinition:
@@ -105,8 +110,7 @@ class Resources(UaObjectContainer[Resource], ParentMixin["BaseMachineryItem"]):
 
     async def add(self, definition: ResourceDefinition) -> Resource:
         """Add a new resource according to the given ``definition``."""
-        new_resource = Resource(definition=definition)
-        new_resource.parent = self
+        new_resource = Resource(definition=definition, parent=self)  # pyright: ignore[reportArgumentType]
         await new_resource.ua_create_node(self.ua_node)
         await new_resource.init()
 
@@ -119,13 +123,12 @@ class Resources(UaObjectContainer[Resource], ParentMixin["BaseMachineryItem"]):
         return [res for res in self._children.values() if res.resource_class == resource_class]
 
 
-class SkillSet(UaObjectContainer["BaseSkill"], ParentMixin["BaseMachineryItem"]):
+class SkillSet(ParentMixin["BaseMachineryItem"], UaObjectContainer["BaseSkill"]):
     """Collection of skills."""
 
     def __init__(self, parent: BaseMachineryItem) -> None:
         """Initialize the skill set synchronously."""
-        super().__init__(name="SkillSet")
-        self.parent = parent
+        super().__init__(name="SkillSet", parent=parent)
 
     @override
     async def _get_definition(self) -> UaObjectDefinition:
@@ -136,13 +139,12 @@ class SkillSet(UaObjectContainer["BaseSkill"], ParentMixin["BaseMachineryItem"])
         )
 
 
-class MethodSet(UaObjectContainer["BaseMethod"], ParentMixin["BaseMachineryItem"]):
+class MethodSet(ParentMixin["BaseMachineryItem"], UaObjectContainer["BaseMethod"]):
     """Collection of methods."""
 
     def __init__(self, parent: BaseMachineryItem) -> None:
         """Initialize the method set synchronously."""
-        super().__init__(name="MethodSet")
-        self.parent = parent
+        super().__init__(name="MethodSet", parent=parent)
 
     @override
     async def _get_definition(self) -> UaObjectDefinition:
@@ -153,13 +155,12 @@ class MethodSet(UaObjectContainer["BaseMethod"], ParentMixin["BaseMachineryItem"
         )
 
 
-class Components(UaObjectContainer["BaseComponent"], ParentMixin["BaseMachineryItem"]):
+class Components(ParentMixin["BaseMachineryItem"], UaObjectContainer["BaseComponent"]):
     """Collection of components."""
 
     def __init__(self, *, parent: BaseMachineryItem) -> None:
         """Initialize the components collection synchronously."""
-        super().__init__(name="Components")
-        self.parent = parent
+        super().__init__(name="Components", parent=parent)
 
     @override
     async def _get_definition(self) -> UaObjectDefinition:
@@ -170,13 +171,12 @@ class Components(UaObjectContainer["BaseComponent"], ParentMixin["BaseMachineryI
         )
 
 
-class Users(UaObjectContainer["User"], ParentMixin["BaseMachineryItem"]):
+class Users(ParentMixin["BaseMachineryItem"], UaObjectContainer["User"]):
     """Collection of users."""
 
     def __init__(self, parent: BaseMachineryItem) -> None:
         """Initialize the users collection synchronously."""
-        super().__init__(name="Users")
-        self.parent = parent
+        super().__init__(name="Users", parent=parent)
 
     @override
     async def _get_definition(self) -> UaObjectDefinition:
