@@ -21,11 +21,11 @@ class ContinuousSkillSelfHaltingParameterSet(ContinuousSkillParameterSet):
 
 
 class ContinuousSkillSelfHalting(
-    BaseSkillContinuous,
     ParentMixin[BaseMachineryItem],
     ParameterSetMixin[ContinuousSkillSelfHaltingParameterSet],
     MonitoringMixin[ContinuousSkillMonitoring],
     FinalResultDataMixin[BaseSkillFinalResultData],
+    BaseSkillContinuous,
 ):
     """A demonstration of a continuous skill that halts after configurable delay from RUNNING state."""
 

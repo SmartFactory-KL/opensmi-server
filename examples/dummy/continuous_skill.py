@@ -37,11 +37,11 @@ class ContinuousSkillMonitoring(Monitoring):
 
 
 class ContinuousSkill(
-    BaseSkillContinuous,
     ParentMixin[BaseMachineryItem],
     ParameterSetMixin[ContinuousSkillParameterSet],
     MonitoringMixin[ContinuousSkillMonitoring],
     FinalResultDataMixin[BaseSkillFinalResultData],
+    BaseSkillContinuous,
 ):
     """A demonstration of a continuous skill."""
 

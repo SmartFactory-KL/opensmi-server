@@ -28,11 +28,11 @@ class DummySkillParameterSet(DummySkillSimpleParameterSet):
 
 
 class DummySkill(
-    BaseSkillFinite,
     ParentMixin[BaseMachineryItem],
     RequirementsMixin,
     ParameterSetMixin[DummySkillParameterSet],
     FinalResultDataMixin[DummySkillSimpleFinalResultData],
+    BaseSkillFinite,
 ):
     def __init__(self, *, name: str, delay: float = 1, dependencies: list | None = None):
         super().__init__(name=name)

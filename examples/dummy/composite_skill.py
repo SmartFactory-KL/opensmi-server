@@ -26,11 +26,11 @@ class CompositeDummySkillFinalResultData(BaseSkillFinalResultData):
 
 
 class CompositeDummySkill(
-    BaseSkillFinite,
     RequirementsMixin,
     ParentMixin["DummyMachine"],
     MonitoringMixin[CompositeDummySkillMonitoring],
     FinalResultDataMixin[CompositeDummySkillFinalResultData],
+    BaseSkillFinite,
 ):
     """Demonstration of a composite skill, meaning a skill, that is using at least one other skill internally."""
 

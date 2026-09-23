@@ -27,10 +27,10 @@ class _FinalResultData(FinalResultData):
 
 
 class DummySkillResources(
-    BaseSkillFinite,
     ParentMixin[BaseMachineryItem],
     ParameterSetMixin[_ParameterSet],
     FinalResultDataMixin[_FinalResultData],
+    BaseSkillFinite,
 ):
     @override
     async def _init(self) -> None:

@@ -22,10 +22,10 @@ class DummySkillSimpleFinalResultData(BaseSkillFinalResultData):
 
 
 class DummySkillSimple(
-    BaseSkillFinite,
     ParentMixin[BaseMachineryItem],
     ParameterSetMixin[DummySkillSimpleParameterSet],
     FinalResultDataMixin[DummySkillSimpleFinalResultData],
+    BaseSkillFinite,
 ):
     @override
     async def _handle_resetting(self):

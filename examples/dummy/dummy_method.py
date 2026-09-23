@@ -18,11 +18,11 @@ class DummyMethodFinalResultData(FinalResultData):
 
 
 class DummyMethod(
-    BaseMethod,
     ParentMixin[BaseMachineryItem],
     RequirementsMixin,
     FinalResultDataMixin[DummyMethodFinalResultData],
     ParameterSetMixin[DummyMethodParameterSet],
+    BaseMethod,
 ):
     def __init__(
         self,
