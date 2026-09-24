@@ -4,7 +4,7 @@
 
 """Abstraction-layer for OPC UA variables our framework users interacts with."""
 
-from collections.abc import AsyncGenerator, Iterator
+from collections.abc import AsyncGenerator, Callable, Iterator
 from datetime import timedelta
 from enum import Enum, IntEnum
 from typing import Generic
@@ -100,6 +100,7 @@ class UaVariable(UaObject, Generic[_VariableType]):
         variable_type: type[_VariableType] | None = None,
         optional_ok: bool = False,
         name: str | None = None,
+        write_check_callback: Callable[[_VariableType | None], None] | None = None,
         **kwargs,
     ) -> None:
         """*Cooperative* constructor for a new variable instance.
@@ -116,6 +117,9 @@ class UaVariable(UaObject, Generic[_VariableType]):
         :param bypass_lock: Whether the variable can be written to without ownership of corresponding lock.
         :param variable_type: The Python type of the variable. Is only required if type cannot be determined from
             ``initial_value``, i.e. when ``None`` is provided.
+        :param write_check_callback: (Optional) User-definable sync. function that is called whenever a `write_check`
+            occurs (Triggered by internal and external OPC UA writes). Must raise `OutOfRangeError` when the custom
+            check fails.
         """
         super().__init__(minimum_access_level=minimum_access_level, bypass_lock=bypass_lock, name=name, **kwargs)
 
@@ -143,6 +147,7 @@ class UaVariable(UaObject, Generic[_VariableType]):
         self._historize: bool = historize
         self._references: set[UaObject] = set()
         self.optional_ok: bool = optional_ok
+        self._write_check_callback: Callable[[_VariableType | None], None] | None = write_check_callback
 
     @lifecycle
     async def _init(self) -> AsyncGenerator[None]:
@@ -321,6 +326,9 @@ class UaVariable(UaObject, Generic[_VariableType]):
 
         if isinstance(value, ua.Variant):
             value = value.Value
+
+        if self._write_check_callback is not None:
+            self._write_check_callback(value)  # pyright: ignore[reportArgumentType]
 
         if isinstance(value, UaObject) and value not in self._references:
             msg = f"{value=} is not referenced as a valid value for {self.path}!"

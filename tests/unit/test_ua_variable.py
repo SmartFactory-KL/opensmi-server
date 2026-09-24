@@ -226,3 +226,15 @@ def test_write_check_int_enum_invalid_value():
 
     # should not raise
     var.write_check(TestEnum.TWO.value)  # pyright: ignore[reportArgumentType]
+
+
+def test_write_check_callback():
+    def callback(value: int | None) -> None:
+        if value != 1:
+            msg = "value != 1!"
+            raise OutOfRangeError(msg)  # noqa: TRY003
+
+    var = UaVariable(initial_value=0, write_check_callback=callback)
+    var.write_check(1)  # should not raise
+    with pytest.raises(OutOfRangeError, match="value != 1!"):
+        var.write_check(2)  # should raise
