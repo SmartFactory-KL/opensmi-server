@@ -198,26 +198,22 @@ def test_initial_value_setter_rejects_wrong_type(initial_value, wrong_type_value
 
 def test_write_check_none_rejected_for_non_str_non_optional():
     var = UaVariable(initial_value=1)
-    var.parent = DUMMY_PARENT  # pyright: ignore[reportAttributeAccessIssue]
     with pytest.raises(OutOfRangeError):
         var.write_check(None)
 
 
 def test_write_check_none_allowed_for_str_type():
     var = UaVariable(initial_value="hello")
-    var.parent = DUMMY_PARENT  # pyright: ignore[reportAttributeAccessIssue]
     var.write_check(None)  # should not raise
 
 
 def test_write_check_none_allowed_when_optional_ok():
     var = UaVariable(initial_value=1, optional_ok=True)
-    var.parent = DUMMY_PARENT  # pyright: ignore[reportAttributeAccessIssue]
     var.write_check(None)  # should not raise
 
 
 def test_write_check_numeric_out_of_range():
     var = UaVariable(initial_value=5.0, range=(0.0, 10.0))
-    var.parent = DUMMY_PARENT  # pyright: ignore[reportAttributeAccessIssue]
     with pytest.raises(OutOfRangeError):
         var.write_check(11.0)
     var.write_check(9.0)  # should not raise
@@ -225,7 +221,6 @@ def test_write_check_numeric_out_of_range():
 
 def test_write_check_int_enum_invalid_value():
     var = UaVariable(initial_value=TestEnum.ONE)
-    var.parent = DUMMY_PARENT  # pyright: ignore[reportAttributeAccessIssue]
     with pytest.raises(OutOfRangeError):
         var.write_check(99)  # pyright: ignore[reportArgumentType]
 
