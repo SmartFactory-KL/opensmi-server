@@ -443,6 +443,7 @@ class UaVariable(UaObject, Generic[_VariableType]):
             bypass_lock=self.bypass_lock,
             variable_type=self._initial_value_type,
             optional_ok=self.optional_ok,
+            write_check_callback=self._write_check_callback,  # pyright: ignore[reportArgumentType]
         )
 
     @override
