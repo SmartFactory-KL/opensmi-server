@@ -35,6 +35,7 @@ from typing_extensions import TypeVar, override
 
 from opensmi.server.config import HistoryOption, ServerConfiguration, UaServerConfiguration
 from opensmi.server.nodesets import NODE_SETS, SmartFactoryMachineSetNodeIds
+from opensmi.server.ua_dictionary_entry import DictionaryEntry
 from opensmi.server.ua_object import UaObject
 
 if TYPE_CHECKING:
@@ -122,6 +123,8 @@ class Server(
         """Maps created custom enums to OPC UA type nodes."""
         self._ua_nodesets_xml: dict[str, NodesetReference] = {}
         """Maps nodeset XML URIs to information how to load the corresponding XML file."""
+        self._dictionary_entries: dict[str, ua.NodeId] = {}
+        """Maps Semantic ID (=Browse name) to live OPC UA node IDs of the corresponding Dictionary entries."""
         if config_path:
             self.load_config(config_path)
         else:
@@ -236,11 +239,24 @@ class Server(
         xml_string = files(ref.package).joinpath(ref.namespace.FILE_NAME).read_text(encoding="utf-8")
         index = await self.ua_import_xml(xml_string=xml_string)
 
-        # update our namespace mapping
+        await self._update_namespace_map()
+
+        return index
+
+    async def _update_namespace_map(self) -> None:
+        self._namespace_map.clear()
         for ns_idx, namespace in enumerate(await self.ua_server.get_namespace_array()):
             self._namespace_map[namespace] = ns_idx
 
-        return index
+    async def _ua_add_empty_namespace(self, uri: str) -> ua.Int16:
+        """Add a new empty OPC UA namespace with the given ``uri`` to the server.
+
+        :returns: The namespace index for the newly created namespace.
+        """
+        assert uri not in self._namespace_map
+        namespace_index: int = await self.ua_server.register_namespace(uri)
+        await self._update_namespace_map()
+        return ua.Int16(namespace_index)
 
     async def _setup_ua_server(self) -> None:
         config: UaServerConfiguration = self.config.ua_server
@@ -302,6 +318,47 @@ class Server(
             elapsed=time.monotonic() - time_start,
         )
         return machine
+
+    async def ua_get_dictionary_entry(self, dictionary_entry: DictionaryEntry) -> Node:
+        """Get or add a new OPC UA dictionary entry and return the corresponding OPC UA Node."""
+        ns_idx: ua.Int16
+        ua_dictionaries_node: Node = self.ua_server.get_node(ua.object_ids.ObjectIds.Dictionaries)
+
+        if dictionary_entry.semantic_id not in self._dictionary_entries:
+            try:
+                ns_idx = self.ua_get_namespace_index(dictionary_entry.ua_namespace_uri)
+            except KeyError:
+                ns_idx = await self._ua_add_empty_namespace(dictionary_entry.ua_namespace_uri)
+
+            node_id = ua.NodeId(Identifier=ua.String(dictionary_entry.semantic_id), NamespaceIndex=ns_idx)
+            browse_name = ua.QualifiedName(Name=dictionary_entry.semantic_id, NamespaceIndex=ns_idx)
+
+            dictionary_entry_node: Node = await ua_dictionaries_node.add_object(
+                nodeid=node_id,
+                bname=browse_name,
+                objecttype=dictionary_entry.ua_type_node_id,
+                instantiate_optional=False,
+            )
+
+            # write optional display name
+            if dictionary_entry.name is not None:
+                await dictionary_entry_node.write_attribute(
+                    attributeid=ua.attribute_ids.AttributeIds.DisplayName,
+                    datavalue=ua.DataValue(
+                        ua.Variant(Value=ua.LocalizedText(Text=dictionary_entry.name, Locale="en-US")),
+                    ),
+                )
+
+            self._dictionary_entries[dictionary_entry.semantic_id] = node_id
+            return dictionary_entry_node
+
+        return self.ua_server.get_node(self._dictionary_entries[dictionary_entry.semantic_id])
+
+    # async def ua_browse_dictionaries_of(self, semantic_id: str) -> list[Node]:
+    #     node = self.ua_server.get_node(self._dictionary_entries[semantic_id])
+    #     return await node.get_referenced_nodes(
+    #         refs=ua.NodeId(Identifier=ua.Int32(ua.object_ids.ObjectIds.HasDictionaryEntry))
+    #     )
 
     @property
     def state(self) -> ServerState:

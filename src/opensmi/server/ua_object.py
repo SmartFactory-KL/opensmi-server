@@ -21,6 +21,7 @@ from typing_extensions import override
 
 from opensmi.server.interfaces import AbstractUaObject
 from opensmi.server.protocols import UserAuthorization
+from opensmi.server.ua_dictionary_entry import DictionaryEntry
 
 if TYPE_CHECKING:
     from opensmi.server import Lock
@@ -211,3 +212,11 @@ class UaObject(BaseUaObject["Server"], LifecycleMixin, ReprStrMixin, AbstractUaO
         yield from super()._repr_items()
         yield "minimum_access_level", self.minimum_access_level
         yield "bypass_lock", self.bypass_lock
+
+    async def add_dictionary_entry(self, dictionary_entry: DictionaryEntry) -> None:
+        """Add given ``dictionary_entry`` to this `UaObject`."""
+        assert dictionary_entry is not None, "Dictionary entry cannot be None!"
+        await self.ua_node.add_reference(
+            target=await self.server.ua_get_dictionary_entry(dictionary_entry),
+            reftype=ua.NodeId(Identifier=ua.Int32(ua.object_ids.ObjectIds.HasDictionaryEntry)),
+        )

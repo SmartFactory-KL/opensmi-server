@@ -24,6 +24,7 @@ from opensmi.core.ua_node_util import (
 )
 from typing_extensions import TypeVar, override
 
+from opensmi.server.ua_dictionary_entry import DictionaryEntry
 from opensmi.server.ua_object import UaObject, UaObjectDefinition
 
 _VariableType = TypeVar("_VariableType")
@@ -101,6 +102,7 @@ class UaVariable(UaObject, Generic[_VariableType]):
         optional_ok: bool = False,
         name: str | None = None,
         write_check_callback: Callable[[_VariableType | None], None] | None = None,
+        dictionary_entry: DictionaryEntry | None = None,
         **kwargs,
     ) -> None:
         """*Cooperative* constructor for a new variable instance.
@@ -120,6 +122,7 @@ class UaVariable(UaObject, Generic[_VariableType]):
         :param write_check_callback: (Optional) User-definable sync. function that is called whenever a `write_check`
             occurs (Triggered by internal and external OPC UA writes). Must raise `OutOfRangeError` when the custom
             check fails.
+        :param dictionary_entry: (Optional) semantic information via OPC UA dictionary entry.
         """
         super().__init__(minimum_access_level=minimum_access_level, bypass_lock=bypass_lock, name=name, **kwargs)
 
@@ -148,6 +151,7 @@ class UaVariable(UaObject, Generic[_VariableType]):
         self._references: set[UaObject] = set()
         self.optional_ok: bool = optional_ok
         self._write_check_callback: Callable[[_VariableType | None], None] | None = write_check_callback
+        self._dictionary_entry: DictionaryEntry | None = dictionary_entry
 
     @lifecycle
     async def _init(self) -> AsyncGenerator[None]:
@@ -172,6 +176,10 @@ class UaVariable(UaObject, Generic[_VariableType]):
         # Note: references added after we are initialized are created immediately
         for ref in self._references:
             await self._ua_add_reference(ref)
+
+        if self._dictionary_entry is not None:
+            await self.add_dictionary_entry(self._dictionary_entry)
+            del self._dictionary_entry  # no longer required
 
         yield
         # no shutdown

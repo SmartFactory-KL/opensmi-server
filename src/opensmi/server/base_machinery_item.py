@@ -32,6 +32,7 @@ from opensmi.server.mixins.ua_variable_container_mixins import (
 )
 from opensmi.server.nodesets import MachineryNodeIds, SmartFactoryMachineSetNodeIds
 from opensmi.server.protocols import UserAuthorization
+from opensmi.server.ua_dictionary_entry import DictionaryEntry
 from opensmi.server.ua_object import UaObject, UaObjectDefinition
 from opensmi.server.ua_object_containers import Components, MethodSet, SkillSet
 from opensmi.server.ua_variable_containers import MachineryComponentIdentification
@@ -64,10 +65,15 @@ class BaseMachineryItem(UaObject, AbstractUaLogger):
         name: str | None = None,
         minimum_access_level: int | None = None,
         parent: UaObject | None = None,
+        dictionary_entry: DictionaryEntry | None = None,
         **kwargs,
     ) -> None:
-        """*Cooperative* constructor."""
+        """*Cooperative* constructor.
+
+        :param dictionary_entry: (Optional) semantic information via OPC UA dictionary entry.
+        """
         super().__init__(name=name, minimum_access_level=minimum_access_level, parent=parent, **kwargs)
+        self._dictionary_entry: DictionaryEntry | None = dictionary_entry
         self._components: Components = Components(parent=self)
         self._skill_set: SkillSet = SkillSet(parent=self)
         self._method_set: MethodSet = MethodSet(parent=self)
@@ -409,7 +415,9 @@ class BaseMachineryItem(UaObject, AbstractUaLogger):
 
     @abstractmethod
     async def _init(self) -> None:
-        pass
+        if self._dictionary_entry is not None:
+            await self.add_dictionary_entry(self._dictionary_entry)
+            del self._dictionary_entry  # no longer required
 
     async def _shutdown(self) -> None:
         for component in self._components:

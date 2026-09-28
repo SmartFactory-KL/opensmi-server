@@ -15,6 +15,7 @@ from opensmi.server.base_machinery_item import BaseMachineryItem
 from opensmi.server.mixins import LockableMixin, NotificationMixin
 from opensmi.server.mixins.ua_variable_container_mixins import IdentificationMixin
 from opensmi.server.nodesets import SmartFactoryMachineSetNodeIds
+from opensmi.server.ua_dictionary_entry import DictionaryEntry
 from opensmi.server.ua_object import UaObjectDefinition
 from opensmi.server.ua_object_containers import Users
 from opensmi.server.ua_variable_containers import MachineIdentification
@@ -37,10 +38,21 @@ class BaseMachine(
         server: Server | None = None,
         name: str | None = None,
         minimum_access_level: int | None = None,
+        dictionary_entry: DictionaryEntry | None = None,
         **kwargs,
     ) -> None:
-        """Create a new Machine instance. Server instance must be provided."""
-        super().__init__(name=name, minimum_access_level=minimum_access_level, server=server, parent=None, **kwargs)
+        """*Cooperative* constructor.
+
+        :param dictionary_entry: (Optional) semantic information via OPC UA dictionary entry.
+        """
+        super().__init__(
+            name=name,
+            minimum_access_level=minimum_access_level,
+            server=server,
+            parent=None,
+            dictionary_entry=dictionary_entry,
+            **kwargs,
+        )
 
         self._users = Users(parent=self)
 
