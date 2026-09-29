@@ -452,6 +452,7 @@ class UaVariable(UaObject, Generic[_VariableType]):
             variable_type=self._initial_value_type,
             optional_ok=self.optional_ok,
             write_check_callback=self._write_check_callback,  # pyright: ignore[reportArgumentType]
+            dictionary_entry=self._dictionary_entry,
         )
 
     @override
