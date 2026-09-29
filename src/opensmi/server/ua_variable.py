@@ -462,6 +462,6 @@ class UaVariable(UaObject, Generic[_VariableType]):
         yield "range", self._range
         yield "writable", self._writable
         yield "historize", self._historize
-        yield "variable_type", self._initial_value_type
+        yield "variant_type", self._variant_type
         yield "optional_ok", self.optional_ok
         yield from super()._repr_items()
