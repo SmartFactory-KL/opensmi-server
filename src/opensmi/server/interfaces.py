@@ -256,6 +256,13 @@ class AbstractSkill(AbstractCallable):
         :raises UaStatusCodeError: If the skill is not suspendable.
         """
 
+    @abstractmethod
+    async def _write_current_state(self, state: SkillState) -> None:
+        """Write the given ``state`` without any transition logic checks.
+
+        Does nothing if given ``state`` is already ``current_state``.
+        """
+
 
 class AbstractMethod(AbstractCallable):
     """Interface for methods."""

@@ -134,11 +134,8 @@ class BaseSkill(BaseCallable, AbstractSkill):
             # await self._feasibility_check.ua_create_node(_ua_feasibility_check)
             # await self._feasibility_check.init()
 
+    @override
     async def _write_current_state(self, state: SkillState) -> None:
-        """Write the given ``state`` without any transition logic checks.
-
-        Does nothing if given ``state`` is already ``current_state``.
-        """
         assert isinstance(state, SkillState), f"'{state}' is not of type SkillStates"
 
         if state == self.current_state and self.is_initialized:
