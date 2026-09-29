@@ -103,6 +103,7 @@ class UaVariable(UaObject, Generic[_VariableType]):
         name: str | None = None,
         write_check_callback: Callable[[_VariableType | None], None] | None = None,
         dictionary_entry: DictionaryEntry | None = None,
+        description: str | None = None,
         **kwargs,
     ) -> None:
         """*Cooperative* constructor for a new variable instance.
@@ -127,6 +128,7 @@ class UaVariable(UaObject, Generic[_VariableType]):
         super().__init__(minimum_access_level=minimum_access_level, bypass_lock=bypass_lock, name=name, **kwargs)
 
         self._initial_value, self._initial_value_type = _get_initial_value_and_type(initial_value, variable_type)
+        self._variant_type = self._initial_value.VariantType
         assert self._initial_value.VariantType != ua.VariantType.Null
         if issubclass(self._initial_value_type, Enum):
             _validate_enum_type(self._initial_value_type)
@@ -152,6 +154,7 @@ class UaVariable(UaObject, Generic[_VariableType]):
         self.optional_ok: bool = optional_ok
         self._write_check_callback: Callable[[_VariableType | None], None] | None = write_check_callback
         self._dictionary_entry: DictionaryEntry | None = dictionary_entry
+        self.description: str | None = description
 
     @lifecycle
     async def _init(self) -> AsyncGenerator[None]:
@@ -180,6 +183,11 @@ class UaVariable(UaObject, Generic[_VariableType]):
         if self._dictionary_entry is not None:
             await self.add_dictionary_entry(self._dictionary_entry)
             del self._dictionary_entry  # no longer required
+
+        if self.description:
+            await self.write_description(self.description)
+        else:
+            self.logger.warning("Missing description", path=str(self.path))
 
         yield
         # no shutdown
@@ -432,11 +440,18 @@ class UaVariable(UaObject, Generic[_VariableType]):
         low, high = self._range
         return low <= value <= high
 
-    def clone(self, *, name: str, writable: bool | None = None) -> "UaVariable[_VariableType]":
+    def clone(
+        self,
+        *,
+        name: str,
+        writable: bool | None = None,
+        description: str | None = None,
+    ) -> "UaVariable[_VariableType]":
         """Clone the variable configuration. It must be initialized before using it.
 
         :param name: The name of the variable.
         :param writable: Override ``writable`` configuration in clone if not ``None``.
+        :param description: Override ``description`` in clone if not ``None``.
         """
         if writable is None:
             writable = self._writable
@@ -453,6 +468,7 @@ class UaVariable(UaObject, Generic[_VariableType]):
             optional_ok=self.optional_ok,
             write_check_callback=self._write_check_callback,  # pyright: ignore[reportArgumentType]
             dictionary_entry=self._dictionary_entry,
+            description=description or self.description,
         )
 
     @override

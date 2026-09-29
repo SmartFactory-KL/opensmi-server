@@ -88,6 +88,10 @@ class AbstractUaObject(ABC):
         """
         raise ua.UaStatusCodeError(UaStatusCodes.BadStateNotActive)
 
+    @abstractmethod
+    async def write_description(self, text: str, locale: str = "en-US") -> None:
+        """Write given ``text`` as the OPC UA description of this `UaObject`."""
+
 
 class AbstractCallable(AbstractUaObject):
     """Callable interface, shared base for `AbstractSkill` and `AbstractMethod`."""

@@ -24,6 +24,7 @@ from opensmi.server.common import (
     reset_skills_parallel_and_wait,
 )
 from opensmi.server.interfaces import AbstractMethod, AbstractSkill, AbstractUaLogger
+from opensmi.server.mixins.description_mixin import DescriptionMixin
 from opensmi.server.mixins.ua_variable_container_mixins import (
     AttributesMixin,
     IdentificationMixin,
@@ -45,7 +46,7 @@ INITIAL_STATE = MachineryItemState.OUT_OF_SERVICE
 INITIAL_OPERATION_MODE = MachineryOperationMode.NONE
 
 
-class BaseMachineryItem(UaObject, AbstractUaLogger):
+class BaseMachineryItem(DescriptionMixin, UaObject, AbstractUaLogger):
     """Base class for both machines (`BaseMachine`) and components (`BaseComponent`)."""
 
     _ua_machinery_building_blocks: Node | None = None

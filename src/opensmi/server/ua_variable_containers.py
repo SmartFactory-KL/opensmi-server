@@ -4,6 +4,9 @@
 
 """Container implementation for `UaVariable`."""
 
+import ast
+import inspect
+import textwrap
 from collections.abc import AsyncGenerator, Iterator, Mapping
 from types import UnionType
 from typing import Any, Union, get_args, get_origin, get_type_hints
@@ -22,6 +25,39 @@ from opensmi.server.nodesets import (
 )
 from opensmi.server.ua_object import UaObject, UaObjectDefinition
 from opensmi.server.ua_variable import UaVariable
+
+
+def collect_attr_docs(cls: type) -> dict[str, str]:
+    """Map attribute name -> docstring for string literals following assignments in ``cls``'s own body."""
+    # Variable docstrings are discarded by the compiler, so we recover them from the source text.
+    try:
+        source = textwrap.dedent(inspect.getsource(cls))  # dedent so nested classes parse too
+    except (OSError, TypeError):
+        return {}  # no source available
+
+    # Parse the source into a syntax tree. body[0] is the ClassDef node of `cls` itself.
+    class_def = ast.parse(source).body[0]
+    docs: dict[str, str] = {}
+
+    # Look at each statement together with the one right after it.
+    # A "variable docstring" is just an assignment immediately followed by a bare string statement.
+    for node, nxt in zip(class_def.body, class_def.body[1:], strict=False):  # pyright: ignore[reportAttributeAccessIssue]
+        # Is the next statement a bare string literal (an expression with no target)?
+        if not (isinstance(nxt, ast.Expr) and isinstance(nxt.value, ast.Constant) and isinstance(nxt.value.value, str)):
+            continue
+        # Is the current statement an assignment? Collect the name(s) being assigned.
+        if isinstance(node, ast.Assign):  # x = ...   (also chained: x = y = ...)
+            targets = node.targets
+        elif isinstance(node, ast.AnnAssign):  # x: int = ...
+            targets = [node.target]
+        else:
+            continue
+
+        for t in targets:
+            if isinstance(t, ast.Name):  # skip things like self.x or a[0]
+                # cleandoc strips the indentation and surrounding blank lines
+                docs[t.id] = inspect.cleandoc(nxt.value.value)
+    return docs
 
 
 class UaVariableContainer(UaObject):
@@ -50,13 +86,24 @@ class UaVariableContainer(UaObject):
         # class variables of type UaVariable are used as templates, we need to instantiate our own private ones.
         # find all variables, including inherited ones
         for cls in reversed(type(self).__mro__):  # type: ignore
+            attr_docs = cls.__dict__.get("__attr_docs__", {})  # not getattr: avoid inherited dict
             for name, class_variable in cls.__dict__.items():
                 if isinstance(class_variable, UaVariable):
-                    clone = class_variable.clone(name=name, writable=writable)
+                    clone = class_variable.clone(
+                        name=name,
+                        writable=writable,
+                        description=attr_docs.get(name),
+                    )
                     self.logger.debug(
                         "Cloned UaVariable template", name=name, class_variable=class_variable, cloned_variable=clone
                     )
                     setattr(self, name, clone)
+
+    def __init_subclass__(cls, **kwargs) -> None:
+        """Collect unofficial Python docstrings for all attributes."""
+        super().__init_subclass__(**kwargs)
+        # store in the class's own __dict__ so it never shadows/inherits a parent's mapping
+        cls.__attr_docs__ = collect_attr_docs(cls)
 
     def _check_required_variables(self, annotations: dict[str, object]) -> None:
         """Check we have all required existing variables based on annotations."""

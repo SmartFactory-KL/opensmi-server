@@ -19,6 +19,7 @@ from typing_extensions import override
 
 from opensmi.server.interfaces import AbstractCallable
 from opensmi.server.mixins import NotificationForwarderMixin
+from opensmi.server.mixins.description_mixin import DescriptionMixin
 from opensmi.server.mixins.ua_variable_container_mixins import (
     FinalResultDataMixin,
     MonitoringMixin,
@@ -29,7 +30,7 @@ from opensmi.server.protocols import UserAuthorization
 from opensmi.server.ua_object import UaObject
 
 
-class BaseCallable(NotificationForwarderMixin, UaObject, AbstractCallable):
+class BaseCallable(DescriptionMixin, NotificationForwarderMixin, UaObject, AbstractCallable):
     """Abstract base class for all callables, i.e. skills (`BaseSkill`) and methods (`BaseMethod`)."""
 
     _ua_sub_node: Node

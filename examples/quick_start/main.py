@@ -15,21 +15,25 @@ class ExampleSkillParameterSet(ParameterSet):
     """Parameters of the example skill."""
 
     x = UaVariable(0, unit=Unit.NANOAMPERE, range=(0, 10))
+    """First parameter of the computation."""
     y = UaVariable(0, unit="nA", range=(0, 10))
+    """Second parameter of the computation."""
 
 
 class ExampleSkillSimpleFinalResultData(BaseSkillFinalResultData):
     """Final result data of the example skill."""
 
     ComputationResult = UaVariable(0, unit="nA", range=(0, 20))
+    """Result of the computation."""
 
 
 class ExampleSkill(
-    ParentMixin["ExampleMachine"],  # provides type-checkable parent type
     ParameterSetMixin[ExampleSkillParameterSet],  # provides type-checkable parameters
     FinalResultDataMixin[ExampleSkillSimpleFinalResultData],  # provides type-checkable results
     BaseSkillFinite,  # provides finite skill logic etc.
 ):
+    """Compute the sum of ``x`` and ``y`` parameters and store the result in ``ComputationResult``."""
+
     async def _handle_running(self) -> None:
         # define logic that is executed in the RUNNING state
 
@@ -45,6 +49,8 @@ class ExampleSkill(
 
 
 class ExampleMachine(BaseMachine):
+    """Quick start example machine with a single dummy skill."""
+
     async def _init(self) -> None:
         await super()._init()
 

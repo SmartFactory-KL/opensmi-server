@@ -14,11 +14,14 @@ from opensmi.server.mixins import FinalResultDataMixin, ParameterSetMixin, Paren
 
 class DummySkillSimpleParameterSet(ParameterSet):
     x = UaVariable(initial_value=0, historize=True)
+    """First parameter of the computation."""
     y = UaVariable(initial_value=0, historize=True)
+    """Second parameter of the computation."""
 
 
 class DummySkillSimpleFinalResultData(BaseSkillFinalResultData):
     ComputationResult = UaVariable(initial_value=0, historize=True)
+    """Result of the computation."""
 
 
 class DummySkillSimple(
@@ -27,6 +30,8 @@ class DummySkillSimple(
     FinalResultDataMixin[DummySkillSimpleFinalResultData],
     BaseSkillFinite,
 ):
+    """Compute the sum of ``x`` and ``y`` parameters and store the result in ``ComputationResult``."""
+
     @override
     async def _handle_resetting(self):
         # define logic that is executed after entering the RESETTING state

@@ -228,3 +228,12 @@ class UaObject(BaseUaObject["Server"], LifecycleMixin, ReprStrMixin, AbstractUaO
             reftype=ua.NodeId(Identifier=ua.Int32(ua.object_ids.ObjectIds.HasDictionaryEntry)),
         )
         self.logger.debug("Added dictionary entry", dictionary_entry=dictionary_entry)
+
+    @override
+    async def write_description(self, text: str, locale: str = "en-US") -> None:
+        await self.ua_node.write_attribute(
+            ua.attribute_ids.AttributeIds.Description,
+            ua.DataValue(
+                ua.Variant(ua.LocalizedText(text, locale)),
+            ),
+        )

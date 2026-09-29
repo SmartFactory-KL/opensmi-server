@@ -24,12 +24,17 @@ class _ParameterSet(ParameterSet):
             name="fax number",  # should be IEC CDD preferred name
         ),
     )
+    """Most technologically advanced contact information, straight from the cutting edge of German bureaucracy."""
 
 
 class ExampleMachine(ParameterSetMixin[_ParameterSet], BaseMachine):
+    """Semantically well-annotated machine whose main purpose is to receive faxes."""
+
     async def _init(self) -> None:
         await super()._init()
-        await self.add_dictionary_entry(UriDictionaryEntry("https://smartfactory.de/dictionary/machine/example-machine"))
+        await self.add_dictionary_entry(
+            UriDictionaryEntry("https://smartfactory.de/dictionary/machine/example-machine")
+        )
 
     async def _write_identification(self) -> None:
         # These identification variables must be set for machines
