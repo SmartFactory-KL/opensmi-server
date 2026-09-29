@@ -33,9 +33,9 @@ class SuspendableDummySkill(
         super().__init__(name="SuspendableDummySkill", suspendable=True)
 
     @override
-    async def _handle_resetting(self):
+    async def _handle_resetting(self) -> None:
         # (Optional) define logic that is executed in the RESETTING state
-        self.logger.info("handling suspend")
+        self.logger.info("handling resetting")
 
         # reset our variable(s)
         await self.monitoring.Progress.reset()  # reset individually
@@ -52,7 +52,7 @@ class SuspendableDummySkill(
         self.logger.info("handling starting")
 
     @override
-    async def _handle_running(self):
+    async def _handle_running(self) -> None:
         # define logic that is executed in the RUNNING state
         self.logger.info("handling running")
 
@@ -62,7 +62,7 @@ class SuspendableDummySkill(
 
         step = 0
         while step < max_steps:
-            await self._suspend_point()  # block task if suspending / suspended
+            await self._suspend_point()  # (Mandatory) block task if suspending / suspended
             step += 1
             await self.monitoring.Progress.write(step / max_steps * 100)
 
