@@ -258,11 +258,10 @@ class _SkillLogicMixin(AbstractSkill, AbstractUaLogger):
         """Handle user-specific logic during the `SkillState.RUNNING` state.
 
         After this function is done, the skill will automatically advance to the `SkillState.COMPLETED` state
-        if it is finite. Behavior of continuous skills can be configured. By default, they go to
-        `SkillState.HALTING` state, but if desired can stay in `SkillState.RUNNING`.
+        if it is finite. Continuous skills stay in `SkillState.RUNNING`.
 
-        **Note**: This continues to be executed during `SkillState.SUSPENDING` and `SkillState.SUSPENDED` states.
-        If your skill supports suspending, you have to check in what state the skill is!
+        **Note**: This continues to be executed during `SkillState.SUSPENDING` state. Use `_suspend_point` method to
+        block the task executing this function and advance to `SkillState.SUSPENDED` state.
         """
         raise NotImplementedError
 
