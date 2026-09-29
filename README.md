@@ -67,7 +67,6 @@ class ExampleSkillSimpleFinalResultData(BaseSkillFinalResultData):
 
 
 class ExampleSkill(
-    ParentMixin["ExampleMachine"],  # provides type-checkable parent type
     ParameterSetMixin[ExampleSkillParameterSet],  # provides type-checkable parameters
     FinalResultDataMixin[ExampleSkillSimpleFinalResultData],  # provides type-checkable results
     BaseSkillFinite,  # provides finite skill logic etc.
