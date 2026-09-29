@@ -214,9 +214,17 @@ class UaObject(BaseUaObject["Server"], LifecycleMixin, ReprStrMixin, AbstractUaO
         yield "bypass_lock", self.bypass_lock
 
     async def add_dictionary_entry(self, dictionary_entry: DictionaryEntry) -> None:
-        """Add given ``dictionary_entry`` to this `UaObject`."""
+        """Link this `UaObject` to a dictionary entry via a ``HasDictionaryEntry`` OPC UA reference.
+
+        The reference gives clients a machine-readable definition of what this object represents
+        (e.g. an IRDI-based entry `IrdiDictionaryEntry` from an external dictionary).
+
+        :param dictionary_entry: The entry to associate with this object. Must not be ``None``. It is automatically
+            added to the server if it does not exist yet.
+        """
         assert dictionary_entry is not None, "Dictionary entry cannot be None!"
         await self.ua_node.add_reference(
             target=await self.server.ua_get_dictionary_entry(dictionary_entry),
             reftype=ua.NodeId(Identifier=ua.Int32(ua.object_ids.ObjectIds.HasDictionaryEntry)),
         )
+        self.logger.debug("Added dictionary entry", dictionary_entry=dictionary_entry)
