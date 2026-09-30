@@ -37,13 +37,13 @@ def _validate_types(*, cls: type, target: type, obj: Any) -> None:
 
 
 class ResourcesMixin:
-    """Mixin for `BaseMachineryItem` with `Resources`."""
+    """Mixin for `BaseMachineryItem` with `Resources`. `_init_resources` method must be implemented."""
 
     __resources: Resources | None = None
 
     @abstractmethod
     async def _init_resources(self) -> None:
-        pass
+        """Initialize all resources."""
 
     @lifecycle(before=BaseMachineryItem.lifecycle_machinery_item)
     async def lifecycle_resources(self) -> AsyncGenerator[None]:
@@ -70,7 +70,7 @@ SkillSetType = TypeVar("SkillSetType", bound="SkillSet")
 
 
 class SkillSetMixin(Generic[SkillSetType]):
-    """Mixin for `BaseMachineryItem` with typed `SkillSet`. Automatically validates provided type hints."""
+    """(Optional) Mixin for `BaseMachineryItem` with typed `SkillSet`. Automatically validates provided type hints."""
 
     _skill_set: SkillSet  # without type hints
 
@@ -92,7 +92,7 @@ MethodSetType = TypeVar("MethodSetType", bound="MethodSet")
 
 
 class MethodSetMixin(Generic[MethodSetType]):
-    """Mixin for `BaseMachineryItem` with typed `MethodSet`. Automatically validates provided type hints."""
+    """(Optional) Mixin for `BaseMachineryItem` with typed `MethodSet`. Automatically validates provided type hints."""
 
     _method_set: MethodSet  # without type hints
 
@@ -114,7 +114,7 @@ ComponentsType = TypeVar("ComponentsType", bound="Components")
 
 
 class ComponentsMixin(Generic[ComponentsType]):
-    """Mixin for `BaseMachineryItem` with typed `Components`. Automatically validates provided type hints."""
+    """(Optional) Mixin for `BaseMachineryItem` with typed `Components`. Automatically validates provided type hints."""
 
     _components: Components  # without type hints
 

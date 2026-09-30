@@ -2,7 +2,14 @@
 #
 # SPDX-License-Identifier: MIT
 
-"""Mixins for both providing their own or forwarding to the parent OPC UA logger."""
+"""Mixins providing standard `AbstractUaLogger` implementations for `BaseMachineryItem`. Use at most one.
+
+- Machines (`BaseMachine`) always have their own logger (via `NotificationMixin`).
+- Skills (`BaseSkill`) and methods (`BaseMethod`) never have their own logger. They forward notifications to their
+  parent (via `NotificationForwarderMixin`).
+- Components (`BaseMachineryItem`) can optionally have their own (via `NotificationMixin`) or forward notifications
+  to their parent (via `NotificationForwarderMixin`).
+"""
 
 from collections.abc import AsyncGenerator
 
@@ -23,7 +30,7 @@ class NotificationMixin(UaObject, AbstractUaLogger):
     async def lifecycle_notification(self) -> AsyncGenerator[None]:
         """Initialize the notification."""
         self.__notification = Notification()
-        self.__notification.parent = self  # pyright: ignore[reportAttributeAccessIssue]
+        self.__notification.parent = self
         await self.__notification.ua_create_node(self.ua_node, exist_ok=True)
         await self.__notification.init()
 

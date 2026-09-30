@@ -2,7 +2,16 @@
 #
 # SPDX-License-Identifier: MIT
 
-"""Mixins related to OPC UA spatial objects."""
+"""Mixins related to OPC UA spatial objects (Relative Spatial Location information model).
+
+- `SpatialObjectListMixin` for `BaseMachine`: The machine provides the `SpatialObjectList` with the `WorldFrame`.
+- `SpatialObjectMixin` for `BaseComponent`: The component provides its own `SpatialObject`, which is registered
+  in the machine's `SpatialObjectList`.
+
+Both place their spatial objects in the `Monitoring` container, so `MonitoringMixin` for each is required.
+
+See https://reference.opcfoundation.org/specs/OPC-10000-210/full
+"""
 
 from collections.abc import AsyncGenerator
 
@@ -17,11 +26,22 @@ from opensmi.server.ua_object import UaObject
 
 
 class SpatialObjectMixin:
-    """Mixin for `UaObject` that have a OPC UA spatial object."""
+    """Mixin for `BaseMachineryItem` that has an OPC UA spatial object.  Requires `MonitoringMixin`.
+
+    The spatial object is not created automatically. Call `_init_spatial_object` with a `SpatialObject` during
+    component initialization.
+    """
 
     __spatial_object: SpatialObject | None = None
 
     async def _init_spatial_object(self, spatial_object: SpatialObject) -> None:
+        """Set up the given ``spatial_object`` for this object.
+
+        If the spatial object is not initialized yet, a new OPC UA node is created below `Monitoring`, else the
+        existing spatial object is reused.
+
+        :param spatial_object: Spatial object of this object.
+        """
         assert spatial_object is not None, "No spatial object given!"
 
         if not spatial_object.is_initialized:
@@ -36,13 +56,19 @@ class SpatialObjectMixin:
 
     @property
     def spatial_object(self) -> SpatialObject:
-        """The spatial object that belongs to this object. Read-only property."""
+        """The spatial object that belongs to this object. Read-only property.
+
+        Only available after `_init_spatial_object` was called.
+        """
         assert self.__spatial_object is not None, "Spatial object was not initialized!"
         return self.__spatial_object
 
 
 class SpatialObjectListMixin:
-    """Mixin for `UaObject` that have a OPC UA spatial object list."""
+    """Mixin for `BaseMachine` that has an OPC UA spatial object list. Requires `MonitoringMixin`.
+
+    Only one list per machine is supported.
+    """
 
     __spatial_object_list: SpatialObjectList | None = None
 

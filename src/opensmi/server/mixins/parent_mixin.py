@@ -2,7 +2,7 @@
 #
 # SPDX-License-Identifier: MIT
 
-"""Mixin for typing the parent of an `UaObject`."""
+"""(Optional) Mixin for typing the parent of an `UaObject`."""
 
 from typing import TYPE_CHECKING, Any, ForwardRef, Generic, cast, get_args, get_origin
 
@@ -45,7 +45,10 @@ def _get_generic_type(cls: type[Any], generic: type[Any]) -> type[Any] | None:
 
 
 class ParentMixin(Generic[_ParentType]):
-    """Mixin for typing the parent of an `UaObject`."""
+    """(Optional) Mixin for typing the parent of an `UaObject`.
+
+    **Note**: Parent cannot be None when you use this mixin!
+    """
 
     _parent: BaseUaObject[Server] | None
 

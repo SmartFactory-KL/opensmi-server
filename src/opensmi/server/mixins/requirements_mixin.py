@@ -27,10 +27,7 @@ class RequirementsMixin(AbstractUaObject):
     async def add_dependency(self, other: UaObject) -> None:
         """Add the given `UaObject` (skill, port, resource, etc.) as a dependency.
 
-        Influences the conditions before this skill/method can be executed:
-        * If the dependency is a port, it must be coupled.
-        * If the dependency is a finite skill, it must be ready.
-        * If the dependency is a continuous skill, it must be running.
+        Influences the conditions before this skill/method can be executed.
         """
         assert isinstance(other, UaObject), f"Given dependency '{other.__class__.__name__}' is invalid!"
 
