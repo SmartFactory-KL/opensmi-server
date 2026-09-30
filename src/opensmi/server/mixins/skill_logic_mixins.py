@@ -62,11 +62,10 @@ class _SkillLogicMixin(AbstractSkill, AbstractUaLogger):
         self._resume_event.set()  # not suspended by default
         self._paused_event: asyncio.Event = asyncio.Event()
 
-        self._machine: UaFiniteStateMachine = UaFiniteStateMachine(
+        self._machine: UaFiniteStateMachine[SkillState] = UaFiniteStateMachine(
             name=f"{self.name}_StateMachine",
-            states=SkillState,  # type: ignore
+            states=SkillState,
             initial=SkillState.HALTED,
-            exclude_states=[] if self.is_finite else [SkillState.COMPLETED, SkillState.COMPLETING],
             write_func=self._write_current_state,
         )
         """Skill Finite State Machine."""
