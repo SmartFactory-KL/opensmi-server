@@ -10,7 +10,7 @@ from opensmi.server import Server
 
 
 async def main() -> None:
-    async with Server(config_path="config.toml") as server:  # will properly shut down the server
+    async with Server(config="config.toml") as server:  # will properly shut down the server
         await server.add_machine(DummyMachine())  # add machine(s)
         await server.start(blocking=True)  # start the server and block while it is running
 

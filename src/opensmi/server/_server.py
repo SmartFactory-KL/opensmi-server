@@ -27,6 +27,7 @@ from asyncua.server.history_sql import HistorySQLite
 from asyncua.server.server import Server as UaServer
 from opensmi.core import AsyncTaskMixin, LifecycleState, setup_logging
 from opensmi.core.base_server import BaseServer
+from opensmi.core.config import load_dataclass
 from opensmi.core.lifecycle_mixin import LifecycleMixin, lifecycle
 from opensmi.core.protocols import NamespaceProvider
 from opensmi.core.repr_mixin import ReprStrMixin
@@ -113,8 +114,9 @@ class Server(
     _access_control: AccessControl
     _ua_server: UaServer
     _ua_address_space: AddressSpace
+    _config: ServerConfiguration
 
-    def __init__(self, *, config_path: str | Path | None = None) -> None:
+    def __init__(self, *, config: str | Path | ServerConfiguration | None = None) -> None:
         super().__init__()
 
         self._machines: list[BaseMachine] = []
@@ -125,20 +127,12 @@ class Server(
         """Maps nodeset XML URIs to information how to load the corresponding XML file."""
         self._dictionary_entries: dict[str, ua.NodeId] = {}
         """Maps Semantic ID (=Browse name) to live OPC UA node IDs of the corresponding Dictionary entries."""
-        if config_path:
-            self.load_config(config_path)
+        if isinstance(config, (str, Path)):
+            self._config = load_dataclass(ServerConfiguration, config)
+        elif isinstance(config, ServerConfiguration):
+            self._config = config
         else:
-            self._config: ServerConfiguration = ServerConfiguration()
-
-    def load_config(self, path: str | Path) -> None:
-        """Load configuration from given ``path``."""
-        if self.lifecycle_state != LifecycleState.NEW:
-            msg = "Cannot configure server after initialization!"
-            raise RuntimeError(msg)
-
-        from opensmi.core.config import load_dataclass
-
-        self._config = load_dataclass(ServerConfiguration, path)
+            self._config = ServerConfiguration()
 
     @lifecycle
     async def _life_cycle(self) -> AsyncGenerator[None]:
@@ -382,12 +376,23 @@ class Server(
 
     @property
     def config(self) -> ServerConfiguration:
-        """Return the server-wide configuration. Read-only property."""
+        """Return the server-wide configuration."""
         if not hasattr(self, "_config") or self._config is None:
             msg = "Server is not yet configured! Call configure() first."
             raise RuntimeError(msg)
 
         return self._config
+
+    @config.setter
+    def config(self, config: ServerConfiguration) -> None:
+        """Set the server-wide configuration. Only allowed before server initialization."""
+        assert config is not None
+
+        if self.lifecycle_state != LifecycleState.NEW:
+            msg = "Cannot configure server after initialization!"
+            raise RuntimeError(msg)
+
+        self._config = config
 
     async def _register_server(self, retry_seconds: float = 10.0):
         lds_client = asyncua.client.client.Client(self.config.discovery.server_address)

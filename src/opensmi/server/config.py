@@ -115,7 +115,7 @@ class AccessControlConfiguration:
 
 @dataclass(slots=True, kw_only=True)
 class ServerConfiguration:
-    """`Server` related configuration."""
+    """`Server` related configuration. Do **NOT** change after instantiation unless you know what you're doing."""
 
     debug: bool = False
     logging: LoggingConfiguration = field(default_factory=LoggingConfiguration)
