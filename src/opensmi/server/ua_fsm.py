@@ -53,8 +53,12 @@ class UaFiniteStateMachine(Generic[_StateType]):
             states=tuple(states),
             initial=initial,
             auto_transitions=False,
-            after_state_change=self._after_state_change,
+            # after_state_change=self._after_state_change,
         )
+        # Note: machine.after_state_change triggers too late, so use each state's on_enter callback
+        for state in self._internal_machine.states.values():
+            state.on_enter.append(self._after_state_change)  # pyright: ignore[reportArgumentType]
+
         # Note: do not use set on_exception parameter of the AsyncMachine constructor, exceptions are required for
         # normal operation!
         self._write_func = write_func
