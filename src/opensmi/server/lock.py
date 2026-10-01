@@ -72,6 +72,7 @@ class Lock(UaObject):
         """ Monotonic timestamp when the lock was granted to a user. Used for inactivity timeout. """
         self._lock: asyncio.Lock = asyncio.Lock()
         """ Used to guarantee atomic updates. """
+        self._remaining_lock_time_ms = 0
 
     async def init_lock(self, user: UserAuthorization, *, session: SessionProtocol | None = None) -> bool:
         """Request exclusive access to nodes protected by this ``Lock``.
@@ -121,17 +122,22 @@ class Lock(UaObject):
             return False
 
         self._locking_time = time.monotonic()
-        await self._ua_remaining_lock_time_ms.write_value(self.max_inactive_time_ms)
+        await self._update_remaining_lock_time_ms(self.max_inactive_time_ms)
         return True
 
+    async def _update_remaining_lock_time_ms(self, time_ms: int) -> None:
+        self._remaining_lock_time_ms = time_ms
+        await self._ua_remaining_lock_time_ms.write_value(time_ms)
+
     async def _check_inactivity_loop(self) -> Never:
+        """Update the remaining lock time while locked every second."""
         while True:
             if self.locked:
                 remaining_lock_time_ms = self.max_inactive_time_ms - int((time.monotonic() - self._locking_time) * 1000)
                 if remaining_lock_time_ms <= 0:
                     await self.update_locking_status(None, reason="Inactivity")
                 else:
-                    await self._ua_remaining_lock_time_ms.write_value(remaining_lock_time_ms)
+                    await self._update_remaining_lock_time_ms(remaining_lock_time_ms)
             await asyncio.sleep(1)
 
     @override
@@ -233,7 +239,7 @@ class Lock(UaObject):
                 await self._ua_locking_client.write_value("")
                 await self._ua_locking_user.write_value("")
                 await self._ua_locked.write_value(False)
-                await self._ua_remaining_lock_time_ms.write_value(0)
+                await self._update_remaining_lock_time_ms(0)
             else:
                 self.logger.info("New lock owner", user=str(user), previous_user=str(self.locking_user), reason=reason)
                 self._locking_user = user
@@ -243,7 +249,7 @@ class Lock(UaObject):
                     # TODO(CaHa): locking client is supposed to be the client ApplicationUri
                     await self._ua_locking_client.write_value(str(session.name))
                 await self._ua_locked.write_value(True)
-                await self._ua_remaining_lock_time_ms.write_value(self.max_inactive_time_ms)
+                await self._update_remaining_lock_time_ms(self.max_inactive_time_ms)
 
     @override
     def access_allowed(self, user: UserAuthorization, *, lock_required: bool | None = None) -> bool:
@@ -341,6 +347,11 @@ class Lock(UaObject):
     def max_inactive_time_ms(self) -> int:
         """Maximum time in milliseconds a lock owner is allowed to be inactive."""
         return int(self.server.config.access_control.max_inactive_lock_time_milliseconds)
+
+    @property
+    def remaining_lock_time_ms(self) -> int:
+        """Remaining time in milliseconds the `locking_user` is allowed to be inactive."""
+        return self._remaining_lock_time_ms
 
     @property
     def locked(self) -> bool:
