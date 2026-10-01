@@ -2,9 +2,14 @@
 #
 # SPDX-License-Identifier: MIT
 
-import pytest
+from collections.abc import AsyncGenerator
 
-from opensmi.server import Server
+import pytest
+import pytest_asyncio
+from asyncua import ua
+from typing_extensions import override
+
+from opensmi.server import BaseMachine, Server
 from opensmi.server.config import ServerConfiguration
 
 
@@ -14,3 +19,23 @@ def server() -> Server:
     config = ServerConfiguration()
     config.ua_server.endpoint_address = "opc.tcp://0.0.0.0:0/server"
     return Server(config=config)
+
+
+class Machine(BaseMachine):
+    @override
+    async def _write_identification(self) -> None:
+        # These identification variables must be set for machines
+        await self.identification.SerialNumber.write("1234-56789-abc")
+        await self.identification.ProductInstanceUri.write("urn:smartfactory.de-model:snr-1234-56789-abc")
+        await self.identification.Manufacturer.write(
+            ua.LocalizedText("Technologie-Initiative SmartFactory KL e. V.", "de-DE")
+        )
+
+
+@pytest_asyncio.fixture
+async def machine(server) -> AsyncGenerator[Machine]:
+    machine = Machine()
+    async with server:
+        await server.add_machine(machine)
+        await server.start(blocking=False)
+        yield machine
