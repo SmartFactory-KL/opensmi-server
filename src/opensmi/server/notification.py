@@ -2,12 +2,7 @@
 #
 # SPDX-License-Identifier: MIT
 
-"""Interface and implementation for OPC UA based logging.
-
-- There is always at least one actual OPC UA logger for the machine (`BaseMachine`).
-- Skills (`BaseSkill`) and Methods (`BaseMethod`) never have their own logger and forward them to their parent.
-- Components (`BaseMachineryItem`) can optionally have their own or forward them to their parent.
-"""
+"""Implementation of the `AbstractUaLogger` interface with a Notification OPC UA object and event sources."""
 
 from collections.abc import AsyncGenerator
 
@@ -24,7 +19,7 @@ from opensmi.server.ua_object import UaObject, UaObjectDefinition
 
 
 class Notification(ParentMixin[BaseMachineryItem], UaObject, AbstractUaLogger):
-    """Implementation of the OPC UA Logging interface for `BaseMachine` and optionally `BaseMachineryItem`."""
+    """Implementation of the `AbstractUaLogger` interface with a Notification OPC UA object and event sources."""
 
     _ua_info_event_gen: EventGenerator
     _ua_alarm_event_gen: EventGenerator
@@ -42,6 +37,7 @@ class Notification(ParentMixin[BaseMachineryItem], UaObject, AbstractUaLogger):
 
     @lifecycle
     async def lifecycle_notification(self) -> AsyncGenerator[None]:
+        """Create the event generators for info and alert events."""
         # setup event generators
         self._ua_info_event_gen = await self.server.ua_server.get_event_generator(
             etype=ua.object_ids.ObjectIds.BaseEventType,
