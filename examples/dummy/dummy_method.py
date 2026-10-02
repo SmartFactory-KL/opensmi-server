@@ -4,7 +4,7 @@
 
 from typing_extensions import override
 
-from opensmi.server import BaseMachineryItem, BaseMethod, FinalResultData, ParameterSet, UaObject, UaVariable
+from opensmi.server import BaseMachineryItem, BaseMethod, FinalResultData, ParameterSet, UaVariable
 from opensmi.server.mixins import FinalResultDataMixin, ParameterSetMixin, ParentMixin, RequirementsMixin
 
 

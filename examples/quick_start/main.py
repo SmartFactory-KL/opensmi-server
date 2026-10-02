@@ -8,7 +8,7 @@ from asyncua import ua
 from opensmi.core import Unit
 
 from opensmi.server import BaseMachine, BaseSkillFinalResultData, BaseSkillFinite, ParameterSet, Server, UaVariable
-from opensmi.server.mixins import FinalResultDataMixin, ParameterSetMixin, ParentMixin
+from opensmi.server.mixins import FinalResultDataMixin, ParameterSetMixin
 
 
 class ExampleSkillParameterSet(ParameterSet):
