@@ -1,3 +1,7 @@
+# SPDX-FileCopyrightText: 2026 OpenSMI Contributors
+#
+# SPDX-License-Identifier: MIT
+
 import pytest
 
 from opensmi.server.ua_dictionary_entry import IrdiDictionaryEntry, UriDictionaryEntry
