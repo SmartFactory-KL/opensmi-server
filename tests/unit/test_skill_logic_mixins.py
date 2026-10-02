@@ -128,7 +128,7 @@ async def wait_until(predicate: Callable[[], bool], timeout: float = 1.0) -> Non
 
     try:
         await asyncio.wait_for(_poll(), timeout)
-    except asyncio.TimeoutError:
+    except TimeoutError:
         pytest.fail("Timed out waiting for condition")
 
 

@@ -232,7 +232,7 @@ def test_write_check_callback():
     def callback(value: int | None) -> None:
         if value != 1:
             msg = "value != 1!"
-            raise OutOfRangeError(msg)  # noqa: TRY003
+            raise OutOfRangeError(msg)
 
     var = UaVariable(initial_value=0, write_check_callback=callback)
     var.write_check(1)  # should not raise
