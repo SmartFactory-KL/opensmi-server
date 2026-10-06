@@ -78,9 +78,13 @@ class AccessControl(UserManager, AsyncTaskMixin):
         """Initialize OPC UA representation of all users."""
         self.logger.debug("Initializing UA users...", users=users)
         for user in self._users.values():
-            user.parent = users
-            await user.ua_create_node(users.ua_node, instantiate_optional=True)
-            await user.init()
+            if not user.is_initialized:
+                user.parent = users
+                await user.ua_create_node(users.ua_node, instantiate_optional=True)
+                await user.init()
+            else:
+                # TODO(CaHa): Hack, Users node should not be under machine node but under server node instead. -> SiJu
+                await users.ua_node.add_reference(target=user.ua_node, reftype=ua.object_ids.ObjectIds.HasComponent)
 
     async def _add_session(self, session: SessionProtocol) -> None:
         if isinstance(session.user, User):
