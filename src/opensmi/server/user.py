@@ -129,7 +129,7 @@ class User(UaObject, UserProtocol):
     @override
     async def remove_session(self, session: SessionProtocol) -> None:
         self.logger.debug("Removing session", session=session.name, sessions=len(self._sessions))
-        self._sessions.remove(session)
+        self._sessions.discard(session)
         if len(self._sessions) == 0:
             await self._ua_is_present.write_value(False)
 

@@ -48,7 +48,7 @@ class AccessControl(UserManager, AsyncTaskMixin):
 
         self.logger: structlog.stdlib.BoundLogger = structlog.getLogger("opensmi.AccessControl")
         self._server: Server = server
-        self._sessions: list[SessionProtocol] = []
+        self._sessions: set[SessionProtocol] = set()
         self.minimum_access: int = int(self._server.config.access_control.minimum_access_level)
         self._lock: asyncio.Lock = asyncio.Lock()
 
@@ -92,7 +92,7 @@ class AccessControl(UserManager, AsyncTaskMixin):
             await user.add_session(session)
         else:
             self.logger.warning("Unknown session user!", user=session.user)
-        self._sessions.append(session)
+        self._sessions.add(session)
         await self.on_session_accepted.send(session)
 
     async def _remove_session(self, session: SessionProtocol) -> None:
@@ -100,7 +100,7 @@ class AccessControl(UserManager, AsyncTaskMixin):
         if isinstance(session.user, User):
             user: User = session.user
             await user.remove_session(session)
-        self._sessions.remove(session)
+        self._sessions.discard(session)
         await self.on_session_closed.send(session)
 
     async def _check_for_closed_sessions_loop(self, *, interval: float = 1) -> None:
