@@ -171,8 +171,14 @@ class AccessControl(UserManager, AsyncTaskMixin):
             logger.info("Access granted!")
             return user
 
+        # always allow reconnections if sessions match exactly
+        for user_session in user.sessions:
+            if user_session == session:
+                logger.info("Access granted, reusing existing session!")
+                return user
+
         # check for a reconnection attempt of already logged-in user (thx to FeDi)
-        if self._server.config.access_control.allow_reconnection_from_same_host:
+        if self._server.config.access_control.allow_reconnection_from_same_host:  # new session
             for user_session in user.sessions:
                 # ensure if IP-addresses are equal AND the username is equal to the one of that specific IP-Address
                 if (user_session.name[0] == session.name[0]) and (user_session.user.name == username):
