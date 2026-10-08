@@ -22,6 +22,7 @@ class MockServer(BaseServer[UaObject]):
 
 
 class TestEnum(IntEnum):
+    __test__ = False
     ZERO = 0
     ONE = 1
     TWO = 2
