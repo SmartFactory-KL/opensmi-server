@@ -12,6 +12,7 @@ from _pytest.monkeypatch import MonkeyPatch
 from opensmi.server import User
 from opensmi.server.common import SECRET_KEY_NAME, get_scrypt_instance
 from opensmi.server.config import UserConfiguration
+from opensmi.server.user import encode_password
 
 PASSWORD_PLAINTEXT = "secret"
 
@@ -27,8 +28,14 @@ def user_encrypted(monkeypatch: MonkeyPatch) -> User:
 
     derived = get_scrypt_instance().derive(PASSWORD_PLAINTEXT.encode("utf-8"))
 
-    password = f"base64:{base64.b64encode(derived).decode()}"
-    return User(config=UserConfiguration(name="test", password=password, priority=0, maximum_access_level=2))
+    return User(
+        config=UserConfiguration(
+            name="test",
+            password=encode_password(derived),
+            priority=0,
+            maximum_access_level=2,
+        )
+    )
 
 
 def test_sets_current_access_level_larger_than_max(user_plain) -> None:
