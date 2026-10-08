@@ -103,7 +103,10 @@ class UserProtocol(UserAuthentication, UserAuthorization, UserPresence, Protocol
 
 
 class SessionProtocol(Protocol):
-    name: str
+    """OpenSMI relevant portion of an asyncua ``InternalSession``."""
+
+    name: tuple[str, int]
+    """IP address and port number of the session."""
     user: "UserProtocol"  # This is different from normal asyncua, but correct in our case
     state: "SessionState"
 
