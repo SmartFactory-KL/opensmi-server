@@ -6,12 +6,14 @@ import base64
 import os
 
 from opensmi.server.common import SECRET_KEY_NAME, get_scrypt_instance
+from opensmi.server.user import encode_password
 
 
 def main() -> None:
     try:
         scrypt = get_scrypt_instance()
-    except RuntimeError:
+    except RuntimeError as err:
+        print(err)
         print("Could not find valid pepper in environment!")
         new_pepper = base64.b64encode(os.urandom(32)).decode("ascii")
         print("New random pepper:", new_pepper)
@@ -22,8 +24,8 @@ def main() -> None:
         cleartext_password = input("Please enter a password: ")
         cleartext_password_again = input("Please re-enter the password: ")
         if cleartext_password == cleartext_password_again:
-            print("Here is the password for use with the access control:")
-            print(scrypt.derive(bytes(cleartext_password, "utf-8")))
+            print("Here is the password for use with the access control configuration file:")
+            print(encode_password(scrypt.derive(bytes(cleartext_password, "utf-8"))))
             return
         print("The entered password do not match! Please try again.")
 
