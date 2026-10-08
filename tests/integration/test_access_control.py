@@ -28,7 +28,7 @@ async def test_login_limitation(machine, user, password) -> None:
 
     async with Client(url=f"opc.tcp://{user}:{password}@localhost:{machine.server.ua_server.bserver.port}"):
         client_2nd = Client(url=f"opc.tcp://{user}:{password}@localhost:{machine.server.ua_server.bserver.port}")
-        with pytest.raises(BadUserAccessDenied):
+        with pytest.raises(BadIdentityTokenRejected):
             # should fail, because only one is allowed to log in at a time
             await client_2nd.connect()
 

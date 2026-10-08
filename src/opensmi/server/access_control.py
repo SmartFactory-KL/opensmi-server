@@ -16,6 +16,7 @@ from typing import TYPE_CHECKING, cast
 
 import structlog
 from asyncua import ua
+from asyncua.common.utils import ServiceError
 from asyncua.crypto.permission_rules import UserRole
 from asyncua.server.address_space import AddressSpace, AttributeService, MethodService
 from asyncua.server.internal_session import InternalSession, SessionState
@@ -134,10 +135,13 @@ class AccessControl(UserManager, AsyncTaskMixin):
         """Check whether given user credentials are correct and allowed to log in.
 
         :return: User instance if user is allowed to log in, None otherwise.
+        :raises ServiceError: Contains OPC UA status code: If username or password are missing →
+            ``BadIdentityTokenInvalid`` and if credentials correct, but multiple logins are not allowed →
+            ``BadIdentityTokenRejected``.
         """
         if username is None or password is None:
             self.logger.warning("Received invalid username and/or password!")
-            return None
+            raise ServiceError(ua.status_codes.StatusCodes.BadIdentityTokenInvalid)
 
         # grab the session via inspection, this method is called by the corresponding internal session
         session = currentframe().f_back.f_locals["self"]  # pyright: ignore[reportOptionalMemberAccess, reportAny]
@@ -191,7 +195,7 @@ class AccessControl(UserManager, AsyncTaskMixin):
                     return user
 
         logger.warning("Access denied, already logged in!")
-        return None
+        raise ServiceError(ua.status_codes.StatusCodes.BadIdentityTokenRejected)
 
 
 class AccessControlAttributeService(AttributeService):
