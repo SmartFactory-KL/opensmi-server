@@ -87,20 +87,24 @@ class AccessControl(UserManager, AsyncTaskMixin):
                 await users.ua_node.add_reference(target=user.ua_node, reftype=ua.object_ids.ObjectIds.HasComponent)
 
     async def _add_session(self, session: SessionProtocol) -> None:
-        if isinstance(session.user, User):
-            user: User = session.user
-            await user.add_session(session)
-        else:
-            self.logger.warning("Unknown session user!", user=session.user)
-        self._sessions.add(session)
+        self.logger.debug("Adding session", username=session.user, client=session.name)
+        async with self._lock:
+            if isinstance(session.user, User):
+                user: User = session.user
+                await user.add_session(session)
+            else:
+                self.logger.error("Unknown session user!", user=session.user)
+            self._sessions.add(session)
         await self.on_session_accepted.send(session)
 
     async def _remove_session(self, session: SessionProtocol) -> None:
         self.logger.debug("Removing session", username=session.user, client=session.name)
-        if isinstance(session.user, User):
-            user: User = session.user
-            await user.remove_session(session)
-        self._sessions.discard(session)
+        async with self._lock:
+            if isinstance(session.user, User):
+                user: User = session.user
+                await user.remove_session(session)
+            self._sessions.discard(session)
+
         await self.on_session_closed.send(session)
 
     async def _check_for_closed_sessions_loop(self, *, interval: float = 1) -> None:
@@ -109,11 +113,13 @@ class AccessControl(UserManager, AsyncTaskMixin):
         :param interval: Time to sleep between check in seconds.
         """
         while self.running:
-            async with self._lock:
+            try:
                 remove_list = [session for session in self._sessions if session.state == SessionState.Closed]
 
                 for session in remove_list:
                     await self._remove_session(session)
+            except Exception as err:
+                self.logger.warning("Error while checking for closed sessions!", err=err)
 
             await asyncio.sleep(interval)
 
