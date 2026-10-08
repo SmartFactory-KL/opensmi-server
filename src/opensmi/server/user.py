@@ -138,16 +138,19 @@ class User(UaObject, UserProtocol):
         if password is None:
             return False
 
-        if isinstance(self._password, bytes) and isinstance(password, bytes):
+        if isinstance(self._password, str):
+            self.logger.warning("Using unencrypted password!")
+
+        if isinstance(self._password, bytes):
+            if isinstance(password, str):
+                password = password.encode()
             try:
                 get_scrypt_instance().verify(password, self._password)
+                return True  # noqa: TRY300
             except InvalidKey:
                 return False
-        else:
-            self.logger.warning("Using unencrypted password!")
-            return self._password == bytes(str(password), "utf-8").decode()  # clear text (e.g. for test cases)
 
-        return True
+        return self._password == bytes(str(password), "utf-8").decode()  # clear text (e.g. for test cases)
 
 
 INTERNAL_USER = UaUser(name="INTERNAL", role=UserRole.Admin)
