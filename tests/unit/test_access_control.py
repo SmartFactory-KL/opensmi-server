@@ -148,4 +148,6 @@ async def test_new_connection_adds_session(access_control) -> None:
     session.user = user
 
     await asyncio.sleep(0)
+
     assert session in access_control.sessions
+    assert session in user.sessions
