@@ -58,24 +58,23 @@ def test_plaintext_password_correct(user_plain) -> None:
     assert not user_plain.check_password(b"secret")  # only plain str version is accepted
 
 
-def test_plaintext_password_incorrect(user_plain) -> None:
-    assert not user_plain.check_password("wrong")
-    assert not user_plain.check_password(b"wrong")
-    assert not user_plain.check_password(None)
+@pytest.mark.parametrize("password", ["wrong", b"wrong", None])
+def test_plaintext_password_incorrect(user_plain, password) -> None:
+    assert not user_plain.check_password(password)
 
 
-def test_encrypted_password_correct(user_encrypted) -> None:
-    assert user_encrypted.check_password(b"secret")
-    assert not user_encrypted.check_password("secret")  # only bytes version is accepted
+@pytest.mark.parametrize("password", ["secret", b"secret"])
+def test_encrypted_password_correct(user_encrypted, password) -> None:
+    assert user_encrypted.check_password(password)
 
 
-def test_encrypted_password_incorrect(user_encrypted) -> None:
-    assert not user_encrypted.check_password(b"wrong")
-    assert not user_encrypted.check_password("wrong")
-    assert not user_encrypted.check_password(None)
+@pytest.mark.parametrize("password", ["wrong", b"wrong", None])
+def test_encrypted_password_incorrect(user_encrypted, password) -> None:
+    assert not user_encrypted.check_password(password)
 
 
-def test_encrypted_password_no_scrypt() -> None:
+@pytest.mark.parametrize("password", [b"secret", b"wrong", "secret"])
+def test_encrypted_password_no_scrypt(password) -> None:
     user = User(
         config=UserConfiguration(
             name="test",
@@ -85,12 +84,7 @@ def test_encrypted_password_no_scrypt() -> None:
         )
     )
     with pytest.raises(RuntimeError, match="OPEN_SMI_SECRET_KEY environment variable is not set"):
-        assert not user.check_password(b"secret")
-    with pytest.raises(RuntimeError, match="OPEN_SMI_SECRET_KEY environment variable is not set"):
-        assert not user.check_password(b"wrong")
-
-    assert not user.check_password(None)  # does not need it, instantly rejected
-    assert not user.check_password("secret")
+        user.check_password(password)
 
 
 def test_invalid_base64_encoded_password() -> None:
@@ -105,7 +99,8 @@ def test_invalid_base64_encoded_password() -> None:
         )
 
 
-def test_invalid_peppered_password(monkeypatch: MonkeyPatch) -> None:
+@pytest.mark.parametrize("password", [b"secret", "secret", b"wrong", "wrong", None])
+def test_invalid_peppered_password(monkeypatch: MonkeyPatch, password) -> None:
     monkeypatch.setenv(SECRET_KEY_NAME, base64.b64encode(os.urandom(16)).decode("ascii"))
 
     user = User(
@@ -117,8 +112,4 @@ def test_invalid_peppered_password(monkeypatch: MonkeyPatch) -> None:
         )
     )
 
-    assert not user.check_password(b"secret")
-    assert not user.check_password("secret")
-    assert not user.check_password(b"wrong")
-    assert not user.check_password("wrong")
-    assert not user.check_password(None)
+    assert not user.check_password(password)
