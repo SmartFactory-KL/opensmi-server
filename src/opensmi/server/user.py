@@ -24,6 +24,16 @@ from opensmi.server.protocols import SessionProtocol, UserProtocol
 from opensmi.server.ua_object import UaObject, UaObjectDefinition
 
 
+def encode_password(password: bytes) -> str:
+    """Encode given (peppered) password and prefix it with ``base64:``."""
+    return f"base64:{base64.b64encode(password).decode()}"
+
+
+def decode_password(password: str) -> bytes:
+    """Decode given encoded (peppered) password."""
+    return base64.b64decode(password.removeprefix("base64:"))
+
+
 class User(UaObject, UserProtocol):
     """User (role), authentication and OPC UA representation."""
 
@@ -36,8 +46,7 @@ class User(UaObject, UserProtocol):
         """Construct new user based on given configuration."""
         super().__init__(name=config.name)
         if config.password.startswith("base64:"):
-            encoded = config.password.removeprefix("base64:")
-            self._password = base64.b64decode(encoded)
+            self._password = decode_password(config.password)
         else:
             self._password = config.password
 
