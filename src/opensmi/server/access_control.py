@@ -182,7 +182,7 @@ class AccessControl(UserManager, AsyncTaskMixin):
             for user_session in user.sessions:
                 # ensure if IP-addresses are equal AND the username is equal to the one of that specific IP-Address
                 if (user_session.name[0] == session.name[0]) and (user_session.user.name == username):
-                    self._create_task(user_session.close_session(), name="AccessControl_close_session")
+                    self._create_task(user_session.close_session(delete_subs=False), name="AccessControl_close_session")
                     self._create_task(
                         self._add_session(session),  # pyright: ignore[reportArgumentType]
                         name="AccessControl_add_session",
