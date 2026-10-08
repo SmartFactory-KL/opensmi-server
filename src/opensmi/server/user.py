@@ -133,13 +133,14 @@ class User(UaObject, UserProtocol):
     async def add_session(self, session: SessionProtocol) -> None:
         self.logger.debug("Adding session", session=session.name, sessions=len(self._sessions))
         self._sessions.add(session)
-        await self._ua_is_present.write_value(True)
+        if self.is_initialized:
+            await self._ua_is_present.write_value(True)
 
     @override
     async def remove_session(self, session: SessionProtocol) -> None:
         self.logger.debug("Removing session", session=session.name, sessions=len(self._sessions))
         self._sessions.discard(session)
-        if len(self._sessions) == 0:
+        if self.is_initialized and len(self._sessions) == 0:
             await self._ua_is_present.write_value(False)
 
     @override
