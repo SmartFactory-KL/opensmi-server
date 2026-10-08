@@ -27,6 +27,7 @@ from opensmi.core.errors import OutOfRangeError
 from opensmi.core.signal import Signal
 from typing_extensions import override
 
+from opensmi.server.config import AccessControlConfiguration
 from opensmi.server.protocols import SessionProtocol, UserAuthorization, UserProtocol
 from opensmi.server.ua_variable import UaVariable
 from opensmi.server.user import User
@@ -43,19 +44,15 @@ if TYPE_CHECKING:
 class AccessControl(UserManager, AsyncTaskMixin):
     """Handles user authentication."""
 
-    def __init__(self, *, server: Server) -> None:
-        """Construct new instance using ``server``."""
-        super().__init__()
-
+    def __init__(self, *, config: AccessControlConfiguration) -> None:
+        """Construct new instance using provided ``config``."""
+        self.config = config
         self.logger: structlog.stdlib.BoundLogger = structlog.getLogger("opensmi.AccessControl")
-        self._server: Server = server
         self._sessions: set[SessionProtocol] = set()
-        self.minimum_access: int = int(self._server.config.access_control.minimum_access_level)
+        self.minimum_access: int = int(self.config.minimum_access_level)
         self._lock: asyncio.Lock = asyncio.Lock()
 
-        self._users: dict[str, User] = {
-            config.name: User(config=config) for config in server.config.access_control.users
-        }
+        self._users: dict[str, User] = {config.name: User(config=config) for config in self.config.users}
 
         self.on_session_accepted = Signal[SessionProtocol]()
         self.on_session_closed = Signal[SessionProtocol]()
@@ -182,7 +179,7 @@ class AccessControl(UserManager, AsyncTaskMixin):
                 return user
 
         # check for a reconnection attempt of already logged-in user (thx to FeDi)
-        if self._server.config.access_control.allow_reconnection_from_same_host:  # new session
+        if self.config.allow_reconnection_from_same_host:  # new session
             for user_session in user.sessions:
                 # ensure if IP-addresses are equal AND the username is equal to the one of that specific IP-Address
                 if (user_session.name[0] == session.name[0]) and (user_session.user.name == username):

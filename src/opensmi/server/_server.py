@@ -156,7 +156,7 @@ class Server(
 
         from .access_control import AccessControl, AccessControlAttributeService, AccessControlMethodService
 
-        self._access_control = AccessControl(server=self)
+        self._access_control = AccessControl(config=self.config.access_control)
 
         self._ua_server = UaServer(user_manager=self._access_control)
         ua_iserver = self.ua_server.iserver
