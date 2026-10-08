@@ -21,6 +21,14 @@ def server() -> Server:
     return Server(config=config)
 
 
+@pytest_asyncio.fixture
+async def empty_server(server) -> AsyncGenerator[Server]:
+    """Return a started empty `Server` instance."""
+    async with server:
+        await server.start(blocking=False)
+        yield server
+
+
 class Machine(BaseMachine):
     @override
     async def _write_identification(self) -> None:
