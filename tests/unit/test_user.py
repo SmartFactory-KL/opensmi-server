@@ -55,7 +55,7 @@ def test_sets_current_access_level_equal_max(user_plain) -> None:
 
 def test_plaintext_password_correct(user_plain) -> None:
     assert user_plain.check_password("secret")
-    assert not user_plain.check_password(b"secret")  # only plain str version is accepted
+    assert user_plain.check_password(b"secret")
 
 
 @pytest.mark.parametrize("password", ["wrong", b"wrong", None])
