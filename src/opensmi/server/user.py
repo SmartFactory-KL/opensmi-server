@@ -160,7 +160,10 @@ class User(UaObject, UserProtocol):
             except InvalidKey:
                 return False
 
-        return self._password == bytes(str(password), "utf-8").decode()  # clear text (e.g. for test cases)
+        if isinstance(password, bytes):
+            password = password.decode()
+
+        return self._password == password  # clear text (e.g. for test cases)
 
 
 INTERNAL_USER = UaUser(name="INTERNAL", role=UserRole.Admin)
