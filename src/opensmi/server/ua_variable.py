@@ -124,6 +124,7 @@ class UaVariable(UaObject, Generic[_VariableType]):
             occurs (Triggered by internal and external OPC UA writes). Must raise `OutOfRangeError` when the custom
             check fails.
         :param dictionary_entry: (Optional) semantic information via OPC UA dictionary entry.
+        :param description: (Optional) A human-readable description for the variable.
         """
         super().__init__(minimum_access_level=minimum_access_level, bypass_lock=bypass_lock, name=name, **kwargs)
 
