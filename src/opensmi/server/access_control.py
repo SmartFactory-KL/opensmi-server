@@ -21,6 +21,7 @@ from asyncua.crypto.permission_rules import UserRole
 from asyncua.server.address_space import AddressSpace, AttributeService, MethodService
 from asyncua.server.internal_session import InternalSession, SessionState
 from asyncua.server.user_managers import UserManager
+from asyncua.ua import UaStatusCodeError
 from asyncua.ua.status_codes import StatusCodes
 from opensmi.core import AsyncTaskMixin
 from opensmi.core.errors import OutOfRangeError
@@ -232,7 +233,10 @@ class AccessControlAttributeService(AttributeService):
                     try:
                         value = ua_write_value.Value.Value.Value
                         await variable.write_check(value)
-                    except OutOfRangeError:
+                    except UaStatusCodeError as err:
+                        result.append(ua.StatusCode(err.code))
+                    except OutOfRangeError as err:
+                        await variable.ua_log_error(err.msg)
                         result.append(ua.StatusCode(ua.UInt32(StatusCodes.BadOutOfRange)))
                         continue
 

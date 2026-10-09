@@ -17,6 +17,7 @@ from opensmi.core.lifecycle_mixin import lifecycle
 from opensmi.core.ua_node_util import get_properties
 from typing_extensions import override
 
+from opensmi.server.mixins.notification_mixins import NotificationForwarderMixin
 from opensmi.server.nodesets import (
     DiNodeIds,
     MachineryNodeIds,
@@ -60,7 +61,7 @@ def collect_attr_docs(cls: type) -> dict[str, str]:
     return docs
 
 
-class UaVariableContainer(UaObject):
+class UaVariableContainer(NotificationForwarderMixin, UaObject):
     """Base class for `UaVariable` containers. Also provides a Pythonic container interface."""
 
     def __init__(

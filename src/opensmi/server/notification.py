@@ -5,20 +5,23 @@
 """Implementation of the `AbstractUaLogger` interface with a Notification OPC UA object and event sources."""
 
 from collections.abc import AsyncGenerator
+from typing import TYPE_CHECKING
 
 from asyncua import ua
 from asyncua.server.event_generator import EventGenerator
 from opensmi.core.lifecycle_mixin import lifecycle
 from typing_extensions import override
 
-from opensmi.server.base_machinery_item import BaseMachineryItem
 from opensmi.server.interfaces import AbstractUaLogger, AbstractUaObject
 from opensmi.server.mixins.parent_mixin import ParentMixin
 from opensmi.server.nodesets import SmartFactoryMachineSetNodeIds
 from opensmi.server.ua_object import UaObject, UaObjectDefinition
 
+if TYPE_CHECKING:
+    from opensmi.server.base_machinery_item import BaseMachineryItem as BaseMachineryItem
 
-class Notification(ParentMixin[BaseMachineryItem], UaObject, AbstractUaLogger):
+
+class Notification(ParentMixin["BaseMachineryItem"], UaObject, AbstractUaLogger):
     """Implementation of the `AbstractUaLogger` interface with a Notification OPC UA object and event sources."""
 
     _ua_info_event_gen: EventGenerator

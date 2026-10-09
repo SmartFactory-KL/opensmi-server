@@ -25,6 +25,7 @@ from opensmi.core.ua_node_util import (
 )
 from typing_extensions import TypeVar, override
 
+from opensmi.server.mixins.notification_mixins import NotificationForwarderMixin
 from opensmi.server.ua_dictionary_entry import DictionaryEntry
 from opensmi.server.ua_object import UaObject, UaObjectDefinition
 
@@ -79,7 +80,7 @@ def _validate_enum_type(enum_type: type[Enum]) -> None:
         raise ValueError(msg)
 
 
-class UaVariable(UaObject, Generic[_VariableType]):
+class UaVariable(NotificationForwarderMixin, UaObject, Generic[_VariableType]):
     """OPC UA Variable for use in `ParameterSet`, `Monitoring`, `FinalResultData`, etc.
 
     Abstracts raw OPC UA/``asyncua`` away and provides a simple, high-level interface.
@@ -123,8 +124,8 @@ class UaVariable(UaObject, Generic[_VariableType]):
         :param variable_type: The Python type of the variable. Is only required if type cannot be determined from
             ``initial_value``, i.e. when ``None`` is provided.
         :param write_check_callback: (Optional) User-definable function that is called whenever a `write_check`
-            occurs (Triggered by internal and external OPC UA writes). Must raise `OutOfRangeError` (+custom message)
-            or return ``False`` when the custom check fails.
+            occurs (Triggered by internal and external OPC UA writes). Must raise `OutOfRangeError` (+custom message),
+            raise any appropriate `UaStatusCodeError` or return ``False`` when the custom check fails.
         :param dictionary_entry: (Optional) semantic information via OPC UA dictionary entry.
         :param description: (Optional) A human-readable description for the variable.
         """
