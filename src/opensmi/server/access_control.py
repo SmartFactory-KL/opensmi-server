@@ -231,7 +231,7 @@ class AccessControlAttributeService(AttributeService):
 
                     try:
                         value = ua_write_value.Value.Value.Value
-                        variable.write_check(value)
+                        await variable.write_check(value)
                     except OutOfRangeError:
                         result.append(ua.StatusCode(ua.UInt32(StatusCodes.BadOutOfRange)))
                         continue

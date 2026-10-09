@@ -4,7 +4,8 @@
 
 """Abstraction-layer for OPC UA variables our framework users interacts with."""
 
-from collections.abc import AsyncGenerator, Callable, Iterator
+import inspect
+from collections.abc import AsyncGenerator, Awaitable, Callable, Iterator
 from datetime import timedelta
 from enum import Enum, IntEnum
 from typing import Generic
@@ -87,6 +88,7 @@ class UaVariable(UaObject, Generic[_VariableType]):
     _initial_value_type: type[_VariableType]
     _initial_value: ua.Variant
     _unit: ua.EUInformation | None
+    _write_check_callback: Callable[[_VariableType | None], bool | Awaitable[bool | None] | None] | None
 
     def __init__(
         self,
@@ -101,7 +103,7 @@ class UaVariable(UaObject, Generic[_VariableType]):
         variable_type: type[_VariableType] | None = None,
         optional_ok: bool = False,
         name: str | None = None,
-        write_check_callback: Callable[[_VariableType | None], None] | None = None,
+        write_check_callback: Callable[[_VariableType | None], bool | Awaitable[bool | None] | None] | None = None,
         dictionary_entry: DictionaryEntry | None = None,
         description: str | None = None,
         **kwargs,
@@ -120,9 +122,9 @@ class UaVariable(UaObject, Generic[_VariableType]):
         :param bypass_lock: Whether the variable can be written to without ownership of corresponding lock.
         :param variable_type: The Python type of the variable. Is only required if type cannot be determined from
             ``initial_value``, i.e. when ``None`` is provided.
-        :param write_check_callback: (Optional) User-definable sync. function that is called whenever a `write_check`
-            occurs (Triggered by internal and external OPC UA writes). Must raise `OutOfRangeError` when the custom
-            check fails.
+        :param write_check_callback: (Optional) User-definable function that is called whenever a `write_check`
+            occurs (Triggered by internal and external OPC UA writes). Must raise `OutOfRangeError` (+custom message)
+            or return ``False`` when the custom check fails.
         :param dictionary_entry: (Optional) semantic information via OPC UA dictionary entry.
         :param description: (Optional) A human-readable description for the variable.
         """
@@ -153,7 +155,7 @@ class UaVariable(UaObject, Generic[_VariableType]):
         self._historize: bool = historize
         self._references: set[UaObject] = set()
         self.optional_ok: bool = optional_ok
-        self._write_check_callback: Callable[[_VariableType | None], None] | None = write_check_callback
+        self._write_check_callback = write_check_callback
         self._dictionary_entry: DictionaryEntry | None = dictionary_entry
         self.description: str | None = description
 
@@ -330,7 +332,7 @@ class UaVariable(UaObject, Generic[_VariableType]):
         )
         self.logger.debug("Removed utilizes reference", target=target.path)
 
-    def write_check(self, value: _VariableType | ua.Variant | None) -> None:
+    async def write_check(self, value: _VariableType | ua.Variant | None) -> None:
         """Check whether given ``value`` can be written to this variable.
 
         :raises OutOfRangeError: if ``value`` is not within the range of the variable.
@@ -345,7 +347,13 @@ class UaVariable(UaObject, Generic[_VariableType]):
             value = value.Value
 
         if self._write_check_callback is not None:
-            self._write_check_callback(value)  # pyright: ignore[reportArgumentType]
+            if inspect.iscoroutinefunction(self._write_check_callback):
+                ret = await self._write_check_callback(value)  # pyright: ignore[reportArgumentType]
+            else:
+                ret = self._write_check_callback(value)  # pyright: ignore[reportArgumentType]
+            if ret is not None and ret is False:
+                msg = "write_check_callback returned False."
+                raise OutOfRangeError(msg)
 
         if isinstance(value, UaObject) and value not in self._references:
             msg = f"{value=} is not referenced as a valid value for {self.path}!"

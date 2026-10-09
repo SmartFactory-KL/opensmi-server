@@ -112,13 +112,13 @@ def test_types_invalid_int_enum() -> None:
 # ---------------------------------------------------------------------------
 
 
-def test_check_range_no_range_always_true():
+def test_check_range_no_range_always_true() -> None:
     var = UaVariable(1.5)
     assert var.check_range(0) is True
     assert var.check_range(1_000_000) is True
 
 
-def test_check_range_within_and_outside_bounds():
+def test_check_range_within_and_outside_bounds() -> None:
     var = UaVariable(5.0, range=(0.0, 10.0))
     assert var.check_range(0.0) is True
     assert var.check_range(10.0) is True
@@ -127,7 +127,7 @@ def test_check_range_within_and_outside_bounds():
     assert var.check_range(10.1) is False
 
 
-def test_check_range_unwraps_ua_variant():
+def test_check_range_unwraps_ua_variant() -> None:
     var = UaVariable(5.0, range=(0.0, 10.0))
     assert var.check_range(ua.Variant(Value=3.0)) is True
     assert var.check_range(ua.Variant(Value=30.0)) is False
@@ -148,7 +148,7 @@ def test_check_range_unwraps_ua_variant():
         (TestEnum.ONE, TestEnum.TWO),
     ],
 )
-def test_initial_value_getter_and_setter(initial_value, new_value):
+def test_initial_value_getter_and_setter(initial_value, new_value) -> None:
     var = UaVariable(initial_value=initial_value)
     assert var.initial_value == initial_value
 
@@ -166,7 +166,7 @@ def test_initial_value_getter_and_setter(initial_value, new_value):
         (TestEnum.ONE, TestEnum.TWO),
     ],
 )
-def test_initial_value_setter_ua_variant(initial_value, new_value):
+def test_initial_value_setter_ua_variant(initial_value, new_value) -> None:
     var = UaVariable(initial_value)
     assert var.initial_value == initial_value
     var.initial_value = ua.Variant(Value=new_value)
@@ -183,7 +183,7 @@ def test_initial_value_setter_ua_variant(initial_value, new_value):
         (TestEnum.ONE, "not a enum"),
     ],
 )
-def test_initial_value_setter_rejects_wrong_type(initial_value, wrong_type_value):
+def test_initial_value_setter_rejects_wrong_type(initial_value, wrong_type_value) -> None:
     var = UaVariable(initial_value=initial_value)
     with pytest.raises(TypeError):
         var.initial_value = wrong_type_value
@@ -197,45 +197,72 @@ def test_initial_value_setter_rejects_wrong_type(initial_value, wrong_type_value
 # ---------------------------------------------------------------------------
 
 
-def test_write_check_none_rejected_for_non_str_non_optional():
+@pytest.mark.asyncio
+async def test_write_check_none_rejected_for_non_str_non_optional() -> None:
     var = UaVariable(initial_value=1)
     with pytest.raises(OutOfRangeError):
-        var.write_check(None)
+        await var.write_check(None)
 
 
-def test_write_check_none_allowed_for_str_type():
+@pytest.mark.asyncio
+async def test_write_check_none_allowed_for_str_type() -> None:
     var = UaVariable(initial_value="hello")
-    var.write_check(None)  # should not raise
+    await var.write_check(None)  # should not raise
 
 
-def test_write_check_none_allowed_when_optional_ok():
+@pytest.mark.asyncio
+async def test_write_check_none_allowed_when_optional_ok() -> None:
     var = UaVariable(initial_value=1, optional_ok=True)
-    var.write_check(None)  # should not raise
+    await var.write_check(None)  # should not raise
 
 
-def test_write_check_numeric_out_of_range():
+@pytest.mark.asyncio
+async def test_write_check_numeric_out_of_range() -> None:
     var = UaVariable(initial_value=5.0, range=(0.0, 10.0))
     with pytest.raises(OutOfRangeError):
-        var.write_check(11.0)
-    var.write_check(9.0)  # should not raise
+        await var.write_check(11.0)
+    await var.write_check(9.0)  # should not raise
 
 
-def test_write_check_int_enum_invalid_value():
+@pytest.mark.asyncio
+async def test_write_check_int_enum_invalid_value() -> None:
     var = UaVariable(initial_value=TestEnum.ONE)
     with pytest.raises(OutOfRangeError):
-        var.write_check(99)  # pyright: ignore[reportArgumentType]
+        await var.write_check(99)  # pyright: ignore[reportArgumentType]
 
     # should not raise
-    var.write_check(TestEnum.TWO.value)  # pyright: ignore[reportArgumentType]
+    await var.write_check(TestEnum.TWO.value)  # pyright: ignore[reportArgumentType]
 
 
-def test_write_check_callback():
+@pytest.mark.asyncio
+async def test_sync_write_check_callback() -> None:
     def callback(value: int | None) -> None:
         if value != 1:
             msg = "value != 1!"
             raise OutOfRangeError(msg)
 
     var = UaVariable(initial_value=0, write_check_callback=callback)
-    var.write_check(1)  # should not raise
+    await var.write_check(1)  # should not raise
     with pytest.raises(OutOfRangeError, match="value != 1!"):
-        var.write_check(2)  # should raise
+        await var.write_check(2)  # should raise
+
+
+@pytest.mark.asyncio
+async def test_lambda_write_check_callback() -> None:
+    var = UaVariable(initial_value=0, write_check_callback=lambda x: x == 1)
+    await var.write_check(1)  # should not raise
+    with pytest.raises(OutOfRangeError, match="write_check_callback returned False"):
+        await var.write_check(2)  # should raise
+
+
+@pytest.mark.asyncio
+async def test_async_write_check_callback() -> None:
+    async def callback(value: int | None) -> None:
+        if value != 1:
+            msg = "value != 1!"
+            raise OutOfRangeError(msg)
+
+    var = UaVariable(initial_value=0, write_check_callback=callback)
+    await var.write_check(1)  # should not raise
+    with pytest.raises(OutOfRangeError, match="value != 1!"):
+        await var.write_check(2)  # should raise
