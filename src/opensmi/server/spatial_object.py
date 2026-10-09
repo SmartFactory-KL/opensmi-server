@@ -159,7 +159,7 @@ class CartesianFrame(UaObject):
         await self._ua_position_x.write_value(ua.Double(position.x))
         await self._ua_position_y.write_value(ua.Double(position.y))
         await self._ua_position_z.write_value(ua.Double(position.z))
-        await write_unit(self._ua_position, self._position.unit, engineering_unit="LengthUnit")
+        await write_unit(self._ua_position, position.unit, engineering_unit="LengthUnit")
         self.logger.debug("Written position", position=position)
 
     async def read_position(self) -> Position:
@@ -177,7 +177,7 @@ class CartesianFrame(UaObject):
         await self._ua_orientation_a.write_value(ua.Double(orientation.a))
         await self._ua_orientation_b.write_value(ua.Double(orientation.b))
         await self._ua_orientation_c.write_value(ua.Double(orientation.c))
-        await write_unit(self._ua_orientation, self._orientation.unit, engineering_unit="AngleUnit")
+        await write_unit(self._ua_orientation, orientation.unit, engineering_unit="AngleUnit")
         self.logger.debug("Written orientation", orientation=orientation)
 
     async def read_orientation(self) -> Orientation:
