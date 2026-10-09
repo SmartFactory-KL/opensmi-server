@@ -236,7 +236,7 @@ class AccessControlAttributeService(AttributeService):
                     except UaStatusCodeError as err:
                         result.append(ua.StatusCode(err.code))
                     except OutOfRangeError as err:
-                        await variable.ua_log_error(err.msg)
+                        await variable.ua_log_error(err.msg, code=err.error_code)
                         result.append(ua.StatusCode(ua.UInt32(StatusCodes.BadOutOfRange)))
                         continue
 
