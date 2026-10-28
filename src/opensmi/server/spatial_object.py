@@ -84,6 +84,8 @@ class CartesianFrame(UaObject):
         position: Position,
         orientation: Orientation,
         base: CartesianFrame | None,
+        minimum_access_level: int | None = None,
+        bypass_lock: bool = False,
         **kwargs,
     ) -> None:
         """Initialize a Cartesian frame with position and orientation.
@@ -93,8 +95,10 @@ class CartesianFrame(UaObject):
         :param orientation: Orientation of the frame relative to the base frame, represented by
             A (roll about X), B (pitch about Y), and C (yaw about Z).
         :param base: Optional Node ID of the base frame relative to which this frame is specified.
+        :param minimum_access_level: Minimum write access level of the frame variable. Read access is always allowed.
+        :param bypass_lock: Whether the frame variable can be written to without ownership of the corresponding lock.
         """
-        super().__init__(name=name, **kwargs)
+        super().__init__(name=name, minimum_access_level=minimum_access_level, bypass_lock=bypass_lock, **kwargs)
         self._name = name
         self._position: Position = position
         self._orientation: Orientation = orientation
@@ -132,6 +136,7 @@ class CartesianFrame(UaObject):
         await self.write_position(self._position)
         await self.write_orientation(self._orientation)
         await self.write_3d_frame(position=self._position, orientation=self._orientation)
+        await self.ua_node.set_writable(True)  # as per spec
 
         yield
         # no shutdown
