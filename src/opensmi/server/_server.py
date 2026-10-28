@@ -499,8 +499,16 @@ class Server(
         """Whether the server is stopped."""
         return self._state == ServerState.STOPPED
 
+    def register_enum(self, enum_type: type[IntEnum], *, ua_data_type: ua.NodeId, overwrite: bool = False) -> None:
+        """Use an existing enumeration OPC UA data type for ``enum_type`` instead of creating one."""
+        if enum_type in self._ua_enums and not overwrite:
+            msg = f"{enum_type.__name__} already registered"
+            raise ValueError(msg)
+        self._ua_enums[enum_type] = ua_data_type
+        self.logger.info("Registered new enum type", name=enum_type.__name__, ua_data_type=ua_data_type.to_string())
+
     async def get_enum(self, enum_type: type[IntEnum], *, option_set: bool = False) -> ua.NodeId:
-        """Return OPC UA Node representation of given enum type."""
+        """Return OPC UA Node representation of given enum type. Creates OPC UA representation automatically."""
         try:
             return self._ua_enums[enum_type]
         except KeyError:
@@ -512,7 +520,7 @@ class Server(
                 option_set=option_set,
             )
             self._ua_enums[enum_type] = ua_node.nodeid
-            self.logger.info("Created new enum type", name=enum_type.__name__, ua_node_id=str(ua_node))
+            self.logger.info("Created new enum type", name=enum_type.__name__, ua_node_id=ua_node.nodeid.to_string())
             return ua_node.nodeid
 
     def __del__(self) -> None:
