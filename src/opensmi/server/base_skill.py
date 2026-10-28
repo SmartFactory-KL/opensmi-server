@@ -9,13 +9,14 @@ from __future__ import annotations
 import asyncio
 from collections.abc import AsyncGenerator
 from contextlib import asynccontextmanager
+from typing import TYPE_CHECKING
 
 from asyncua import ua
 from asyncua.common.node import Node
 from asyncua.ua import QualifiedName
 from asyncua.ua.status_codes import StatusCodes as UaStatusCodes
 from asyncua.ua.uaerrors import BadNoMatch
-from opensmi.core import SkillState
+from opensmi.core import SkillState, lifecycle
 from opensmi.core.errors import OpenSmiRuntimeError, SkillHaltedError
 from opensmi.core.ua_node_util import get_child_without_ns, get_node_id
 from typing_extensions import override
@@ -26,17 +27,12 @@ from opensmi.server.nodesets import SmartFactoryMachineSetNodeIds, SmartFactoryS
 from opensmi.server.protocols import UserAuthorization
 from opensmi.server.ua_object import UaObject
 
+if TYPE_CHECKING:
+    from opensmi.server.base_feasibility_check import BaseFeasibilityCheck
+    from opensmi.server.base_precondition_check import BasePreconditionCheck
 
-class BaseSkill(BaseCallable, AbstractSkill):
-    """Abstract base skill **without** state machine logic.
 
-    For skills with logic in Python, there is `FiniteSkillLogicMixin` and `ContinuousSkillLogicMixin`.
-
-    Derived classes must implement at least the ``reset()``, ``start()`` and ``halt()`` methods for a non-suspendable
-    skill. The ``_condition_skill_ready()`` method can be overridden in order to add skill specific conditions
-    before the ``start()`` method is allowed to be executed by the state machine.
-    """
-
+class _BaseSkill(BaseCallable, AbstractSkill):
     _ua_state_machine: Node
     """OPC UA base node of state machine."""
     _ua_current_state: Node
@@ -48,8 +44,6 @@ class BaseSkill(BaseCallable, AbstractSkill):
         name: str | None = None,
         suspendable: bool = False,
         minimum_access_level: int | None = None,
-        precondition_check: BaseSkill | None = None,
-        feasibility_check: BaseSkill | None = None,
         parent: UaObject | None = None,
         **kwargs,
     ) -> None:
@@ -58,14 +52,10 @@ class BaseSkill(BaseCallable, AbstractSkill):
         :param name: name of the skill.
         :param suspendable: whether the skill can be suspended/resumed.
         :param minimum_access_level: Minimum required access level to start the skill (see User for more info).
-        :param precondition_check: Optional reference to corresponding separate precondition check for this skill.
-        :param feasibility_check: Optional reference to corresponding separate feasibility check for this skill.
         """
         super().__init__(name=name, minimum_access_level=minimum_access_level, parent=parent, **kwargs)
 
         self._suspendable = suspendable
-        self._precondition_check = precondition_check
-        self._feasibility_check = feasibility_check
         self._called_skills: list[BaseSkill] = []
         self._current_state = SkillState.HALTED
         self._condition = asyncio.Condition()  # for wait_for_state
@@ -109,30 +99,6 @@ class BaseSkill(BaseCallable, AbstractSkill):
             await node_suspend.delete()  # suspend method must not exist for skills that cannot be suspended
 
         await super()._init()  # cooperative _init() after we are done with the mandatory stuff
-
-        #####################################
-
-        assert self._ua_node is not None
-        _ua_precondition_check = await self._ua_node.get_child(f"{ns_skill_set}:PreconditionCheck")
-        if self._precondition_check is None:
-            await _ua_precondition_check.delete()
-            self.logger.debug("Removed unused PreconditionCheck")
-        else:
-            raise NotImplementedError  # TODO(CaHa): Implement or remove
-            # self._precondition_check.parent = self.parent
-            # await self._precondition_check.ua_create_node(_ua_precondition_check)
-            # await self._precondition_check.init()
-
-        _ua_feasibility_check = await self._ua_node.get_child(f"{ns_skill_set}:FeasibilityCheck")
-        if self._feasibility_check is None:
-            # no recursive delete to improve startup speed
-            await _ua_feasibility_check.delete()
-            self.logger.debug("Removed unused FeasibilityCheck")
-        else:
-            raise NotImplementedError  # TODO(CaHa): Implement or remove
-            # self._feasibility_check.parent = self.parent
-            # await self._feasibility_check.ua_create_node(_ua_feasibility_check)
-            # await self._feasibility_check.init()
 
     @override
     async def _write_current_state(self, state: SkillState) -> None:
@@ -296,3 +262,70 @@ class BaseSkill(BaseCallable, AbstractSkill):
             logger.debug("Waiting for other skill to be running", timeout=timeout)
             async with asyncio.timeout(timeout):
                 await skill.wait_for_state(SkillState.RUNNING)
+
+
+class BaseSkill(_BaseSkill):
+    """Abstract base skill **without** state machine logic.
+
+    For skills with logic in Python, there is `FiniteSkillLogicMixin` and `ContinuousSkillLogicMixin`.
+
+    Derived classes must implement at least the ``reset()``, ``start()`` and ``halt()`` methods for a non-suspendable
+    skill. The ``_condition_skill_ready()`` method can be overridden in order to add skill specific conditions
+    before the ``start()`` method is allowed to be executed by the state machine.
+    """
+
+    def __init__(
+        self,
+        *,
+        name: str | None = None,
+        suspendable: bool = False,
+        minimum_access_level: int | None = None,
+        parent: UaObject | None = None,
+        **kwargs,
+    ) -> None:
+        """*Cooperative* Constructor. Create a new skill instance.
+
+        :param name: name of the skill.
+        :param suspendable: whether the skill can be suspended/resumed.
+        :param minimum_access_level: Minimum required access level to start the skill (see User for more info).
+        """
+        super().__init__(
+            name=name,
+            suspendable=suspendable,
+            minimum_access_level=minimum_access_level,
+            parent=parent,
+            **kwargs,
+        )
+        self._precondition_check: BasePreconditionCheck | None = None
+        self._feasibility_check: BaseFeasibilityCheck | None = None
+
+    async def _init_check(self, check: BaseCheck) -> None:
+        assert not check.is_initialized
+
+        assert self.parent is not None
+        check.parent = self.parent
+
+        assert self._ua_node is not None
+        await check.ua_create_node(self._ua_node)
+
+        await check.init()
+
+    async def add_precondition_check(self, check: BasePreconditionCheck) -> None:
+        """Add a precondition check for this skill."""
+        await self._init_check(check)
+        self._precondition_check = check
+
+    async def add_feasibility_check(self, check: BaseFeasibilityCheck) -> None:
+        """Add a feasibility check for this skill."""
+        await self._init_check(check)
+        self._feasibility_check = check
+
+
+class BaseCheck(_BaseSkill):
+    """Abstract base class for checks **without** state machine logic."""
+
+    @override
+    @lifecycle
+    async def lifecycle_ua_sub_node(self) -> AsyncGenerator[None]:
+        # checks do not have sub nodes themselves, nothing to do here
+        yield

@@ -52,8 +52,6 @@ class BaseStartupSkill(ParentMixin["BaseMachineryItem"], BaseSkillContinuous):
             name=BaseStartupSkill.NAME,
             suspendable=False,
             minimum_access_level=minimum_access_level,
-            precondition_check=None,
-            feasibility_check=None,
             parent=parent,
             **kwargs,
         )

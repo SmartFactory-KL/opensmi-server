@@ -366,7 +366,7 @@ class _SkillLogicMixin(AbstractSkill, AbstractUaLogger):
 class BaseSkillFinalResultData(FinalResultData):
     """Base final result data for finite skills."""
 
-    SuccessfulExecutionsCount: UaVariable[int]
+    SuccessfulExecutionsCount = UaVariable(0)
 
 
 class ContinuousSkillLogicMixin(_SkillLogicMixin):
@@ -374,10 +374,7 @@ class ContinuousSkillLogicMixin(_SkillLogicMixin):
 
     @override
     async def _get_definition(self) -> UaObjectDefinition:
-        return UaObjectDefinition(
-            object_type=SmartFactoryMachineSetNodeIds.ContinuousSkillType,
-            instantiate_optional=True,  # TODO(CaHa): instantiate only what is actually needed
-        )
+        return UaObjectDefinition(object_type=SmartFactoryMachineSetNodeIds.ContinuousSkillType)
 
     @override
     async def _after_running(self, *args, **kwargs):
@@ -412,10 +409,7 @@ class FiniteSkillLogicMixin(_SkillLogicMixin):
 
     @override
     async def _get_definition(self) -> UaObjectDefinition:
-        return UaObjectDefinition(
-            object_type=SmartFactoryMachineSetNodeIds.FiniteSkillType,
-            instantiate_optional=True,  # TODO(CaHa): instantiate only what is actually needed
-        )
+        return UaObjectDefinition(object_type=SmartFactoryMachineSetNodeIds.FiniteSkillType)
 
     @override
     def _add_transitions(self) -> None:
