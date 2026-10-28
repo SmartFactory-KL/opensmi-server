@@ -21,7 +21,7 @@ from opensmi.core.lifecycle_mixin import lifecycle
 
 from opensmi.server.mixins.ua_variable_container_mixins import MonitoringMixin
 from opensmi.server.nodesets import RSLNodeIds
-from opensmi.server.spatial_object import Orientation, Position, SpatialObject, SpatialObjectList, WorldFrame
+from opensmi.server.spatial_object import Orientation, Pose, Position, SpatialObject, SpatialObjectList, WorldFrame
 from opensmi.server.ua_object import UaObject
 
 
@@ -76,13 +76,7 @@ class SpatialObjectListMixin:
     async def lifecycle_spatial_object_list(self) -> AsyncGenerator[None]:
         """Initialize the `SpatialObjectList`."""
         assert isinstance(self, UaObject)
-        spatial_object_list = SpatialObjectList(
-            world_frame=WorldFrame(
-                position=Position(0, 0, 0),
-                orientation=Orientation(0, 0, 0),
-            ),
-            parent=self,
-        )
+        spatial_object_list = SpatialObjectList(world_frame=WorldFrame(initial_pose=Pose()), parent=self)
         await spatial_object_list.ua_create_node(self.monitoring.ua_node)  # pyright: ignore[reportAttributeAccessIssue]
         await spatial_object_list.init()
 

@@ -9,13 +9,18 @@ see https://reference.opcfoundation.org/specs/OPC-10000-210/full
 
 from __future__ import annotations
 
+import asyncio
 import contextlib
+import math
 from collections.abc import AsyncGenerator
-from dataclasses import dataclass
+from dataclasses import dataclass, replace
+from typing import Final
 
 from asyncua import ua
 from asyncua.common.node import Node
+from asyncua.common.subscription import Subscription
 from asyncua.ua.uaerrors import BadNoMatch, BadTypeMismatch
+from opensmi.core import Unit
 from opensmi.core.lifecycle_mixin import lifecycle
 from opensmi.core.ua_node_util import get_node_id, read_unit, read_value, write_unit, write_value
 from typing_extensions import override
@@ -23,6 +28,27 @@ from typing_extensions import override
 from opensmi.server.mixins import ParentMixin
 from opensmi.server.nodesets import RSLNodeIds
 from opensmi.server.ua_object import UaObject, UaObjectDefinition
+
+# TODO(CaHa): Maybe attach conversion factor to Unit. UNECE table has this information
+_LENGTH: Final = {
+    Unit.MILLIMETRE: 0.001,
+    Unit.CENTIMETRE: 0.01,
+    Unit.METRE: 1.0,
+}
+_ANGLE: Final = {
+    Unit.DEGREE_UNIT_OF_ANGLE: math.pi / 180,
+    Unit.RADIAN: 1.0,
+}
+
+
+def _convert(value: float, src_unit: Unit, dst_unit: Unit, table: dict[Unit, float]) -> float:
+    if src_unit == dst_unit:
+        return value
+    try:
+        return value * table[src_unit] / table[dst_unit]
+    except KeyError as e:
+        msg = f"unsupported unit {e.args[0]!r}, expected one of {table}"
+        raise ValueError(msg) from None
 
 
 @dataclass(frozen=True, slots=True)
@@ -32,10 +58,25 @@ class Position:
     see https://reference.opcfoundation.org/specs/OPC-10000-210/b-1
     """
 
-    x: float
-    y: float
-    z: float
-    unit: str = "mm"
+    x: float = 0.0
+    y: float = 0.0
+    z: float = 0.0
+    unit: Unit = Unit.MILLIMETRE
+
+    def to(self, unit: Unit) -> Position:
+        """Convert this position to one with given ``unit``."""
+        if unit == self.unit:
+            return self
+
+        def f(value: float) -> float:
+            return _convert(value, self.unit, unit, _LENGTH)
+
+        return Position(f(self.x), f(self.y), f(self.z), unit)
+
+    def __add__(self, other: Position) -> Position:
+        """Add two positions together keeping the left operand's unit."""
+        other = other.to(self.unit)
+        return Position(self.x + other.x, self.y + other.y, self.z + other.z, self.unit)
 
 
 @dataclass(frozen=True, slots=True)
@@ -48,10 +89,56 @@ class Orientation:
     see https://reference.opcfoundation.org/specs/OPC-10000-210/b-2
     """
 
-    a: float
-    b: float
-    c: float
-    unit: str = "°"
+    a: float = 0.0
+    b: float = 0.0
+    c: float = 0.0
+    unit: Unit = Unit.DEGREE_UNIT_OF_ANGLE
+
+    def to(self, unit: Unit) -> Orientation:
+        """Convert this orientation to one with given ``unit``."""
+        if unit == self.unit:
+            return self
+
+        def f(value: float) -> float:
+            return _convert(value, self.unit, unit, _ANGLE)
+
+        return Orientation(f(self.a), f(self.b), f(self.c), unit)
+
+
+@dataclass(frozen=True, slots=True)
+class Pose:
+    """Pose defined by Cartesian `Position` and angular `Orientation`.
+
+    Corresponds to OPC UA data type ``3DFrameType``.
+    """
+
+    position: Position = Position()
+    orientation: Orientation = Orientation()
+
+    def with_position(self, position: Position) -> Pose:
+        """Return a copy of this Pose with given ``position`` keeping the orientation."""
+        return replace(self, position=position)
+
+    def with_orientation(self, orientation: Orientation) -> Pose:
+        """Return a copy of this Pose with given ``orientation`` keeping the position."""
+        return replace(self, orientation=orientation)
+
+    def to_ua(self, *, length_unit: Unit, angle_unit: Unit) -> ua.ThreeDFrame:
+        """Convert to a OPC UA ``3DFrame``, expressed in the given units."""
+        p, o = self.position.to(length_unit), self.orientation.to(angle_unit)
+        return ua.ThreeDFrame(
+            CartesianCoordinates=ua.ThreeDCartesianCoordinates(X=p.x, Y=p.y, Z=p.z),  # type: ignore
+            Orientation=ua.ThreeDOrientation(A=o.a, B=o.b, C=o.c),  # type: ignore
+        )
+
+    @classmethod
+    def from_ua(cls, frame: ua.ThreeDFrame, *, length_unit: Unit, angle_unit: Unit) -> Pose:
+        """Convert from ``ThreeDFrame`` whose numbers are in the given units."""
+        p, o = frame.CartesianCoordinates, frame.Orientation
+        return cls(
+            position=Position(float(p.X), float(p.Y), float(p.Z), length_unit),
+            orientation=Orientation(float(o.A), float(o.B), float(o.C), angle_unit),
+        )
 
 
 class CartesianFrame(UaObject):
@@ -81,8 +168,7 @@ class CartesianFrame(UaObject):
         self,
         *,
         name: str,
-        position: Position,
-        orientation: Orientation,
+        initial_pose: Pose,
         base: CartesianFrame | None,
         minimum_access_level: int | None = None,
         bypass_lock: bool = False,
@@ -100,9 +186,12 @@ class CartesianFrame(UaObject):
         """
         super().__init__(name=name, minimum_access_level=minimum_access_level, bypass_lock=bypass_lock, **kwargs)
         self._name = name
-        self._position: Position = position
-        self._orientation: Orientation = orientation
+        self._initial_pose: Pose = initial_pose
+        self._length_unit: Unit = self._initial_pose.position.unit
+        self._angle_unit: Unit = self._initial_pose.orientation.unit
         self._base: CartesianFrame | None = base
+        self._frame_lock = asyncio.Lock()
+        self._subscription: Subscription | None = None
 
     @override
     async def _get_definition(self) -> UaObjectDefinition:
@@ -132,10 +221,15 @@ class CartesianFrame(UaObject):
         self._ua_orientation_b = await self._ua_orientation.get_child(f"{ns}:B")
         self._ua_orientation_c = await self._ua_orientation.get_child(f"{ns}:C")
 
+        self._subscription = await self.server.ua_server.create_subscription(period=1, handler=self)
+        await self._subscription.subscribe_data_change(self.ua_node)
+
         await self.write_base(self._base)
-        await self.write_position(self._position)
-        await self.write_orientation(self._orientation)
-        await self.write_3d_frame(position=self._position, orientation=self._orientation)
+        await write_unit(self._ua_position, self._length_unit, engineering_unit="LengthUnit")
+        await write_unit(self._ua_orientation, self._angle_unit, engineering_unit="AngleUnit")
+
+        await self.write_pose(self._initial_pose)
+        await self._sync_children(await self.ua_node.read_value())
         await self.ua_node.set_writable(True)  # as per spec
 
         yield
@@ -159,50 +253,76 @@ class CartesianFrame(UaObject):
         assert isinstance(obj, CartesianFrame), f"base {obj.__class__.__name__} is no instance of CartesianFrame!"
         return obj
 
+    async def write_pose(self, pose: Pose) -> None:
+        """Replace the pose of this frame."""
+        async with self._frame_lock:
+            await self._write_pose_locked(pose)
+        self.logger.debug("Written pose", pose=pose)
+
+    async def _write_pose_locked(self, pose: Pose) -> None:
+        await self.ua_node.write_value(pose.to_ua(length_unit=self._length_unit, angle_unit=self._angle_unit))
+
+    async def read_pose(self, *, length_unit: Unit | None = None, angle_unit: Unit | None = None) -> Pose:
+        """Read the current pose of this frame relative to its base."""
+        pose = await self._read_pose_locked()
+        if length_unit is not None:
+            pose = pose.with_position(pose.position.to(length_unit))
+        if angle_unit is not None:
+            pose = pose.with_orientation(pose.orientation.to(angle_unit))
+        return pose
+
+    async def _read_pose_locked(self) -> Pose:
+        return Pose.from_ua(await self.ua_node.read_value(), length_unit=self._length_unit, angle_unit=self._angle_unit)
+
+    async def update_pose(self, *, position: Position | None = None, orientation: Orientation | None = None) -> Pose:
+        """Atomically replace position and/or orientation, keeping the rest. Returns the new pose."""
+        async with self._frame_lock:
+            pose = await self._read_pose_locked()
+            if position is not None:
+                pose = pose.with_position(position)
+            if orientation is not None:
+                pose = pose.with_orientation(orientation)
+            await self._write_pose_locked(pose)
+        return pose
+
     async def write_position(self, position: Position) -> None:
-        """Write the given Cartesian position to the OPC UA server."""
-        await self._ua_position.write_value(ua.ThreeDCartesianCoordinates(X=position.x, Y=position.y, Z=position.z))  # type: ignore
-        await self._ua_position_x.write_value(ua.Double(position.x))
-        await self._ua_position_y.write_value(ua.Double(position.y))
-        await self._ua_position_z.write_value(ua.Double(position.z))
-        await write_unit(self._ua_position, position.unit, engineering_unit="LengthUnit")
-        self.logger.debug("Written position", position=position)
+        """Write the given Cartesian position to the OPC UA server. Keeps the current orientation of the frame."""
+        await self.update_pose(position=position)
 
     async def read_position(self) -> Position:
         """Read the Cartesian position from the OPC UA server."""
-        x = await self._ua_position_x.read_value()
-        y = await self._ua_position_y.read_value()
-        z = await self._ua_position_z.read_value()
-        unit = await read_unit(self._ua_position, engineering_unit="LengthUnit")
-
-        return Position(x=float(x), y=float(y), z=float(z), unit=unit.DisplayName.Text)
+        return (await self.read_pose()).position
 
     async def write_orientation(self, orientation: Orientation) -> None:
-        """Write given angular orientation to the OPC UA server."""
-        await self._ua_orientation.write_value(ua.ThreeDOrientation(A=orientation.a, B=orientation.b, C=orientation.c))  # type: ignore
-        await self._ua_orientation_a.write_value(ua.Double(orientation.a))
-        await self._ua_orientation_b.write_value(ua.Double(orientation.b))
-        await self._ua_orientation_c.write_value(ua.Double(orientation.c))
-        await write_unit(self._ua_orientation, orientation.unit, engineering_unit="AngleUnit")
-        self.logger.debug("Written orientation", orientation=orientation)
+        """Write given angular orientation to the OPC UA server. Keeps the current position of the frame."""
+        await self.update_pose(orientation=orientation)
+        # await write_unit(self._ua_orientation, orientation.unit, engineering_unit="AngleUnit")
 
     async def read_orientation(self) -> Orientation:
         """Read the angular orientation from the OPC UA server."""
-        a = await self._ua_orientation_a.read_value()
-        b = await self._ua_orientation_b.read_value()
-        c = await self._ua_orientation_c.read_value()
-        unit = await read_unit(self._ua_orientation, engineering_unit="AngleUnit")
+        # unit = await read_unit(self._ua_orientation, engineering_unit="AngleUnit")
+        return (await self.read_pose()).orientation
 
-        return Orientation(a=float(a), b=float(b), c=float(c), unit=unit.DisplayName.Text)
+    async def _sync_children(self, frame: ua.ThreeDFrame) -> None:
+        try:
+            position: ua.ThreeDCartesianCoordinates = frame.CartesianCoordinates
+            await self._ua_position.write_value(position)
+            await self._ua_position_x.write_value(position.X)
+            await self._ua_position_y.write_value(position.Y)
+            await self._ua_position_z.write_value(position.Z)
 
-    async def write_3d_frame(self, *, position: Position, orientation: Orientation) -> None:
-        """Write given Cartesian ``position`` and angular ``orientation`` to the OPC UA server."""
-        await self.ua_node.write_value(
-            ua.ThreeDFrame(
-                CartesianCoordinates=ua.ThreeDCartesianCoordinates(X=position.x, Y=position.y, Z=position.z),  # type: ignore
-                Orientation=ua.ThreeDOrientation(A=orientation.a, B=orientation.b, C=orientation.c),  # type: ignore
-            )
-        )
+            orientation: ua.ThreeDOrientation = frame.Orientation
+            await self._ua_orientation.write_value(orientation)
+            await self._ua_orientation_a.write_value(orientation.A)
+            await self._ua_orientation_b.write_value(orientation.B)
+            await self._ua_orientation_c.write_value(orientation.C)
+        except Exception:
+            self.logger.exception("Failed to sync frame children")
+
+    async def datachange_notification(self, node: Node, val: ua.ThreeDFrame | None, data) -> None:
+        """Handle OPC UA data change notification to keep children in sync."""
+        if val is not None:
+            await self._sync_children(val)
 
 
 class PositionFrame(CartesianFrame):
@@ -211,20 +331,49 @@ class PositionFrame(CartesianFrame):
     A position frame defines a Cartesian frame relative to a required base coordinate frame.
     """
 
-    def __init__(self, *, position: Position, orientation: Orientation, base: CartesianFrame, **kwargs) -> None:
+    def __init__(
+        self,
+        *,
+        initial_pose: Pose,
+        base: CartesianFrame,
+        minimum_access_level: int | None = None,
+        bypass_lock: bool = False,
+        **kwargs,
+    ) -> None:
         """*Cooperative* constructor."""
-        super().__init__(name="PositionFrame", position=position, orientation=orientation, base=base, **kwargs)
+        super().__init__(
+            name="PositionFrame",
+            initial_pose=initial_pose,
+            base=base,
+            minimum_access_level=minimum_access_level,
+            bypass_lock=bypass_lock,
+            **kwargs,
+        )
 
 
 class WorldFrame(CartesianFrame):
     """Root Cartesian frame with the fixed OPC UA name ``WorldFrame``.
 
-    The world frame defines a Cartesian frame without a base coordinate frame.
+    The world frame defines a Cartesian frame *without* a base coordinate frame.
     """
 
-    def __init__(self, *, position: Position, orientation: Orientation, **kwargs) -> None:
+    def __init__(
+        self,
+        *,
+        initial_pose: Pose,
+        minimum_access_level: int | None = None,
+        bypass_lock: bool = False,
+        **kwargs,
+    ) -> None:
         """*Cooperative* constructor."""
-        super().__init__(name="WorldFrame", position=position, orientation=orientation, base=None, **kwargs)
+        super().__init__(
+            name="WorldFrame",
+            initial_pose=initial_pose,
+            base=None,
+            minimum_access_level=minimum_access_level,
+            bypass_lock=bypass_lock,
+            **kwargs,
+        )
 
 
 class SpatialObject(UaObject):
