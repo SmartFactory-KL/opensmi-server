@@ -123,6 +123,8 @@ class Server(
         self._state = ServerState.STOPPED
         self._ua_enums: dict[type[IntEnum], ua.NodeId] = {}
         """Maps created custom enums to OPC UA type nodes."""
+        self._enum_lock: asyncio.Lock = asyncio.Lock()
+        """Lock used when creating new OPC UA enums."""
         self._ua_nodesets_xml: dict[str, NodesetReference] = {}
         """Maps nodeset XML URIs to information how to load the corresponding XML file."""
         self._dictionary_entries: dict[str, ua.NodeId] = {}
@@ -510,9 +512,10 @@ class Server(
     async def ensure_enum(self, enum_type: type[IntEnum]) -> ua.NodeId:
         """Return OPC UA Node representation of given enum type. Creates OPC UA representation automatically."""
         # TODO(CaHa): proper option set support using IntFlag
-        try:
-            return self._ua_enums[enum_type]
-        except KeyError:
+        async with self._enum_lock:
+            if (node_id := self._ua_enums.get(enum_type)) is not None:
+                return node_id
+
             ua_node = await new_enum(
                 server=self.ua_server,
                 idx=1,
