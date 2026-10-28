@@ -192,21 +192,12 @@ class CartesianFrame(UaObject):
 
     async def write_3d_frame(self, *, position: Position, orientation: Orientation) -> None:
         """Write given Cartesian ``position`` and angular ``orientation`` to the OPC UA server."""
-        try:
-            await self.ua_node.write_value(
-                ua.ThreeDFrame(
-                    CartesianCoordinates=ua.ThreeDCartesianCoordinates(X=position.x, Y=position.y, Z=position.z),  # type: ignore
-                    Orientation=ua.ThreeDOrientation(A=orientation.a, B=orientation.b, C=orientation.c),  # type: ignore
-                )
+        await self.ua_node.write_value(
+            ua.ThreeDFrame(
+                CartesianCoordinates=ua.ThreeDCartesianCoordinates(X=position.x, Y=position.y, Z=position.z),  # type: ignore
+                Orientation=ua.ThreeDOrientation(A=orientation.a, B=orientation.b, C=orientation.c),  # type: ignore
             )
-        except ua.UaError as err:
-            self.logger.warning(
-                "Could not write 3D frame!",
-                reason=err,
-                position=position,
-                orientation=orientation,
-                ua_node_id=self.ua_node.nodeid.to_string(),
-            )
+        )
 
 
 class PositionFrame(CartesianFrame):
