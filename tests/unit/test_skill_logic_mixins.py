@@ -7,7 +7,7 @@ from abc import ABC
 from collections.abc import Callable
 from pathlib import PurePosixPath
 from types import SimpleNamespace
-from typing import Any, override
+from typing import Any
 from unittest.mock import AsyncMock, MagicMock
 
 import pytest
@@ -15,6 +15,7 @@ from asyncua import ua
 from asyncua.ua.uaerrors import BadStateNotActive
 from opensmi.core import SkillState
 from opensmi.core.errors import OpenSmiRuntimeError
+from typing_extensions import override
 
 from opensmi.server import BaseSkill
 from opensmi.server.interfaces import AbstractUaObject

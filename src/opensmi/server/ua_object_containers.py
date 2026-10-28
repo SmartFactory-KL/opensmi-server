@@ -7,9 +7,10 @@
 from __future__ import annotations
 
 from collections.abc import Iterable, Iterator
-from typing import TYPE_CHECKING, Generic, TypeVar, override
+from typing import TYPE_CHECKING, Generic, TypeVar
 
 from asyncua import ua
+from typing_extensions import override
 
 from opensmi.server.mixins.parent_mixin import ParentMixin
 from opensmi.server.nodesets import MachineryNodeIds, SmartFactoryMachineSetNodeIds, SmartFactorySkillSetNodeIds
