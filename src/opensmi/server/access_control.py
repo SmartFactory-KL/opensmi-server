@@ -216,35 +216,32 @@ class AccessControlAttributeService(AttributeService):
         user: UserAuthorization | None = None,
     ) -> list[ua.StatusCode]:
         result: list[ua.StatusCode] = []
+        is_admin = user is not None and user.role == UserRole.Admin
+
         for ua_write_value in params.NodesToWrite:
             # we care only about value writes
             if ua_write_value.AttributeId == ua.AttributeIds.Value:  # pyright: ignore[reportPrivateImportUsage]
-                try:
-                    variable = cast(UaVariable, self._server.get_ua_object(ua_write_value.NodeId))
-                    if not isinstance(variable, UaVariable):
-                        self._access_control.logger.warning("Access denied, not a variable!", ua_object=variable)
+                ua_object = self._server.get_ua_object_optional(ua_write_value.NodeId)
+
+                if ua_object is None:
+                    # only allow internal writes to non UaObject mapped nodes
+                    if not is_admin:
                         result.append(ua.StatusCode(ua.UInt32(StatusCodes.BadUserAccessDenied)))
                         continue
+                elif not user or not ua_object.access_allowed(user):
+                    result.append(ua.StatusCode(ua.UInt32(StatusCodes.BadUserAccessDenied)))
+                    continue
 
-                    if not user or not variable.access_allowed(user):
-                        result.append(ua.StatusCode(ua.UInt32(StatusCodes.BadUserAccessDenied)))
-                        continue
-
+                if isinstance(ua_object, UaVariable):
                     try:
                         value = ua_write_value.Value.Value.Value
-                        await variable.write_check(value)
+                        await ua_object.write_check(value)
                     except UaStatusCodeError as err:
                         result.append(ua.StatusCode(err.code))
                         continue
                     except OutOfRangeError as err:
-                        await variable.ua_log_error(err.msg, code=err.error_code)
+                        await ua_object.ua_log_error(err.msg, code=err.error_code)
                         result.append(ua.StatusCode(ua.UInt32(StatusCodes.BadOutOfRange)))
-                        continue
-
-                except KeyError:
-                    # only allow internal writes to non UaVariable mapped nodes
-                    if not user or user.role != UserRole.Admin:
-                        result.append(ua.StatusCode(ua.UInt32(StatusCodes.BadUserAccessDenied)))
                         continue
 
             # no failed checks? use default asyncua behavior:
