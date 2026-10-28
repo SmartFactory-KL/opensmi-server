@@ -107,6 +107,8 @@ class UaVariable(NotificationForwarderMixin, UaObject, Generic[_VariableType]):
         write_check_callback: Callable[[_VariableType | None], bool | Awaitable[bool | None] | None] | None = None,
         dictionary_entry: DictionaryEntry | None = None,
         description: str | None = None,
+        ua_value_rank: ua.ValueRank | int | None = None,
+        ua_data_type: ua.NodeId | int | None = None,
         **kwargs,
     ) -> None:
         """*Cooperative* constructor for a new variable instance.
@@ -128,6 +130,9 @@ class UaVariable(NotificationForwarderMixin, UaObject, Generic[_VariableType]):
             raise any appropriate `UaStatusCodeError` or return ``False`` when the custom check fails.
         :param dictionary_entry: (Optional) semantic information via OPC UA dictionary entry.
         :param description: (Optional) A human-readable description for the variable.
+        :param ua_value_rank: (Optional) OPC UA value rank of this variable. **Advanced**
+        :param ua_data_type: (Optional) OPC UA data type of the variable. **Advanced**, make sure this type maps to
+            the Python type! You could use this for UInt16, etc. instead of default Int64 types
         """
         super().__init__(minimum_access_level=minimum_access_level, bypass_lock=bypass_lock, name=name, **kwargs)
 
@@ -159,6 +164,10 @@ class UaVariable(NotificationForwarderMixin, UaObject, Generic[_VariableType]):
         self._write_check_callback = write_check_callback
         self._dictionary_entry: DictionaryEntry | None = dictionary_entry
         self.description: str | None = description
+
+        # customization for _ua_create_node
+        self._ua_value_rank: int | None = ua_value_rank
+        self._ua_data_type: ua.NodeId | int | None = ua_data_type
 
     @lifecycle
     async def _init(self) -> AsyncGenerator[None]:
@@ -266,8 +275,10 @@ class UaVariable(NotificationForwarderMixin, UaObject, Generic[_VariableType]):
                     raise ValueError(msg)
 
                 self.ua_node = await ua_location.add_variable(
-                    nodeid=node_id, bname=browse_name, val=self._initial_value
+                    nodeid=node_id, bname=browse_name, val=self._initial_value, datatype=self._ua_data_type
                 )
+                if self._ua_value_rank is not None:
+                    await self.ua_node.write_value_rank(self._ua_value_rank)
                 return
             else:
                 if self._range is None:
@@ -275,12 +286,19 @@ class UaVariable(NotificationForwarderMixin, UaObject, Generic[_VariableType]):
                 else:
                     object_type = ua.object_ids.ObjectIds.AnalogUnitRangeType
 
+                if self._ua_data_type is not None:
+                    msg = "custom ua_data_type specification is not supported for variables with units!"
+                    # Note: fixed 'Number' data type according to OPC UA specification OPC-10000-8/5.3.2
+                    raise ValueError(msg)
+
                 self.ua_node = await ua_location.add_object(
                     nodeid=node_id,
                     bname=browse_name,
                     objecttype=object_type,
                     instantiate_optional=False,
                 )
+                if self._ua_value_rank is not None:
+                    await self.ua_node.write_value_rank(self._ua_value_rank)
         except ua.uaerrors.BadNodeIdExists:
             if exist_ok:
                 self.logger.warning(
@@ -479,6 +497,8 @@ class UaVariable(NotificationForwarderMixin, UaObject, Generic[_VariableType]):
             write_check_callback=self._write_check_callback,  # pyright: ignore[reportArgumentType]
             dictionary_entry=self._dictionary_entry,
             description=description or self.description,
+            ua_value_rank=self._ua_value_rank,
+            ua_data_type=self._ua_data_type,
         )
 
     @override

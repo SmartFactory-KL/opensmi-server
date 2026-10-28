@@ -34,7 +34,7 @@ class DummyComponentParameterSet(ParameterSet):
 
 class DummyComponentMonitoring(Monitoring):
     RandomValue = UaVariable(initial_value=0.0, unit="mm", range=(0, 1), historize=True)
-    RandomList = UaVariable(initial_value=[0.0, 1.2])
+    RandomList = UaVariable(initial_value=[0.0, 1.2], ua_value_rank=ua.ValueRank.OneDimension)
 
 
 class _SkillSet(SkillSet):

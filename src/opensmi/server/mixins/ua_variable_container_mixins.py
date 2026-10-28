@@ -155,8 +155,6 @@ class MonitoringMixin(Generic[MonitoringType]):
         _range: tuple[float, float] | None = None,
     ) -> Node:
         """Add a new monitoring variable to this UaObject."""
-        if datatype is not None:
-            raise NotImplementedError
         if varianttype is not None:
             val = ua.Variant(val, varianttype)
         variable = UaVariable(
@@ -165,6 +163,7 @@ class MonitoringMixin(Generic[MonitoringType]):
             historize=historize,
             unit=unit,
             range=_range,
+            ua_data_type=datatype,
         )
         await self.monitoring.add(variable, exist_ok=True)
         return variable.ua_node
@@ -243,8 +242,6 @@ class ParameterSetMixin(Generic[ParameterSetType]):
         _range: tuple[float, float] | None = None,
     ) -> Node:
         """Add a new parameter variable to this UaObject."""
-        if datatype is not None:
-            raise NotImplementedError
         if varianttype is not None:
             val = ua.Variant(val, varianttype)
         variable = UaVariable(
@@ -254,6 +251,7 @@ class ParameterSetMixin(Generic[ParameterSetType]):
             unit=unit,
             range=_range,
             writable=True,
+            ua_data_type=datatype,
         )
         await self.parameter_set.add(variable, exist_ok=True)
         return variable.ua_node
@@ -313,8 +311,6 @@ class FinalResultDataMixin(Generic[FinalResultDataType]):
         _range: tuple[float, float] | None = None,
     ) -> Node:
         """Add a new parameter variable to this UaObject."""
-        if datatype is not None:
-            raise NotImplementedError
         if varianttype is not None:
             val = ua.Variant(val, varianttype)
         variable = UaVariable(
@@ -323,6 +319,7 @@ class FinalResultDataMixin(Generic[FinalResultDataType]):
             historize=historize,
             unit=unit,
             range=_range,
+            ua_data_type=datatype,
         )
         await self.final_result_data.add(variable, exist_ok=True)
         return variable.ua_node
