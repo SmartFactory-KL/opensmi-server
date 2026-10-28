@@ -264,7 +264,7 @@ class UaVariable(NotificationForwarderMixin, UaObject, Generic[_VariableType]):
                     msg = "Enums cannot be used with units or ranges!"
                     raise ValueError(msg)
 
-                ua_datatype_node = await self.server.get_enum(self._initial_value_type)  # pyright: ignore[reportArgumentType]
+                ua_datatype_node = await self.server.ensure_enum(self._initial_value_type)  # pyright: ignore[reportArgumentType]
                 self.ua_node = await ua_location.add_variable(
                     nodeid=node_id, bname=browse_name, val=self._initial_value, datatype=ua_datatype_node
                 )

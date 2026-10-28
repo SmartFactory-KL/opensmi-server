@@ -507,8 +507,9 @@ class Server(
         self._ua_enums[enum_type] = ua_data_type
         self.logger.info("Registered new enum type", name=enum_type.__name__, ua_data_type=ua_data_type.to_string())
 
-    async def get_enum(self, enum_type: type[IntEnum], *, option_set: bool = False) -> ua.NodeId:
+    async def ensure_enum(self, enum_type: type[IntEnum]) -> ua.NodeId:
         """Return OPC UA Node representation of given enum type. Creates OPC UA representation automatically."""
+        # TODO(CaHa): proper option set support using IntFlag
         try:
             return self._ua_enums[enum_type]
         except KeyError:
@@ -517,7 +518,6 @@ class Server(
                 idx=1,
                 name=enum_type.__name__,  # type: ignore
                 fields=[enum_type(index).name for index in enum_type],
-                option_set=option_set,
             )
             self._ua_enums[enum_type] = ua_node.nodeid
             self.logger.info("Created new enum type", name=enum_type.__name__, ua_node_id=ua_node.nodeid.to_string())
