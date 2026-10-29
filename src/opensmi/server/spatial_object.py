@@ -235,7 +235,9 @@ class CartesianFrame(UaObject):
         status_code, self._datachange_callback_handle = self.server.ua_server.iserver.aspace.add_datachange_callback(
             self.ua_node.nodeid, ua.attribute_ids.AttributeIds.Value, callback=self.on_value_change
         )
-        assert status_code.is_good()
+        if not status_code.is_good():
+            msg = "Could not add datachange callback"
+            raise RuntimeError(msg)
 
         yield
         # shutdown
