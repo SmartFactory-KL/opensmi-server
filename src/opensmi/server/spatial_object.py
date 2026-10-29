@@ -18,11 +18,10 @@ from typing import Final
 
 from asyncua import ua
 from asyncua.common.node import Node
-from asyncua.common.subscription import Subscription
 from asyncua.ua.uaerrors import BadNoMatch, BadTypeMismatch
 from opensmi.core import Unit
 from opensmi.core.lifecycle_mixin import lifecycle
-from opensmi.core.ua_node_util import get_node_id, read_unit, read_value, write_unit, write_value
+from opensmi.core.ua_node_util import get_node_id, read_value, write_unit, write_value
 from typing_extensions import override
 
 from opensmi.server.mixins import ParentMixin
@@ -191,7 +190,7 @@ class CartesianFrame(UaObject):
         self._angle_unit: Unit = self._initial_pose.orientation.unit
         self._base: CartesianFrame | None = base
         self._frame_lock = asyncio.Lock()
-        self._subscription: Subscription | None = None
+        self._datachange_callback_handle: int = 0  # 0 is an invalid asyncua handle
 
     @override
     async def _get_definition(self) -> UaObjectDefinition:
@@ -212,17 +211,16 @@ class CartesianFrame(UaObject):
             )
 
         self._ua_position = await self.ua_node.get_child(f"{ns}:Position")
+        await self._ua_position.set_writable(False)  # OPC UA spec allows it, but we don't
         self._ua_position_x = await self._ua_position.get_child("X")
         self._ua_position_y = await self._ua_position.get_child("Y")
         self._ua_position_z = await self._ua_position.get_child("Z")
 
         self._ua_orientation = await self.ua_node.get_child(f"{ns}:Orientation")
+        await self._ua_orientation.set_writable(False)  # OPC UA spec allows it, but we don't
         self._ua_orientation_a = await self._ua_orientation.get_child(f"{ns}:A")
         self._ua_orientation_b = await self._ua_orientation.get_child(f"{ns}:B")
         self._ua_orientation_c = await self._ua_orientation.get_child(f"{ns}:C")
-
-        self._subscription = await self.server.ua_server.create_subscription(period=1, handler=self)
-        await self._subscription.subscribe_data_change(self.ua_node)
 
         await self.write_base(self._base)
         await write_unit(self._ua_position, self._length_unit, engineering_unit="LengthUnit")
@@ -232,8 +230,15 @@ class CartesianFrame(UaObject):
         await self._sync_children(await self.ua_node.read_value())
         await self.ua_node.set_writable(True)  # as per spec
 
+        status_code, self._datachange_callback_handle = self.server.ua_server.iserver.aspace.add_datachange_callback(
+            self.ua_node.nodeid, ua.attribute_ids.AttributeIds.Value, callback=self.on_value_change
+        )
+        assert status_code.is_good()
+
         yield
-        # no shutdown
+        # shutdown
+        self.server.ua_server.iserver.aspace.delete_datachange_callback(self._datachange_callback_handle)
+        self._datachange_callback_handle = 0
 
     async def write_base(self, base: CartesianFrame | None) -> None:
         """Write the base coordinate frame reference to the OPC UA server."""
@@ -296,33 +301,34 @@ class CartesianFrame(UaObject):
     async def write_orientation(self, orientation: Orientation) -> None:
         """Write given angular orientation to the OPC UA server. Keeps the current position of the frame."""
         await self.update_pose(orientation=orientation)
-        # await write_unit(self._ua_orientation, orientation.unit, engineering_unit="AngleUnit")
 
     async def read_orientation(self) -> Orientation:
         """Read the angular orientation from the OPC UA server."""
-        # unit = await read_unit(self._ua_orientation, engineering_unit="AngleUnit")
         return (await self.read_pose()).orientation
 
     async def _sync_children(self, frame: ua.ThreeDFrame) -> None:
         try:
             position: ua.ThreeDCartesianCoordinates = frame.CartesianCoordinates
             await self._ua_position.write_value(position)
-            await self._ua_position_x.write_value(position.X)
-            await self._ua_position_y.write_value(position.Y)
-            await self._ua_position_z.write_value(position.Z)
+            await self._ua_position_x.write_value(ua.Double(position.X))
+            await self._ua_position_y.write_value(ua.Double(position.Y))
+            await self._ua_position_z.write_value(ua.Double(position.Z))
 
             orientation: ua.ThreeDOrientation = frame.Orientation
             await self._ua_orientation.write_value(orientation)
-            await self._ua_orientation_a.write_value(orientation.A)
-            await self._ua_orientation_b.write_value(orientation.B)
-            await self._ua_orientation_c.write_value(orientation.C)
+            await self._ua_orientation_a.write_value(ua.Double(orientation.A))
+            await self._ua_orientation_b.write_value(ua.Double(orientation.B))
+            await self._ua_orientation_c.write_value(ua.Double(orientation.C))
+            self.logger.debug("Synced frame children", frame=frame)
         except Exception:
-            self.logger.exception("Failed to sync frame children")
+            self.logger.exception("Failed to sync frame children", frame=frame)
 
-    async def datachange_notification(self, node: Node, val: ua.ThreeDFrame | None, data) -> None:
+    async def on_value_change(self, _handle: int, dv: ua.DataValue) -> None:
         """Handle OPC UA data change notification to keep children in sync."""
-        if val is not None:
-            await self._sync_children(val)
+        if dv is not None and (variant := dv.Value) is not None and isinstance(value := variant.Value, ua.ThreeDFrame):
+            await self._sync_children(value)
+        else:
+            self.logger.warning("Received invalid data change notification", ua_data_value=dv, path=self.path)
 
 
 class PositionFrame(CartesianFrame):
