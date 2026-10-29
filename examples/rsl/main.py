@@ -77,6 +77,8 @@ class ExampleMachine(
     async def _init(self) -> None:
         await super()._init()
 
+        await self._init_spatial_object_list()
+
         # Components
         await self.add_component(DummyComponent())
 

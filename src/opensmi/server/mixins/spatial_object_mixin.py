@@ -26,7 +26,9 @@ from opensmi.server.ua_object import UaObject
 
 
 class SpatialObjectMixin:
-    """Mixin for `BaseMachineryItem` that has an OPC UA spatial object.  Requires `MonitoringMixin`.
+    """Mixin for `BaseMachineryItem` that has an OPC UA `SpatialObject`.
+
+    Only one spatial object per machinery item is supported.
 
     The spatial object is not created automatically. Call `_init_spatial_object` with a `SpatialObject` during
     component initialization.
@@ -66,18 +68,31 @@ class SpatialObjectMixin:
 
 
 class SpatialObjectListMixin:
-    """Mixin for `BaseMachine` that has an OPC UA spatial object list. Requires `MonitoringMixin`.
+    """Mixin for `BaseMachine` that has an OPC UA `SpatialObjectList`.
 
-    Only one list per machine is supported.
+    Only one spatial object list per machine is supported.
+
+    The spatial object list is not created automatically. Call `_init_spatial_object_list` during
+    machine initialization.
     """
 
     __spatial_object_list: SpatialObjectList | None = None
 
-    @lifecycle(before=BaseMachineryItem.lifecycle_machinery_item)
-    async def lifecycle_spatial_object_list(self) -> AsyncGenerator[None]:
-        """Initialize the `SpatialObjectList`."""
+    async def _init_spatial_object_list(
+        self,
+        initial_pose: Pose | None = None,
+        *,
+        name: str = "MachineRoomList",
+    ) -> None:
+        """Initialize the `SpatialObjectList` with a newly created `WorldFrame`.
+
+        :param initial_pose: The initial pose of the `WorldFrame`. Defaults to all-zero `Pose`.
+        :param name: The name of the `SpatialObjectList`.
+        """
         assert isinstance(self, UaObject)
-        spatial_object_list = SpatialObjectList(world_frame=WorldFrame(initial_pose=Pose()), parent=self)
+        spatial_object_list = SpatialObjectList(
+            world_frame=WorldFrame(initial_pose=initial_pose or Pose()), parent=self, name=name
+        )
         await spatial_object_list.ua_create_node(self.ua_node)
         await spatial_object_list.init()
 
@@ -88,9 +103,6 @@ class SpatialObjectListMixin:
         )
 
         self.__spatial_object_list = spatial_object_list
-
-        yield
-        # no shutdown
 
     @property
     def spatial_object_list(self) -> SpatialObjectList:
