@@ -467,12 +467,13 @@ class SpatialObject(UaObject):
     See OPC UA Relative Spatial Location specification.
     """
 
-    def __init__(self, *, name: str | None = "SpatialObject", position_frame: PositionFrame, **kwargs) -> None:
+    def __init__(self, *, name: str | None = None, position_frame: PositionFrame, **kwargs) -> None:
         """*Cooperative* constructor."""
-        super().__init__(name=name, **kwargs)
+        super().__init__(name="SpatialObject", **kwargs)
         assert position_frame is not None, "position_frame cannot be None!"
 
         self.position_frame: PositionFrame = position_frame
+        self._identifier = name
 
         # lazily initialized optional folders
         self.attach_points: FrameFolder = FrameFolder(name="AttachPoints", parent=self)
@@ -486,6 +487,14 @@ class SpatialObject(UaObject):
         await self.position_frame.ua_create_node(self.ua_node, remove_existing=True)
         await self.position_frame.init()
 
+        if self._identifier is not None:
+            name = "Identifier"
+            await self.ua_node.add_property(
+                nodeid=get_node_id(self.ua_node, name=name),
+                bname=ua.QualifiedName(name, self.server.ua_get_namespace_index(RSLNodeIds)),
+                val=self._identifier,
+            )
+
         yield
         # no shutdown
 
@@ -493,6 +502,7 @@ class SpatialObject(UaObject):
     async def _get_definition(self) -> UaObjectDefinition:
         return UaObjectDefinition(
             object_type=RSLNodeIds.SpatialObjectType,
+            namespace_uri=RSLNodeIds,
             reference_type=ua.object_ids.ObjectIds.HasAddIn,
         )
 
@@ -564,10 +574,11 @@ class SpatialObjectList(ParentMixin[UaObject], UaObject):
 
     def __init__(self, world_frame: WorldFrame, parent: UaObject, name: str = "MachineRoomList", **kwargs) -> None:
         """*Cooperative* constructor."""
-        super().__init__(name=name, **kwargs)
+        super().__init__(name="SpatialObjectList", **kwargs)
         assert world_frame is not None, "world_frame cannot be None!"
 
         self.parent = parent
+        self._identifier = name
         self._world_frame: WorldFrame = world_frame
         self._spatial_objects: set[SpatialObject] = set()
 
@@ -580,7 +591,7 @@ class SpatialObjectList(ParentMixin[UaObject], UaObject):
 
         ns = self.server.ua_get_namespace_index(RSLNodeIds)
         ua_identifier = await self.ua_node.get_child(f"{ns}:Identifier")
-        await ua_identifier.write_value(f"{self.parent.name}SpatialObjectList")
+        await ua_identifier.write_value(self._identifier)
 
         yield
         # no shutdown
@@ -589,6 +600,7 @@ class SpatialObjectList(ParentMixin[UaObject], UaObject):
     async def _get_definition(self) -> UaObjectDefinition:
         return UaObjectDefinition(
             object_type=RSLNodeIds.SpatialObjectsListType,
+            namespace_uri=RSLNodeIds,
             reference_type=ua.object_ids.ObjectIds.HasAddIn,
         )
 
