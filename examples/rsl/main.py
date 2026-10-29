@@ -46,11 +46,18 @@ class DummyComponent(
         )
 
         await self.spatial_object.add_attach_point(
-            CartesianFrame(
-                name="ApproachPoint",
-                initial_pose=Pose(position=Position(5, 5, 5), orientation=Orientation(1, 1, 1)),
-                initial_base=self.spatial_object.position_frame,
-            )
+            initial_pose=Pose(position=Position(5, 5, 5), orientation=Orientation(1, 1, 1)),
+            name="ApproachPoint",
+        )
+
+        await self.spatial_object.add_internal_frame(
+            initial_pose=Pose(position=Position(51, 52, 53), orientation=Orientation(55, 56, 57)),
+            name="TestInternalFrame",
+        )
+
+        await self.spatial_object.add_alternative_frame(
+            initial_pose=Pose(position=Position(60, 61, 62), orientation=Orientation(65, 66, 67)),
+            name="TestAlternativeFrame",
         )
 
 

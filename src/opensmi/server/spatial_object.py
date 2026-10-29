@@ -11,7 +11,7 @@ from __future__ import annotations
 
 import asyncio
 import math
-from collections.abc import AsyncGenerator
+from collections.abc import AsyncGenerator, Iterator
 from dataclasses import dataclass, replace
 from typing import Final
 
@@ -410,6 +410,57 @@ class WorldFrame(CartesianFrame):
         )
 
 
+class FrameFolder(ParentMixin["SpatialObject"], UaObject):
+    """A named UA folder for `SpatialObject`, and the `CartesianFrame` objects inside it."""
+
+    def __init__(self, *, name: str, parent: SpatialObject) -> None:
+        """Create a new frame folder.
+
+        :param name: The name of the folder. See OPC UA RSL specification for valid names.
+        :param parent: The parent spatial object.
+        """
+        super().__init__(name=name, parent=parent)
+        self._frames: set[CartesianFrame] = set()
+        self._lock = asyncio.Lock()  # two concurrent first adds must not both create the node
+
+    def __contains__(self, frame: object) -> bool:
+        """Check if given ``frame`` is in this folder."""
+        return frame in self._frames
+
+    def __iter__(self) -> Iterator[CartesianFrame]:
+        """Return an iterator over the frames in the folder."""
+        return iter(self._frames)
+
+    def __len__(self) -> int:
+        """Return the number of frames in this folder."""
+        return len(self._frames)
+
+    async def add(self, frame: CartesianFrame) -> None:
+        """Add given ``frame`` to this frame folder. Given frame must not be initialized."""
+        assert frame is not None
+        assert not frame.is_initialized
+
+        async with self._lock:
+            node = await self._ensure_node()
+            frame.parent = self.parent
+            await frame.ua_create_node(node)
+            await frame.init()
+            self._frames.add(frame)
+        self.logger.info("Added frame to folder", path=self.path, frame=frame)
+
+    async def _ensure_node(self) -> Node:
+        if not self.is_initialized:
+            await self.ua_create_node(self.parent.ua_node)
+        return self.ua_node
+
+    @override
+    async def _get_definition(self) -> UaObjectDefinition:
+        return UaObjectDefinition(
+            object_type=ua.NodeId(ua.Int32(ua.object_ids.ObjectIds.FolderType)),
+            namespace_uri=RSLNodeIds,
+        )
+
+
 class SpatialObject(UaObject):
     """Spatial Object contains a `PositionFrame` and further `CartesianFrame` can be attached.
 
@@ -421,58 +472,88 @@ class SpatialObject(UaObject):
         super().__init__(name=name, **kwargs)
         assert position_frame is not None, "position_frame cannot be None!"
 
-        self._position_frame: PositionFrame = position_frame
-        self._ua_attach_points: Node | None = None
-        self._attach_points: set[CartesianFrame] = set()
+        self.position_frame: PositionFrame = position_frame
+
+        # lazily initialized optional folders
+        self.attach_points: FrameFolder = FrameFolder(name="AttachPoints", parent=self)
+        self.internal_frames: FrameFolder = FrameFolder(name="InternalFrames", parent=self)
+        self.alternative_frames: FrameFolder = FrameFolder(name="AlternativeFrames", parent=self)
 
     @lifecycle
     async def lifecycle_spatial_object(self) -> AsyncGenerator[None]:
         """Initialize the spatial object."""
-        self._position_frame.parent = self
-        await self._position_frame.ua_create_node(self.ua_node, remove_existing=True)
-        await self._position_frame.init()
+        self.position_frame.parent = self
+        await self.position_frame.ua_create_node(self.ua_node, remove_existing=True)
+        await self.position_frame.init()
 
         yield
-
         # no shutdown
 
     @override
     async def _get_definition(self) -> UaObjectDefinition:
         return UaObjectDefinition(object_type=RSLNodeIds.SpatialObjectType)
 
-    @property
-    def position_frame(self) -> PositionFrame:
-        """Return the position frame of the spatial object."""
-        return self._position_frame
+    async def add_attach_point(
+        self,
+        initial_pose: Pose,
+        *,
+        name: str = "SpatialObject",
+        initial_base: CartesianFrame | ua.NodeId | None = None,
+    ) -> CartesianFrame:
+        """Add a new `CartesianFrame`  with given pose to the spatial object as an ``AttachPoint``.
 
-    async def add_attach_point(self, attach_point: CartesianFrame) -> None:
-        """Add given cartesian frame to the spatial object."""
-        assert attach_point is not None, "Given attach_point cannot be None!"
-        assert not attach_point.is_initialized, "Given attach_point must not be be initialized!"
-        assert attach_point not in self._attach_points, "Given attach_point already added!"
+        Attach points define positions on the parent object where other objects can be attached.
 
-        ns = self.server.ua_get_namespace_index(RSLNodeIds)
+        :param initial_pose: Initial pose of the new frame.
+        :param name: (Optional) name of the new frame.
+        :param initial_base: (Optional) initial base of the new frame. ``None`` means to use the PositionFrame of the
+            spatial object.
+        """
+        frame = CartesianFrame(name=name, initial_pose=initial_pose, initial_base=initial_base or self.position_frame)
+        await self.attach_points.add(frame)
+        return frame
 
-        if self._ua_attach_points is None:
-            self._ua_attach_points = await self.ua_node.add_folder(
-                nodeid=ua.NodeId(
-                    ua.String(f"{self.ua_node.nodeid.Identifier}.AttachPoints"),
-                    self.ua_node.nodeid.NamespaceIndex,
-                ),
-                bname=ua.QualifiedName("AttachPoints", ns),
-            )
-            assert self._ua_attach_points is not None
+    async def add_internal_frame(
+        self,
+        initial_pose: Pose,
+        *,
+        name: str = "SpatialObject",
+        initial_base: CartesianFrame | ua.NodeId | None = None,
+    ) -> CartesianFrame:
+        """Add a new `CartesianFrame`  with given pose to the spatial object as an  ``InternalFrame``.
 
-        attach_point.parent = self
-        await attach_point.ua_create_node(self._ua_attach_points)
-        await attach_point.init()
-        self._attach_points.add(attach_point)
-        self.logger.info("Added AttachPoint", attach_point=attach_point)
+        Internal frames define positions or frames, which are of interest for the parent object, but may not
+        be used as ``AttachPoints``.
 
-    @property
-    def attach_points(self) -> set[CartesianFrame]:
-        """Return all attached cartesian frames."""
-        return self._attach_points
+        :param initial_pose: Initial pose of the new frame.
+        :param name: (Optional) name of the new frame.
+        :param initial_base: (Optional) initial base of the new frame. ``None`` means to use the PositionFrame of the
+            spatial object.
+        """
+        frame = CartesianFrame(name=name, initial_pose=initial_pose, initial_base=initial_base or self.position_frame)
+        await self.internal_frames.add(frame)
+        return frame
+
+    async def add_alternative_frame(
+        self,
+        initial_pose: Pose,
+        *,
+        name: str = "SpatialObject",
+        initial_base: CartesianFrame | ua.NodeId | None = None,
+    ) -> CartesianFrame:
+        """Add a new `CartesianFrame`  with given pose to the spatial object as an  ``AlternativeFrame``.
+
+        Alternative frames are used to provide additional location information with respect to other coordinate
+        systems described within the same `SpatialObjectList`.
+
+        :param initial_pose: Initial pose of the new frame.
+        :param name: (Optional) name of the new frame.
+        :param initial_base: (Optional) initial base of the new frame. ``None`` means to use the PositionFrame of the
+            spatial object.
+        """
+        frame = CartesianFrame(name=name, initial_pose=initial_pose, initial_base=initial_base or self.position_frame)
+        await self.alternative_frames.add(frame)
+        return frame
 
 
 class SpatialObjectList(ParentMixin[UaObject], UaObject):
