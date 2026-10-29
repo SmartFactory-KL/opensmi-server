@@ -94,9 +94,7 @@ class ExampleMachine(BaseMachine):
     async def _write_identification(self) -> None:
         # These identification variables must be set for machines
         await self.identification.SerialNumber.write("1234-56789-abc")
-        await self.identification.ProductInstanceUri.write(
-            "urn:smartfactory.de-model:snr-1234-56789-abc"
-        )
+        await self.identification.ProductInstanceUri.write("urn:smartfactory.de-model:snr-1234-56789-abc")
         await self.identification.Manufacturer.write(
             ua.LocalizedText("Technologie-Initiative SmartFactory-KL e. V.", "de-DE")
         )

@@ -13,13 +13,9 @@ Both place their spatial objects in the `Monitoring` container, so `MonitoringMi
 See https://reference.opcfoundation.org/specs/OPC-10000-210/full
 """
 
-from collections.abc import AsyncGenerator
-
 from asyncua import ua
 from opensmi.core.errors import OpenSmiRuntimeError
-from opensmi.core.lifecycle_mixin import lifecycle
 
-from opensmi.server.base_machinery_item import BaseMachineryItem
 from opensmi.server.nodesets import RSLNodeIds
 from opensmi.server.spatial_object import Pose, SpatialObject, SpatialObjectList, WorldFrame
 from opensmi.server.ua_object import UaObject

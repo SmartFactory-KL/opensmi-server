@@ -8,7 +8,6 @@ from typing_extensions import override
 
 from opensmi.server import BaseComponent, BaseMachine, Server, SpatialObject
 from opensmi.server.mixins import (
-    MonitoringMixin,
     NotificationForwarderMixin,
     ParentMixin,
     SpatialObjectListMixin,

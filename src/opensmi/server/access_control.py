@@ -12,7 +12,7 @@ from asyncio import Task
 from dataclasses import dataclass
 from inspect import currentframe
 from types import MappingProxyType
-from typing import TYPE_CHECKING, cast
+from typing import TYPE_CHECKING
 
 import structlog
 from asyncua import ua
