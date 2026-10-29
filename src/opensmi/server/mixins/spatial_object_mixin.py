@@ -20,7 +20,6 @@ from opensmi.core.errors import OpenSmiRuntimeError
 from opensmi.core.lifecycle_mixin import lifecycle
 
 from opensmi.server.base_machinery_item import BaseMachineryItem
-from opensmi.server.mixins.ua_variable_container_mixins import MonitoringMixin
 from opensmi.server.nodesets import RSLNodeIds
 from opensmi.server.spatial_object import Pose, SpatialObject, SpatialObjectList, WorldFrame
 from opensmi.server.ua_object import UaObject
@@ -46,8 +45,9 @@ class SpatialObjectMixin:
         assert spatial_object is not None, "No spatial object given!"
 
         if not spatial_object.is_initialized:
-            spatial_object.parent = self  # pyright: ignore[reportAttributeAccessIssue]
-            await spatial_object.ua_create_node(self.monitoring.ua_node)  # pyright: ignore[reportAttributeAccessIssue]
+            assert isinstance(self, UaObject)
+            spatial_object.parent = self
+            await spatial_object.ua_create_node(self.ua_node)
             await spatial_object.init()
 
         root_parent = getattr(self, "root_parent", None)
@@ -73,16 +73,12 @@ class SpatialObjectListMixin:
 
     __spatial_object_list: SpatialObjectList | None = None
 
-    @lifecycle(
-        after=MonitoringMixin.lifecycle_monitoring,
-        before=BaseMachineryItem.lifecycle_machinery_item,
-        requires=MonitoringMixin.lifecycle_monitoring,
-    )  # pyright: ignore[reportCallIssue]
+    @lifecycle(before=BaseMachineryItem.lifecycle_machinery_item)  # pyright: ignore[reportCallIssue]
     async def lifecycle_spatial_object_list(self) -> AsyncGenerator[None]:
         """Initialize the `SpatialObjectList`."""
         assert isinstance(self, UaObject)
         spatial_object_list = SpatialObjectList(world_frame=WorldFrame(initial_pose=Pose()), parent=self)
-        await spatial_object_list.ua_create_node(self.monitoring.ua_node)  # pyright: ignore[reportAttributeAccessIssue]
+        await spatial_object_list.ua_create_node(self.ua_node)  # pyright: ignore[reportAttributeAccessIssue]
         await spatial_object_list.init()
 
         ns = self.server.ua_get_namespace_index(RSLNodeIds.URI)

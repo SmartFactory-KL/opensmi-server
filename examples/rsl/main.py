@@ -14,11 +14,10 @@ from opensmi.server.mixins import (
     SpatialObjectListMixin,
     SpatialObjectMixin,
 )
-from opensmi.server.spatial_object import CartesianFrame, Orientation, Pose, Position, PositionFrame
+from opensmi.server.spatial_object import Orientation, Pose, Position, PositionFrame
 
 
 class DummyComponent(
-    MonitoringMixin,  # required by spatial object
     SpatialObjectMixin,
     NotificationForwarderMixin,  # forward OPC UA logging to our parent
     ParentMixin["ExampleMachine"],
@@ -62,7 +61,6 @@ class DummyComponent(
 
 
 class ExampleMachine(
-    MonitoringMixin,
     SpatialObjectListMixin,
     BaseMachine,
 ):
