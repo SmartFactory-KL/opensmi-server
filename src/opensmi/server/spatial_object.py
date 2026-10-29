@@ -168,7 +168,7 @@ class CartesianFrame(UaObject):
         *,
         name: str,
         initial_pose: Pose,
-        base: CartesianFrame | None,
+        initial_base: CartesianFrame | ua.NodeId | None,
         minimum_access_level: int | None = None,
         bypass_lock: bool = False,
         **kwargs,
@@ -176,10 +176,8 @@ class CartesianFrame(UaObject):
         """Initialize a Cartesian frame with position and orientation.
 
         :param name: Name of the frame.
-        :param position: Translation of the frame relative to the base frame, represented by X, Y, and Z.
-        :param orientation: Orientation of the frame relative to the base frame, represented by
-            A (roll about X), B (pitch about Y), and C (yaw about Z).
-        :param base: Optional Node ID of the base frame relative to which this frame is specified.
+        :param initial_pose: 3D Pose of the frame.
+        :param initial_base: Optional frame or a node ID of the base frame relative to which this frame is specified.
         :param minimum_access_level: Minimum write access level of the frame variable. Read access is always allowed.
         :param bypass_lock: Whether the frame variable can be written to without ownership of the corresponding lock.
         """
@@ -188,7 +186,7 @@ class CartesianFrame(UaObject):
         self._initial_pose: Pose = initial_pose
         self._length_unit: Unit = self._initial_pose.position.unit
         self._angle_unit: Unit = self._initial_pose.orientation.unit
-        self._base: CartesianFrame | None = base
+        self._initial_base: CartesianFrame | ua.NodeId | None = initial_base
         self._frame_lock = asyncio.Lock()
         self._datachange_callback_handle: int = 0  # 0 is an invalid asyncua handle
 
@@ -222,7 +220,7 @@ class CartesianFrame(UaObject):
         self._ua_orientation_b = await self._ua_orientation.get_child(f"{ns}:B")
         self._ua_orientation_c = await self._ua_orientation.get_child(f"{ns}:C")
 
-        await self.write_base(self._base)
+        await self.write_base(self._initial_base)
         await write_unit(self._ua_position, self._length_unit, engineering_unit="LengthUnit")
         await write_unit(self._ua_orientation, self._angle_unit, engineering_unit="AngleUnit")
 
@@ -240,14 +238,14 @@ class CartesianFrame(UaObject):
         self.server.ua_server.iserver.aspace.delete_datachange_callback(self._datachange_callback_handle)
         self._datachange_callback_handle = 0
 
-    async def write_base(self, base: CartesianFrame | None) -> None:
+    async def write_base(self, base: CartesianFrame | ua.NodeId | None) -> None:
         """Write the base coordinate frame reference to the OPC UA server."""
         if base is None:
             with contextlib.suppress(BadTypeMismatch):  # WorldFrame base is Null variant, so we don't need to write
                 await write_value(self._ua_base, None)
         else:
-            assert isinstance(base, CartesianFrame), f"base {base.__class__.__name__} is no instance of CartesianFrame!"
-            await write_value(self._ua_base, base.ua_node.nodeid, variant_type=ua.VariantType.NodeId)
+            node_id = base.ua_node.nodeid if isinstance(base, CartesianFrame) else base
+            await write_value(self._ua_base, node_id, variant_type=ua.VariantType.NodeId)
 
     async def read_base(self) -> CartesianFrame | None:
         """Read the base coordinate frame reference from the OPC UA server."""
@@ -341,7 +339,7 @@ class PositionFrame(CartesianFrame):
         self,
         *,
         initial_pose: Pose,
-        base: CartesianFrame,
+        initial_base: CartesianFrame | ua.NodeId,
         minimum_access_level: int | None = None,
         bypass_lock: bool = False,
         **kwargs,
@@ -350,7 +348,7 @@ class PositionFrame(CartesianFrame):
         super().__init__(
             name="PositionFrame",
             initial_pose=initial_pose,
-            base=base,
+            initial_base=initial_base,
             minimum_access_level=minimum_access_level,
             bypass_lock=bypass_lock,
             **kwargs,
@@ -375,7 +373,7 @@ class WorldFrame(CartesianFrame):
         super().__init__(
             name="WorldFrame",
             initial_pose=initial_pose,
-            base=None,
+            initial_base=None,
             minimum_access_level=minimum_access_level,
             bypass_lock=bypass_lock,
             **kwargs,

@@ -40,7 +40,7 @@ class DummyComponent(
                 name="DummySpatialObject",
                 position_frame=PositionFrame(
                     initial_pose=Pose(position=Position(x=1, y=2, z=3), orientation=Orientation(a=4, b=5, c=6)),
-                    base=self.parent.spatial_object_list.world_frame,
+                    initial_base=self.parent.spatial_object_list.world_frame,
                 ),
             )
         )
@@ -49,7 +49,7 @@ class DummyComponent(
             CartesianFrame(
                 name="ApproachPoint",
                 initial_pose=Pose(position=Position(5, 5, 5), orientation=Orientation(1, 1, 1)),
-                base=self.spatial_object.position_frame,
+                initial_base=self.spatial_object.position_frame,
             )
         )
 
