@@ -10,7 +10,6 @@ see https://reference.opcfoundation.org/specs/OPC-10000-210/full
 from __future__ import annotations
 
 import asyncio
-import contextlib
 import math
 from collections.abc import AsyncGenerator
 from dataclasses import dataclass, replace
@@ -18,7 +17,7 @@ from typing import Final
 
 from asyncua import ua
 from asyncua.common.node import Node
-from asyncua.ua.uaerrors import BadNoMatch, BadTypeMismatch
+from asyncua.ua.uaerrors import BadNoMatch
 from opensmi.core import Unit
 from opensmi.core.lifecycle_mixin import lifecycle
 from opensmi.core.ua_node_util import get_node_id, read_value, write_unit, write_value
@@ -38,6 +37,12 @@ _ANGLE: Final = {
     Unit.DEGREE_UNIT_OF_ANGLE: math.pi / 180,
     Unit.RADIAN: 1.0,
 }
+
+
+def _require_supported(unit: Unit, table: dict[Unit, float]) -> None:
+    if unit not in table:
+        msg = f"unsupported unit {unit!r}, expected one of {list(table)}"
+        raise ValueError(msg)
 
 
 def _convert(value: float, src_unit: Unit, dst_unit: Unit, table: dict[Unit, float]) -> float:
@@ -62,10 +67,16 @@ class Position:
     z: float = 0.0
     unit: Unit = Unit.MILLIMETRE
 
+    def __post_init__(self) -> None:
+        """Verify unit post initialization."""
+        _require_supported(self.unit, _LENGTH)
+
     def to(self, unit: Unit) -> Position:
         """Convert this position to one with given ``unit``."""
         if unit == self.unit:
             return self
+
+        _require_supported(self.unit, _LENGTH)
 
         def f(value: float) -> float:
             return _convert(value, self.unit, unit, _LENGTH)
@@ -96,10 +107,16 @@ class Orientation:
     """Rotation around z axis (yaw)"""
     unit: Unit = Unit.DEGREE_UNIT_OF_ANGLE
 
+    def __post_init__(self) -> None:
+        """Verify unit post initialization."""
+        _require_supported(self.unit, _ANGLE)
+
     def to(self, unit: Unit) -> Orientation:
         """Convert this orientation to one with given ``unit``."""
         if unit == self.unit:
             return self
+
+        _require_supported(unit, _ANGLE)
 
         def f(value: float) -> float:
             return _convert(value, self.unit, unit, _ANGLE)
