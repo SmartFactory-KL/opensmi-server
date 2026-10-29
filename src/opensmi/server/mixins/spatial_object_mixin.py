@@ -19,9 +19,10 @@ from asyncua import ua
 from opensmi.core.errors import OpenSmiRuntimeError
 from opensmi.core.lifecycle_mixin import lifecycle
 
+from opensmi.server.base_machinery_item import BaseMachineryItem
 from opensmi.server.mixins.ua_variable_container_mixins import MonitoringMixin
 from opensmi.server.nodesets import RSLNodeIds
-from opensmi.server.spatial_object import Orientation, Pose, Position, SpatialObject, SpatialObjectList, WorldFrame
+from opensmi.server.spatial_object import Pose, SpatialObject, SpatialObjectList, WorldFrame
 from opensmi.server.ua_object import UaObject
 
 
@@ -72,7 +73,11 @@ class SpatialObjectListMixin:
 
     __spatial_object_list: SpatialObjectList | None = None
 
-    @lifecycle(after=MonitoringMixin.lifecycle_monitoring, requires=MonitoringMixin.lifecycle_monitoring)  # pyright: ignore[reportCallIssue]
+    @lifecycle(
+        after=MonitoringMixin.lifecycle_monitoring,
+        before=BaseMachineryItem.lifecycle_machinery_item,
+        requires=MonitoringMixin.lifecycle_monitoring,
+    )  # pyright: ignore[reportCallIssue]
     async def lifecycle_spatial_object_list(self) -> AsyncGenerator[None]:
         """Initialize the `SpatialObjectList`."""
         assert isinstance(self, UaObject)
