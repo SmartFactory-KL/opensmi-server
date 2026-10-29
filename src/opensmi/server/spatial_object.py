@@ -223,7 +223,8 @@ class CartesianFrame(UaObject):
         self._ua_orientation_b = await self._ua_orientation.get_child(f"{ns}:B")
         self._ua_orientation_c = await self._ua_orientation.get_child(f"{ns}:C")
 
-        await self.write_base(self._initial_base)
+        if self._initial_base is not None:
+            await self.write_base(self._initial_base)
         await write_unit(self._ua_position, self._length_unit, engineering_unit="LengthUnit")
         await write_unit(self._ua_orientation, self._angle_unit, engineering_unit="AngleUnit")
 
@@ -243,12 +244,9 @@ class CartesianFrame(UaObject):
 
     async def write_base(self, base: CartesianFrame | ua.NodeId | None) -> None:
         """Write the base coordinate frame reference to the OPC UA server."""
-        if base is None:
-            with contextlib.suppress(BadTypeMismatch):  # WorldFrame base is Null variant, so we don't need to write
-                await write_value(self._ua_base, None)
-        else:
-            node_id = base.ua_node.nodeid if isinstance(base, CartesianFrame) else base
-            await write_value(self._ua_base, node_id, variant_type=ua.VariantType.NodeId)
+        node_id = base.ua_node.nodeid if isinstance(base, CartesianFrame) else base
+        await write_value(self._ua_base, node_id, variant_type=ua.VariantType.NodeId)
+        self.logger.debug("Writen base", base=base)
 
     async def read_base(self) -> CartesianFrame | None:
         """Read the base coordinate frame reference from the OPC UA server.
