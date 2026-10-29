@@ -73,12 +73,12 @@ class SpatialObjectListMixin:
 
     __spatial_object_list: SpatialObjectList | None = None
 
-    @lifecycle(before=BaseMachineryItem.lifecycle_machinery_item)  # pyright: ignore[reportCallIssue]
+    @lifecycle(before=BaseMachineryItem.lifecycle_machinery_item)
     async def lifecycle_spatial_object_list(self) -> AsyncGenerator[None]:
         """Initialize the `SpatialObjectList`."""
         assert isinstance(self, UaObject)
         spatial_object_list = SpatialObjectList(world_frame=WorldFrame(initial_pose=Pose()), parent=self)
-        await spatial_object_list.ua_create_node(self.ua_node)  # pyright: ignore[reportAttributeAccessIssue]
+        await spatial_object_list.ua_create_node(self.ua_node)
         await spatial_object_list.init()
 
         ns = self.server.ua_get_namespace_index(RSLNodeIds.URI)

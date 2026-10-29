@@ -451,6 +451,7 @@ class FrameFolder(ParentMixin["SpatialObject"], UaObject):
     async def _ensure_node(self) -> Node:
         if not self.is_initialized:
             await self.ua_create_node(self.parent.ua_node)
+            await self.init()
         return self.ua_node
 
     @override
