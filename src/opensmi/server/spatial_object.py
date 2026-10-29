@@ -185,7 +185,6 @@ class CartesianFrame(UaObject):
         :param bypass_lock: Whether the frame variable can be written to without ownership of the corresponding lock.
         """
         super().__init__(name=name, minimum_access_level=minimum_access_level, bypass_lock=bypass_lock, **kwargs)
-        self._name = name
         self._initial_pose: Pose = initial_pose
         self._length_unit: Unit = self._initial_pose.position.unit
         self._angle_unit: Unit = self._initial_pose.orientation.unit
@@ -213,7 +212,7 @@ class CartesianFrame(UaObject):
 
         self._ua_position = await self.ua_node.get_child(f"{ns}:Position")
         await self._ua_position.set_writable(False)  # OPC UA spec allows it, but we don't
-        self._ua_position_x = await self._ua_position.get_child("X")
+        self._ua_position_x = await self._ua_position.get_child("X")  # implicit ns=0
         self._ua_position_y = await self._ua_position.get_child("Y")
         self._ua_position_z = await self._ua_position.get_child("Z")
 
@@ -274,27 +273,27 @@ class CartesianFrame(UaObject):
         """Replace the pose of this frame."""
         async with self._frame_lock:
             await self._write_pose_locked(pose)
-        self.logger.debug("Written pose", pose=pose)
 
     async def _write_pose_locked(self, pose: Pose) -> None:
         await self.ua_node.write_value(pose.to_ua(length_unit=self._length_unit, angle_unit=self._angle_unit))
+        self.logger.debug("Written pose", pose=pose)
 
     async def read_pose(self, *, length_unit: Unit | None = None, angle_unit: Unit | None = None) -> Pose:
         """Read the current pose of this frame relative to its base."""
-        pose = await self._read_pose_locked()
+        pose = await self._read_pose()
         if length_unit is not None:
             pose = pose.with_position(pose.position.to(length_unit))
         if angle_unit is not None:
             pose = pose.with_orientation(pose.orientation.to(angle_unit))
         return pose
 
-    async def _read_pose_locked(self) -> Pose:
+    async def _read_pose(self) -> Pose:
         return Pose.from_ua(await self.ua_node.read_value(), length_unit=self._length_unit, angle_unit=self._angle_unit)
 
     async def update_pose(self, *, position: Position | None = None, orientation: Orientation | None = None) -> Pose:
-        """Atomically replace position and/or orientation, keeping the rest. Returns the new pose."""
+        """Replace position and/or orientation, keeping the rest. Returns the new pose."""
         async with self._frame_lock:
-            pose = await self._read_pose_locked()
+            pose = await self._read_pose()
             if position is not None:
                 pose = pose.with_position(position)
             if orientation is not None:
