@@ -185,3 +185,7 @@ theme = "readthedocs"
 # verbose = 1
 # warnings-as-errors = true
 intersphinx = ["https://opcua-asyncio.readthedocs.io/en/latest/objects.inv"] # TODO(CaHa): does not work
+
+[tool.coverage.run]
+source = ["src/opensmi/server"]
+branch = true
