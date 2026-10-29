@@ -80,17 +80,20 @@ class Position:
 
 @dataclass(frozen=True, slots=True)
 class Orientation:
-    """Angular orientation defined by A, B, and C angles.
+    """Angular orientation defined by A=roll (X), B=pitch (Y), C=yaw (Z).
 
-    The angles represent the orientation of the Cartesian frame according
-    to the A/B/C convention defined by the OPC UA model.
+    The rotations are applied as intrinsic ``z-y'-x''`` (yaw, then pitch, then roll),
+    which is equivalent to extrinsic ``x-y-z``.
 
     see https://reference.opcfoundation.org/specs/OPC-10000-210/b-2
     """
 
     a: float = 0.0
+    """Rotation around x axis (roll)"""
     b: float = 0.0
+    """Rotation around y axis (pitch)"""
     c: float = 0.0
+    """Rotation around z axis (yaw)"""
     unit: Unit = Unit.DEGREE_UNIT_OF_ANGLE
 
     def to(self, unit: Unit) -> Orientation:
