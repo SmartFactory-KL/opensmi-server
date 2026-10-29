@@ -557,11 +557,11 @@ class SpatialObject(UaObject):
 
 
 class SpatialObjectList(ParentMixin[UaObject], UaObject):
-    """Spatial Object List (SOL) from Relative Spatial Location specification."""
+    """Spatial Object List from OPC UA Relative Spatial Location (RSL) specification."""
 
-    def __init__(self, world_frame: WorldFrame, parent: UaObject, **kwargs) -> None:
+    def __init__(self, world_frame: WorldFrame, parent: UaObject, name: str = "MachineRoomList", **kwargs) -> None:
         """*Cooperative* constructor."""
-        super().__init__(name="MachineRoomList", **kwargs)
+        super().__init__(name=name, **kwargs)
         assert world_frame is not None, "world_frame cannot be None!"
 
         self.parent = parent
