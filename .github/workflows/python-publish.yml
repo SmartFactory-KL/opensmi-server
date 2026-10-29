@@ -10,12 +10,15 @@ name: Upload Python Package
 
 on:
   release:
-    types: [published]
+    types: [ published ]
 
 permissions:
   contents: read
 
 jobs:
+  checks:
+    uses: ./.github/workflows/checks.yml
+
   release-build:
     runs-on: ubuntu-latest
 
