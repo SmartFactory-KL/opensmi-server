@@ -491,7 +491,10 @@ class SpatialObject(UaObject):
 
     @override
     async def _get_definition(self) -> UaObjectDefinition:
-        return UaObjectDefinition(object_type=RSLNodeIds.SpatialObjectType)
+        return UaObjectDefinition(
+            object_type=RSLNodeIds.SpatialObjectType,
+            reference_type=ua.object_ids.ObjectIds.HasAddIn,
+        )
 
     async def add_attach_point(
         self,
@@ -584,7 +587,10 @@ class SpatialObjectList(ParentMixin[UaObject], UaObject):
 
     @override
     async def _get_definition(self) -> UaObjectDefinition:
-        return UaObjectDefinition(object_type=RSLNodeIds.SpatialObjectsListType)
+        return UaObjectDefinition(
+            object_type=RSLNodeIds.SpatialObjectsListType,
+            reference_type=ua.object_ids.ObjectIds.HasAddIn,
+        )
 
     async def add_spatial_object(self, spatial_object: SpatialObject) -> None:
         """Add given SpatialObject to the spatial object list."""
