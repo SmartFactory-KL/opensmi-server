@@ -251,13 +251,24 @@ class CartesianFrame(UaObject):
             await write_value(self._ua_base, node_id, variant_type=ua.VariantType.NodeId)
 
     async def read_base(self) -> CartesianFrame | None:
-        """Read the base coordinate frame reference from the OPC UA server."""
+        """Read the base coordinate frame reference from the OPC UA server.
+
+        :return: The Python Cartesian frame reference or ``None`` if no Python frame reference is found.
+        """
         node_id: ua.NodeId | None = await read_value(self._ua_base)
         if node_id is None:
             return None
-        obj = self.server.get_ua_object(node_id)
-        assert isinstance(obj, CartesianFrame), f"base {obj.__class__.__name__} is no instance of CartesianFrame!"
+        obj = self.server.get_ua_object_optional(node_id)
+        if obj is not None:
+            assert isinstance(obj, CartesianFrame), f"base {obj.__class__.__name__} is no instance of CartesianFrame!"
         return obj
+
+    async def read_base_node_id(self) -> ua.NodeId | None:
+        """Read the UA node ID of the base coordinate frame.
+
+        :return: UA node ID or ``None`` if ua.NodeId is null or non-existent.
+        """
+        return await read_value(self._ua_base)
 
     async def write_pose(self, pose: Pose) -> None:
         """Replace the pose of this frame."""
