@@ -15,9 +15,10 @@ See https://reference.opcfoundation.org/specs/OPC-10000-210/full
 
 from asyncua import ua
 from opensmi.core.errors import OpenSmiRuntimeError
+from opensmi.core.rsl import Pose
 
 from opensmi.server.nodesets import RSLNodeIds
-from opensmi.server.spatial_object import Pose, SpatialObject, SpatialObjectList, WorldFrame
+from opensmi.server.spatial_object import SpatialObject, SpatialObjectList, WorldFrame
 from opensmi.server.ua_object import UaObject
 
 

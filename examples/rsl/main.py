@@ -4,6 +4,7 @@
 import asyncio
 
 from asyncua import ua
+from opensmi.core.rsl import Orientation, Pose, Position
 from typing_extensions import override
 
 from opensmi.server import BaseComponent, BaseMachine, Server, SpatialObject
@@ -13,7 +14,7 @@ from opensmi.server.mixins import (
     SpatialObjectListMixin,
     SpatialObjectMixin,
 )
-from opensmi.server.spatial_object import Orientation, Pose, Position, PositionFrame
+from opensmi.server.spatial_object import PositionFrame
 
 
 class DummyComponent(

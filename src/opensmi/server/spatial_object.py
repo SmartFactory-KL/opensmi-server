@@ -10,149 +10,20 @@ see https://reference.opcfoundation.org/specs/OPC-10000-210/full
 from __future__ import annotations
 
 import asyncio
-import math
-from collections.abc import AsyncGenerator, Callable, Iterator
-from dataclasses import dataclass, replace
-from functools import cache
-from typing import Final
+from collections.abc import AsyncGenerator, Iterator
 
 from asyncua import ua
 from asyncua.common.node import Node
 from asyncua.ua.uaerrors import BadNoMatch
 from opensmi.core import Unit
 from opensmi.core.lifecycle_mixin import lifecycle
+from opensmi.core.rsl import Orientation, Pose, Position
 from opensmi.core.ua_node_util import get_node_id, read_value, write_unit, write_value
 from typing_extensions import override
 
 from opensmi.server.mixins import ParentMixin
 from opensmi.server.nodesets import RSLNodeIds
 from opensmi.server.ua_object import UaObject, UaObjectDefinition
-
-# TODO(CaHa): Maybe attach conversion factor to Unit. UNECE table has this information
-_LENGTH: Final = {
-    Unit.MILLIMETRE: 0.001,
-    Unit.CENTIMETRE: 0.01,
-    Unit.METRE: 1.0,
-}
-_ANGLE: Final = {
-    Unit.DEGREE_UNIT_OF_ANGLE: math.pi / 180,
-    Unit.RADIAN: 1.0,
-}
-
-
-def _require_supported(unit: Unit, table: dict[Unit, float]) -> None:
-    if unit not in table:
-        msg = f"unsupported unit {unit!r}, expected one of {list(table)}"
-        raise ValueError(msg)
-
-
-def _make_factor(table: dict[Unit, float]) -> Callable[[Unit, Unit], float]:
-    @cache
-    def factor(src: Unit, dst: Unit) -> float:
-        _require_supported(src, table)
-        _require_supported(dst, table)
-        return table[src] / table[dst]
-
-    return factor
-
-
-_length_factor: Final = _make_factor(_LENGTH)
-_angle_factor: Final = _make_factor(_ANGLE)
-
-
-@dataclass(frozen=True, slots=True)
-class Position:
-    """Cartesian position defined by X, Y, and Z coordinates.
-
-    see https://reference.opcfoundation.org/specs/OPC-10000-210/b-1
-    """
-
-    x: float = 0.0
-    y: float = 0.0
-    z: float = 0.0
-    unit: Unit = Unit.MILLIMETRE
-
-    def __post_init__(self) -> None:
-        """Verify unit post initialization."""
-        _require_supported(self.unit, _LENGTH)
-
-    def to(self, unit: Unit) -> Position:
-        """Convert this position to one with given ``unit``."""
-        if unit == self.unit:
-            return self
-        f = _length_factor(self.unit, unit)
-        return Position(f * self.x, f * self.y, f * self.z, unit)
-
-    def __add__(self, other: Position) -> Position:
-        """Add two positions together keeping the left operand's unit."""
-        other = other.to(self.unit)
-        return Position(self.x + other.x, self.y + other.y, self.z + other.z, self.unit)
-
-
-@dataclass(frozen=True, slots=True)
-class Orientation:
-    """Angular orientation defined by A=roll (X), B=pitch (Y), C=yaw (Z).
-
-    The rotations are applied as intrinsic ``z-y'-x''`` (yaw, then pitch, then roll),
-    which is equivalent to extrinsic ``x-y-z``.
-
-    see https://reference.opcfoundation.org/specs/OPC-10000-210/b-2
-    """
-
-    a: float = 0.0
-    """Rotation around x axis (roll)"""
-    b: float = 0.0
-    """Rotation around y axis (pitch)"""
-    c: float = 0.0
-    """Rotation around z axis (yaw)"""
-    unit: Unit = Unit.DEGREE_UNIT_OF_ANGLE
-
-    def __post_init__(self) -> None:
-        """Verify unit post initialization."""
-        _require_supported(self.unit, _ANGLE)
-
-    def to(self, unit: Unit) -> Orientation:
-        """Convert this orientation to one with given ``unit``."""
-        if unit == self.unit:
-            return self
-        f = _angle_factor(self.unit, unit)
-        return Orientation(f * self.a, f * self.b, f * self.c, unit)
-
-
-@dataclass(frozen=True, slots=True)
-class Pose:
-    """Pose defined by Cartesian `Position` and angular `Orientation`.
-
-    Corresponds to OPC UA data type ``3DFrameType``.
-    """
-
-    position: Position = Position()
-    orientation: Orientation = Orientation()
-
-    def with_position(self, position: Position) -> Pose:
-        """Return a copy of this Pose with given ``position`` keeping the orientation."""
-        return replace(self, position=position)
-
-    def with_orientation(self, orientation: Orientation) -> Pose:
-        """Return a copy of this Pose with given ``orientation`` keeping the position."""
-        return replace(self, orientation=orientation)
-
-    def to_ua(self, *, length_unit: Unit, angle_unit: Unit) -> ua.ThreeDFrame:
-        """Convert to a OPC UA ``3DFrame``, expressed in the given units."""
-        p, o = self.position.to(length_unit), self.orientation.to(angle_unit)
-        return ua.ThreeDFrame(
-            CartesianCoordinates=ua.ThreeDCartesianCoordinates(X=p.x, Y=p.y, Z=p.z),  # type: ignore
-            Orientation=ua.ThreeDOrientation(A=o.a, B=o.b, C=o.c),  # type: ignore
-        )
-
-    @classmethod
-    def from_ua(cls, frame: ua.ThreeDFrame, *, length_unit: Unit, angle_unit: Unit) -> Pose:
-        """Convert from ``ThreeDFrame`` whose numbers are in the given units."""
-        p, o = frame.CartesianCoordinates, frame.Orientation
-        return cls(
-            position=Position(float(p.X), float(p.Y), float(p.Z), length_unit),
-            orientation=Orientation(float(o.A), float(o.B), float(o.C), angle_unit),
-        )
 
 
 class CartesianFrame(UaObject):
