@@ -25,6 +25,10 @@ def test_position_adds_values_in_left_operand_unit() -> None:
 
     assert result == Position(1.5, 2.25, 4.0, Unit.METRE)
 
+    result2 = millimetres + metres
+
+    assert result2 == Position(1500, 2250, 4000, Unit.MILLIMETRE)
+
 
 def test_position_init_rejects_unsupported_unit() -> None:
     with pytest.raises(ValueError, match="unsupported unit"):

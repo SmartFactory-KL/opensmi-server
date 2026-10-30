@@ -11,8 +11,9 @@ from __future__ import annotations
 
 import asyncio
 import math
-from collections.abc import AsyncGenerator, Iterator
+from collections.abc import AsyncGenerator, Callable, Iterator
 from dataclasses import dataclass, replace
+from functools import cache
 from typing import Final
 
 from asyncua import ua
@@ -45,14 +46,18 @@ def _require_supported(unit: Unit, table: dict[Unit, float]) -> None:
         raise ValueError(msg)
 
 
-def _convert(value: float, src_unit: Unit, dst_unit: Unit, table: dict[Unit, float]) -> float:
-    if src_unit == dst_unit:
-        return value
-    try:
-        return value * table[src_unit] / table[dst_unit]
-    except KeyError as e:
-        msg = f"unsupported unit {e.args[0]!r}, expected one of {table}"
-        raise ValueError(msg) from None
+def _make_factor(table: dict[Unit, float]) -> Callable[[Unit, Unit], float]:
+    @cache
+    def factor(src: Unit, dst: Unit) -> float:
+        _require_supported(src, table)
+        _require_supported(dst, table)
+        return table[src] / table[dst]
+
+    return factor
+
+
+_length_factor: Final = _make_factor(_LENGTH)
+_angle_factor: Final = _make_factor(_ANGLE)
 
 
 @dataclass(frozen=True, slots=True)
@@ -75,13 +80,8 @@ class Position:
         """Convert this position to one with given ``unit``."""
         if unit == self.unit:
             return self
-
-        _require_supported(self.unit, _LENGTH)
-
-        def f(value: float) -> float:
-            return _convert(value, self.unit, unit, _LENGTH)
-
-        return Position(f(self.x), f(self.y), f(self.z), unit)
+        f = _length_factor(self.unit, unit)
+        return Position(f * self.x, f * self.y, f * self.z, unit)
 
     def __add__(self, other: Position) -> Position:
         """Add two positions together keeping the left operand's unit."""
@@ -115,13 +115,8 @@ class Orientation:
         """Convert this orientation to one with given ``unit``."""
         if unit == self.unit:
             return self
-
-        _require_supported(unit, _ANGLE)
-
-        def f(value: float) -> float:
-            return _convert(value, self.unit, unit, _ANGLE)
-
-        return Orientation(f(self.a), f(self.b), f(self.c), unit)
+        f = _angle_factor(self.unit, unit)
+        return Orientation(f * self.a, f * self.b, f * self.c, unit)
 
 
 @dataclass(frozen=True, slots=True)
