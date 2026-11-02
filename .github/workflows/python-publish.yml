@@ -18,8 +18,10 @@ permissions:
 jobs:
   checks:
     uses: ./.github/workflows/checks.yml
+    secrets: inherit          # passes CODECOV_TOKEN through
 
   release-build:
+    needs: [ checks ]
     runs-on: ubuntu-latest
 
     steps:
