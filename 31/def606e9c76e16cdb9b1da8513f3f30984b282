@@ -1,0 +1,14 @@
+.github/workflows/python-publish.yml
+  h_3a91ce8773dd89 21,24
+---
+{
+  "schema_version": "authorship/3.0.0",
+  "git_ai_version": "1.7.5",
+  "base_commit_sha": "31def606e9c76e16cdb9b1da8513f3f30984b282",
+  "prompts": {},
+  "humans": {
+    "h_3a91ce8773dd89": {
+      "author": "Carsten Harms <Carsten.Harms@dfki.de>"
+    }
+  }
+}
