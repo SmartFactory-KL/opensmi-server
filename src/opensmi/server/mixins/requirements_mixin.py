@@ -11,6 +11,7 @@ from asyncua.common.node import Node
 from asyncua.ua.uaerrors import BadNoMatch
 from opensmi.core.ua_node_util import get_child_without_ns, get_node_id
 
+from opensmi.server.base_skill import BaseSkill
 from opensmi.server.interfaces import AbstractUaObject
 from opensmi.server.nodesets import DiNodeIds, SmartFactorySkillSetNodeIds
 from opensmi.server.ua_object import UaObject
@@ -35,17 +36,20 @@ class RequirementsMixin(AbstractUaObject):
             await self._init_requirements()
             assert self.__ua_requirements_folder is not None  # make the type checker happy
 
-        target = other.ua_node.nodeid
+        # TODO(CaHa): hack, but otherwise ua_node of skills point to its SkillExecution node.
+        # currently (2026-11) in discussion to flatten the hierarchy and using SkillExecution is the main node
+        target = other._ua_node if isinstance(other, BaseSkill) else other.ua_node  # noqa: SLF001
+        assert target is not None
 
         await self.__ua_requirements_folder.add_reference(
-            target=target,
+            target=target.nodeid,
             reftype=ua.FourByteNodeId(ua.Int32(ua.object_ids.ObjectIds.Requires)),
             forward=True,
             bidirectional=True,
         )
         self.dependencies.append(other)
 
-        self.logger.debug("Added dependency reference", target=target.to_string())
+        self.logger.debug("Added dependency reference", target=target.nodeid.to_string())
 
     async def _init_requirements(self) -> None:
         # initialize requirements folder on demand
