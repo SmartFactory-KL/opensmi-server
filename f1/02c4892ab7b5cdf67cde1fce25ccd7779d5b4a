@@ -1,0 +1,19 @@
+src/opensmi/server/notification.py
+  s_558dde763edffb::t_08c0368805d08d 91
+---
+{
+  "schema_version": "authorship/3.0.0",
+  "git_ai_version": "1.7.5",
+  "base_commit_sha": "f102c4892ab7b5cdf67cde1fce25ccd7779d5b4a",
+  "prompts": {},
+  "sessions": {
+    "s_558dde763edffb": {
+      "agent_id": {
+        "tool": "claude",
+        "id": "1c0f11fb-3c77-4da2-b7ad-c4c847ed6c9a",
+        "model": "claude-opus-5-5"
+      },
+      "human_author": "Carsten Harms <Carsten.Harms@dfki.de>"
+    }
+  }
+}
