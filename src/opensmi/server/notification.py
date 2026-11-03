@@ -88,8 +88,7 @@ class Notification(ParentMixin["BaseMachineryItem"], UaObject, AbstractUaLogger)
         #     self._ua_alarm_event_gen.event.SourceName = source.name
 
         self._ua_alarm_event_gen.event.Severity = severity
-        # TODO(CaHa): remove "|||" in message work-around when no longer required (asyncua client problem)
-        self._ua_alarm_event_gen.event.Message = ua.LocalizedText(f"{msg}|||{code}")
+        self._ua_alarm_event_gen.event.Message = ua.LocalizedText(msg)
         self._ua_alarm_event_gen.event.ErrorCode = code
         await self._ua_alarm_event_gen.trigger()
 
