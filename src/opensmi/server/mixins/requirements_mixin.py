@@ -9,11 +9,11 @@ from __future__ import annotations
 from asyncua import ua
 from asyncua.common.node import Node
 from asyncua.ua.uaerrors import BadNoMatch
+from opensmi.core.nodesets import DiNodeIds, SmartFactorySkillSetNodeIds
 from opensmi.core.ua_node_util import get_child_without_ns, get_node_id
 
 from opensmi.server.base_skill import BaseSkill
 from opensmi.server.interfaces import AbstractUaObject
-from opensmi.server.nodesets import DiNodeIds, SmartFactorySkillSetNodeIds
 from opensmi.server.ua_object import UaObject
 
 

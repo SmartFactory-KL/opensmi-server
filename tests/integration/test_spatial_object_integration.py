@@ -4,6 +4,7 @@
 import pytest
 from asyncua import ua
 from opensmi.core import Unit
+from opensmi.core.nodesets import RSLNodeIds
 from opensmi.core.rsl import Orientation, Pose, Position
 from typing_extensions import override
 
@@ -12,7 +13,6 @@ from opensmi.server.mixins import (
     SpatialObjectListMixin,
     SpatialObjectMixin,
 )
-from opensmi.server.nodesets import RSLNodeIds
 from opensmi.server.spatial_object import PositionFrame, SpatialObject
 
 

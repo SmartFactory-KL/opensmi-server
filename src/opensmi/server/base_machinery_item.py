@@ -16,6 +16,7 @@ from asyncua.ua.status_codes import StatusCodes as UaStatusCodes
 from asyncua.ua.uaerrors import BadNoMatch
 from opensmi.core import MachineryItemState, MachineryOperationMode, SkillState, lifecycle
 from opensmi.core.errors import OpenSmiRuntimeError
+from opensmi.core.nodesets import MachineryNodeIds, SmartFactoryMachineSetNodeIds
 from opensmi.core.ua_node_util import write_value
 from typing_extensions import TypeVar, override
 
@@ -31,7 +32,6 @@ from opensmi.server.mixins.ua_variable_container_mixins import (
     MonitoringMixin,
     ParameterSetMixin,
 )
-from opensmi.server.nodesets import MachineryNodeIds, SmartFactoryMachineSetNodeIds
 from opensmi.server.protocols import UserAuthorization
 from opensmi.server.ua_dictionary_entry import DictionaryEntry
 from opensmi.server.ua_object import UaObject, UaObjectDefinition

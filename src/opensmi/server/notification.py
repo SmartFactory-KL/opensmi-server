@@ -10,11 +10,11 @@ from typing import TYPE_CHECKING
 from asyncua import ua
 from asyncua.server.event_generator import EventGenerator
 from opensmi.core.lifecycle_mixin import lifecycle
+from opensmi.core.nodesets import SmartFactoryMachineSetNodeIds
 from typing_extensions import override
 
 from opensmi.server.interfaces import AbstractUaLogger, AbstractUaObject
 from opensmi.server.mixins.parent_mixin import ParentMixin
-from opensmi.server.nodesets import SmartFactoryMachineSetNodeIds
 from opensmi.server.ua_object import UaObject, UaObjectDefinition
 
 if TYPE_CHECKING:

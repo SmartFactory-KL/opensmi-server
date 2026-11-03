@@ -5,11 +5,11 @@
 """Base class for precondition checks for skills."""
 
 from asyncua.common.node import Node
+from opensmi.core.nodesets import SmartFactoryMachineSetNodeIds
 from typing_extensions import override
 
 from opensmi.server.base_skill import BaseCheck
 from opensmi.server.mixins.skill_logic_mixins import FiniteSkillLogicMixin
-from opensmi.server.nodesets import SmartFactoryMachineSetNodeIds
 from opensmi.server.ua_object import UaObjectDefinition
 
 

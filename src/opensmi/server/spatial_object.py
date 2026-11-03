@@ -17,12 +17,12 @@ from asyncua.common.node import Node
 from asyncua.ua.uaerrors import BadNoMatch
 from opensmi.core import Unit
 from opensmi.core.lifecycle_mixin import lifecycle
+from opensmi.core.nodesets import RSLNodeIds
 from opensmi.core.rsl import Orientation, Pose, Position
 from opensmi.core.ua_node_util import get_node_id, read_value, write_unit, write_value
 from typing_extensions import override
 
 from opensmi.server.mixins import ParentMixin
-from opensmi.server.nodesets import RSLNodeIds
 from opensmi.server.ua_object import UaObject, UaObjectDefinition
 
 

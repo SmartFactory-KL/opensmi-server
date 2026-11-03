@@ -12,11 +12,11 @@ from typing import TYPE_CHECKING
 
 from asyncua import ua
 from opensmi.core.lifecycle_mixin import lifecycle
+from opensmi.core.nodesets import SmartFactoryMachineSetNodeIds
 from typing_extensions import override
 
 from opensmi.server.mixins.parent_mixin import ParentMixin
 from opensmi.server.mixins.ua_variable_container_mixins import AttributesMixin, IdentificationMixin
-from opensmi.server.nodesets import SmartFactoryMachineSetNodeIds
 from opensmi.server.ua_object import UaObject, UaObjectDefinition
 from opensmi.server.ua_variable import UaVariable
 from opensmi.server.ua_variable_containers import Attributes, Identification

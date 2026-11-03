@@ -10,10 +10,10 @@ from collections.abc import Iterable, Iterator
 from typing import TYPE_CHECKING, Generic, TypeVar
 
 from asyncua import ua
+from opensmi.core.nodesets import MachineryNodeIds, SmartFactoryMachineSetNodeIds, SmartFactorySkillSetNodeIds
 from typing_extensions import override
 
 from opensmi.server.mixins.parent_mixin import ParentMixin
-from opensmi.server.nodesets import MachineryNodeIds, SmartFactoryMachineSetNodeIds, SmartFactorySkillSetNodeIds
 from opensmi.server.resource import Resource, ResourceDefinition
 from opensmi.server.ua_object import UaObject, UaObjectDefinition
 

@@ -15,11 +15,11 @@ from asyncua.crypto.permission_rules import UserRole
 from asyncua.ua import Int32
 from cryptography.exceptions import InvalidKey
 from opensmi.core.lifecycle_mixin import lifecycle
+from opensmi.core.nodesets import SmartFactoryMachineSetNodeIds
 from typing_extensions import override
 
 from opensmi.server.common import get_scrypt_instance
 from opensmi.server.config import UserConfiguration
-from opensmi.server.nodesets import SmartFactoryMachineSetNodeIds
 from opensmi.server.protocols import SessionProtocol, UserProtocol
 from opensmi.server.ua_object import UaObject, UaObjectDefinition
 

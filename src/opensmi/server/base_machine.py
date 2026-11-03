@@ -9,12 +9,12 @@ from __future__ import annotations
 from typing import TYPE_CHECKING
 
 from opensmi.core.errors import ValidationError
+from opensmi.core.nodesets import SmartFactoryMachineSetNodeIds
 from typing_extensions import override
 
 from opensmi.server.base_machinery_item import BaseMachineryItem
 from opensmi.server.mixins import LockableMixin, NotificationMixin
 from opensmi.server.mixins.ua_variable_container_mixins import IdentificationMixin
-from opensmi.server.nodesets import SmartFactoryMachineSetNodeIds
 from opensmi.server.ua_dictionary_entry import DictionaryEntry
 from opensmi.server.ua_object import UaObjectDefinition
 from opensmi.server.ua_object_containers import Users

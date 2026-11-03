@@ -17,9 +17,9 @@ from asyncua.common.node import Node
 from asyncua.crypto.permission_rules import UserRole
 from asyncua.ua.status_codes import StatusCodes
 from opensmi.core.lifecycle_mixin import lifecycle
+from opensmi.core.nodesets import DiNodeIds
 from typing_extensions import override
 
-from opensmi.server.nodesets import DiNodeIds
 from opensmi.server.protocols import SessionProtocol, UserAuthorization
 from opensmi.server.ua_object import UaObject, UaObjectDefinition
 

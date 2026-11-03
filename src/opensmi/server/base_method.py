@@ -10,11 +10,11 @@ from asyncua import ua
 from asyncua.common.methods import uamethod
 from asyncua.common.node import Node
 from asyncua.ua import NodeId
+from opensmi.core.nodesets import SmartFactorySkillSetNodeIds
 from typing_extensions import override
 
 from opensmi.server.base_callable import BaseCallable
 from opensmi.server.interfaces import AbstractMethod
-from opensmi.server.nodesets import SmartFactorySkillSetNodeIds
 from opensmi.server.protocols import SessionProtocol
 from opensmi.server.ua_object import UaObjectDefinition
 

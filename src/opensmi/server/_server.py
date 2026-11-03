@@ -29,13 +29,13 @@ from opensmi.core import AsyncTaskMixin, LifecycleState, setup_logging
 from opensmi.core.base_server import BaseServer
 from opensmi.core.config import load_dataclass
 from opensmi.core.lifecycle_mixin import LifecycleMixin, lifecycle
+from opensmi.core.nodesets import NODE_SETS, SmartFactoryMachineSetNodeIds
 from opensmi.core.protocols import NamespaceProvider
 from opensmi.core.repr_mixin import ReprStrMixin
 from opensmi.core.ua_node_util import get_child_without_ns
 from typing_extensions import TypeVar, override
 
 from opensmi.server.config import HistoryOption, ServerConfiguration, UaServerConfiguration
-from opensmi.server.nodesets import NODE_SETS, SmartFactoryMachineSetNodeIds
 from opensmi.server.ua_dictionary_entry import DictionaryEntry
 from opensmi.server.ua_object import UaObject
 
@@ -171,7 +171,7 @@ class Server(
 
         # register our nodesets
         for namespace in NODE_SETS.values():
-            self.ua_register_nodeset_xml(namespace=namespace, package="opensmi.server.nodesets")
+            self.ua_register_nodeset_xml(namespace=namespace, package="opensmi.core.nodesets")
 
         # Import Nodeset (and its required nodesets)
         await self.ua_import_nodeset(SmartFactoryMachineSetNodeIds)

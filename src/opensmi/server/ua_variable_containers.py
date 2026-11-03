@@ -14,16 +14,16 @@ from typing import Any, Union, get_args, get_origin, get_type_hints
 from asyncua import ua
 from opensmi.core.errors import RequiredVariableMissingError
 from opensmi.core.lifecycle_mixin import lifecycle
-from opensmi.core.ua_node_util import get_properties
-from typing_extensions import override
-
-from opensmi.server.mixins.notification_mixins import NotificationForwarderMixin
-from opensmi.server.nodesets import (
+from opensmi.core.nodesets import (
     DiNodeIds,
     MachineryNodeIds,
     SmartFactoryMachineSetNodeIds,
     SmartFactorySkillSetNodeIds,
 )
+from opensmi.core.ua_node_util import get_properties
+from typing_extensions import override
+
+from opensmi.server.mixins.notification_mixins import NotificationForwarderMixin
 from opensmi.server.ua_object import UaObject, UaObjectDefinition
 from opensmi.server.ua_variable import UaVariable
 

@@ -20,12 +20,12 @@ from asyncua.ua.status_codes import StatusCodes as UaStatusCodes
 from opensmi.core import SkillState
 from opensmi.core.errors import OpenSmiRuntimeError
 from opensmi.core.lifecycle_mixin import lifecycle
+from opensmi.core.nodesets import SmartFactoryMachineSetNodeIds
 from transitions import MachineError
 from typing_extensions import override
 
 from opensmi.server.base_callable import BaseCallable
 from opensmi.server.interfaces import AbstractSkill, AbstractUaLogger
-from opensmi.server.nodesets import SmartFactoryMachineSetNodeIds
 from opensmi.server.protocols import SessionProtocol, UserAuthorization
 from opensmi.server.ua_fsm import UaFiniteStateMachine
 from opensmi.server.ua_object import UaObjectDefinition

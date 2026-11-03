@@ -14,6 +14,7 @@ from asyncua.common.node import Node
 from asyncua.crypto.permission_rules import UserRole
 from asyncua.ua.uaerrors import BadNoMatch
 from opensmi.core.lifecycle_mixin import lifecycle
+from opensmi.core.nodesets import SmartFactorySkillSetNodeIds
 from opensmi.core.ua_node_util import get_node_id
 from typing_extensions import override
 
@@ -25,7 +26,6 @@ from opensmi.server.mixins.ua_variable_container_mixins import (
     MonitoringMixin,
     ParameterSetMixin,
 )
-from opensmi.server.nodesets import SmartFactorySkillSetNodeIds
 from opensmi.server.protocols import UserAuthorization
 from opensmi.server.ua_object import UaObject
 

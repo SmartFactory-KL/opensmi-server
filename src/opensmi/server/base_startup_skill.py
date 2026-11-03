@@ -8,11 +8,11 @@ import asyncio
 from typing import TYPE_CHECKING, Any, Final, Never
 
 from opensmi.core import MachineryItemState, MachineryOperationMode, SkillState
+from opensmi.core.nodesets import SmartFactoryMachineSetNodeIds
 from typing_extensions import override
 
 from opensmi.server import BaseSkillContinuous
 from opensmi.server.mixins import ParentMixin
-from opensmi.server.nodesets import SmartFactoryMachineSetNodeIds
 from opensmi.server.ua_object import UaObjectDefinition
 
 if TYPE_CHECKING:
