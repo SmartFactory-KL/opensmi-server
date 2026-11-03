@@ -1,0 +1,61 @@
+src/opensmi/server/notification.py
+  s_f6cc623adfb8dd::t_047c9714483a08 13
+src/opensmi/server/lock.py
+  s_f6cc623adfb8dd::t_047c9714483a08 20
+src/opensmi/server/mixins/spatial_object_mixin.py
+  s_f6cc623adfb8dd::t_047c9714483a08 18
+src/opensmi/server/base_machinery_item.py
+  s_f6cc623adfb8dd::t_047c9714483a08 19
+tests/unit/test_skill_logic_mixins.py
+  s_f6cc623adfb8dd::t_047c9714483a08 18
+src/opensmi/server/base_method.py
+  s_f6cc623adfb8dd::t_047c9714483a08 13
+src/opensmi/server/ua_variable_containers.py
+  s_f6cc623adfb8dd::t_047c9714483a08 23-26
+  s_f6cc623adfb8dd::t_3a074c2eb31082 17
+src/opensmi/server/_server.py
+  s_f6cc623adfb8dd::t_047c9714483a08 32
+  s_f6cc623adfb8dd::t_3a074c2eb31082 174
+src/opensmi/server/base_startup_skill.py
+  s_f6cc623adfb8dd::t_047c9714483a08 11
+src/opensmi/server/base_callable.py
+  s_f6cc623adfb8dd::t_047c9714483a08 17
+src/opensmi/server/mixins/requirements_mixin.py
+  s_f6cc623adfb8dd::t_047c9714483a08 12
+src/opensmi/server/mixins/skill_logic_mixins.py
+  s_f6cc623adfb8dd::t_047c9714483a08 23
+src/opensmi/server/base_machine.py
+  s_f6cc623adfb8dd::t_047c9714483a08 12
+src/opensmi/server/user.py
+  s_f6cc623adfb8dd::t_047c9714483a08 18
+src/opensmi/server/base_feasibility_check.py
+  s_f6cc623adfb8dd::t_047c9714483a08 8
+src/opensmi/server/base_precondition_check.py
+  s_f6cc623adfb8dd::t_047c9714483a08 8
+src/opensmi/server/base_skill.py
+  s_f6cc623adfb8dd::t_047c9714483a08 21
+src/opensmi/server/resource.py
+  s_f6cc623adfb8dd::t_047c9714483a08 15
+tests/integration/test_spatial_object_integration.py
+  s_f6cc623adfb8dd::t_047c9714483a08 7
+src/opensmi/server/ua_object_containers.py
+  s_f6cc623adfb8dd::t_047c9714483a08 13
+src/opensmi/server/spatial_object.py
+  s_f6cc623adfb8dd::t_047c9714483a08 20
+---
+{
+  "schema_version": "authorship/3.0.0",
+  "git_ai_version": "1.7.5",
+  "base_commit_sha": "b6eae7898229d35dcc597d624b96ded1e04fd6f0",
+  "prompts": {},
+  "sessions": {
+    "s_f6cc623adfb8dd": {
+      "agent_id": {
+        "tool": "claude",
+        "id": "09ed30be-351e-4ea9-92e4-ed58b5bfb384",
+        "model": "claude-opus-5-5"
+      },
+      "human_author": "Carsten Harms <Carsten.Harms@dfki.de>"
+    }
+  }
+}
