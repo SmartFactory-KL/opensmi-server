@@ -1,0 +1,14 @@
+src/opensmi/server/mixins/requirements_mixin.py
+  h_3a91ce8773dd89 14,39-42,45,52
+---
+{
+  "schema_version": "authorship/3.0.0",
+  "git_ai_version": "1.7.5",
+  "base_commit_sha": "8e6ae5e1c0383b0be93281879825eb67fb381e2d",
+  "prompts": {},
+  "humans": {
+    "h_3a91ce8773dd89": {
+      "author": "Carsten Harms <Carsten.Harms@dfki.de>"
+    }
+  }
+}
