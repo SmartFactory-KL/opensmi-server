@@ -9,9 +9,9 @@ from opensmi.server.mixins import FinalResultDataMixin, ParameterSetMixin, Paren
 
 
 class DummyMethodParameterSet(ParameterSet):
-    a = UaVariable(initial_value=0, historize=True)
+    A = UaVariable(initial_value=0, historize=True)
     """First parameter of the addition."""
-    b = UaVariable(initial_value=0, historize=True)
+    B = UaVariable(initial_value=0, historize=True)
     """Second parameter of the addition."""
 
 
@@ -27,13 +27,13 @@ class DummyMethod(
     ParameterSetMixin[DummyMethodParameterSet],
     BaseMethod,
 ):
-    """Compute the sum of ``a`` and ``b`` parameters and store the result in ``Sum``."""
+    """Compute the sum of ``A`` and ``B`` parameters and store the result in ``Sum``."""
 
     @override
     async def execute_method(self) -> None:
         # read the parameters
-        a = await self.parameter_set.a.read()
-        b = await self.parameter_set.b.read()
+        a = await self.parameter_set.A.read()
+        b = await self.parameter_set.B.read()
 
         # calculate the sum
         result = a + b

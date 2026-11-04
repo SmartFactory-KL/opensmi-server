@@ -18,12 +18,12 @@ if TYPE_CHECKING:
 
 
 class CompositeDummySkillMonitoring(Monitoring):
-    progress = UaVariable(initial_value=0.0, unit=Unit.PERCENT)
+    Progress = UaVariable(initial_value=0.0, unit=Unit.PERCENT)
     """Progress of the current execution."""
 
 
 class CompositeDummySkillFinalResultData(BaseSkillFinalResultData):
-    total = UaVariable(initial_value=0.0)
+    Total = UaVariable(initial_value=0.0)
     """Sum of all results of the called skill."""
 
 
@@ -53,7 +53,7 @@ class CompositeDummySkill(
         # define logic that is executed after entering the RESETTING state
 
         await self.monitoring.reset_all()
-        await self.final_result_data.total.reset()
+        await self.final_result_data.Total.reset()
 
     @override
     async def _handle_halting(self):
@@ -70,9 +70,9 @@ class CompositeDummySkill(
         params = [(1, 2), (3, 4), (5, 6), (7, 8)]
         time_start = time.monotonic()
         for index, (x, y) in enumerate(params):
-            await self.monitoring.progress.write(float(index / len(params) * 100))
-            await self._other_skill.parameter_set.x.write(x)
-            await self._other_skill.parameter_set.y.write(y)
+            await self.monitoring.Progress.write(float(index / len(params) * 100))
+            await self._other_skill.parameter_set.X.write(x)
+            await self._other_skill.parameter_set.Y.write(y)
             async with self.call_other_finite_skill(self._other_skill):
                 result = await self._other_skill.final_result_data.ComputationResult.read()
                 self.logger.info("intermediate result", index=index, x=x, y=y, result=result)
@@ -80,5 +80,5 @@ class CompositeDummySkill(
 
         self.logger.info(f"{len(params)} calls took {time.monotonic() - time_start} seconds!")
 
-        await self.final_result_data.total.write(total)
-        await self.monitoring.progress.write(100.0)
+        await self.final_result_data.Total.write(total)
+        await self.monitoring.Progress.write(100.0)

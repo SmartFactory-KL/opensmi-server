@@ -17,7 +17,7 @@ from opensmi.server.mixins import FinalResultDataMixin, MonitoringMixin, Paramet
 
 
 class ContinuousSkillSelfHaltingParameterSet(ContinuousSkillParameterSet):
-    loops = UaVariable(initial_value=5)
+    Loops = UaVariable(initial_value=5)
     """Number of updates before the skill halts itself."""
 
 
@@ -32,7 +32,7 @@ class ContinuousSkillSelfHalting(
 
     def __init__(self, *, delay: float = 1.0):
         super().__init__(name="ContinuousSkillSelfHalting")
-        self.parameter_set.delay.initial_value = delay
+        self.parameter_set.Delay.initial_value = delay
 
     @override
     async def _handle_resetting(self):
@@ -48,19 +48,19 @@ class ContinuousSkillSelfHalting(
     @override
     async def _handle_starting(self):
         # define logic that is executed after entering the STARTING state
-        await asyncio.sleep(await self.parameter_set.delay.read())  # simulate longer startup phase
+        await asyncio.sleep(await self.parameter_set.Delay.read())  # simulate longer startup phase
 
     @override
     async def _handle_running(self):
         # define logic that is executed after entering the RUNNING state
         time_start = time.monotonic()
-        for _ in range(await self.parameter_set.loops.read()):
-            await self.monitoring.rng.write(random.uniform(15, 35))
-            await self.monitoring.rng_int.write(int(random.uniform(15, 35)))
-            await self.monitoring.runtime.write(time.monotonic() - time_start)
+        for _ in range(await self.parameter_set.Loops.read()):
+            await self.monitoring.RandomTemperature.write(random.uniform(15, 35))
+            await self.monitoring.RandomInteger.write(int(random.uniform(15, 35)))
+            await self.monitoring.Runtime.write(time.monotonic() - time_start)
 
             # parameters can also be read while the skill is running...
-            delay = await self.parameter_set.delay.read()
+            delay = await self.parameter_set.Delay.read()
             await asyncio.sleep(delay)
 
         # simulate something going wrong

@@ -26,8 +26,8 @@ class DummySkillParameterSet(DummySkillSimpleParameterSet):
     """Example boolean parameter (unused)."""
     TestString = UaVariable(initial_value="Hello World!")
     """Example string parameter (unused)."""
-    operation = UaVariable(initial_value=OperationEnum.Addition)
-    """Operation applied to ``x`` and ``y``."""
+    Operation = UaVariable(initial_value=OperationEnum.Addition)
+    """Operation applied to ``X`` and ``Y``."""
 
 
 class DummySkill(
@@ -37,7 +37,7 @@ class DummySkill(
     FinalResultDataMixin[DummySkillSimpleFinalResultData],
     BaseSkillFinite,
 ):
-    """Compute ``x`` and ``y`` with the chosen ``operation`` and store the result in ``ComputationResult``."""
+    """Compute ``X`` and ``Y`` with the chosen ``Operation`` and store the result in ``ComputationResult``."""
 
     def __init__(self, *, name: str, delay: float = 1, dependencies: list | None = None):
         super().__init__(name=name)
@@ -69,9 +69,9 @@ class DummySkill(
         # define logic that is executed in the RUNNING state
 
         # read our parameters. Note that they are changeable while the skill is running
-        x = await self.parameter_set.x.read()
-        y = await self.parameter_set.y.read()
-        operation = await self.parameter_set.operation.read()
+        x = await self.parameter_set.X.read()
+        y = await self.parameter_set.Y.read()
+        operation = await self.parameter_set.Operation.read()
 
         await self.ua_log_info(f"Chosen operation mode is '{operation.name}'!")
 

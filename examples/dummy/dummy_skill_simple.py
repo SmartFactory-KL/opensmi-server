@@ -13,9 +13,9 @@ from opensmi.server.mixins import FinalResultDataMixin, ParameterSetMixin, Paren
 
 
 class DummySkillSimpleParameterSet(ParameterSet):
-    x = UaVariable(initial_value=0, historize=True)
+    X = UaVariable(initial_value=0, historize=True)
     """First parameter of the computation."""
-    y = UaVariable(initial_value=0, historize=True)
+    Y = UaVariable(initial_value=0, historize=True)
     """Second parameter of the computation."""
 
 
@@ -30,7 +30,7 @@ class DummySkillSimple(
     FinalResultDataMixin[DummySkillSimpleFinalResultData],
     BaseSkillFinite,
 ):
-    """Compute the sum of ``x`` and ``y`` parameters and store the result in ``ComputationResult``."""
+    """Compute the sum of ``X`` and ``Y`` parameters and store the result in ``ComputationResult``."""
 
     @override
     async def _handle_resetting(self):
@@ -48,8 +48,8 @@ class DummySkillSimple(
         # define logic that is executed in the RUNNING state
 
         # read our parameters. Note that they are changeable while the skill is running
-        x = await self.parameter_set.x.read()
-        y = await self.parameter_set.y.read()
+        x = await self.parameter_set.X.read()
+        y = await self.parameter_set.Y.read()
 
         await asyncio.sleep(1)  # simulate long-running calculation etc.
 

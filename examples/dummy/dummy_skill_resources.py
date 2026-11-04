@@ -47,7 +47,7 @@ class DummySkillResources(
         # setup references so clients know which node IDs are accepted
         for resource in machine.resources:
             await self.parameter_set.TestResource.add_reference(resource)
-        self.parameter_set.TestResource.initial_value = machine.resources["Cab_A_Blue"]
+        self.parameter_set.TestResource.initial_value = machine.resources["CabABlue"]
 
     @override
     async def _handle_resetting(self) -> None:
