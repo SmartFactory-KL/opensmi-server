@@ -1,0 +1,45 @@
+examples/check/main.py
+  s_f6cc623adfb8dd::t_9ac5e6daf6cf61 28-29,47-48
+src/opensmi/server/base_skill.py
+  s_f6cc623adfb8dd::t_dcc242182037c0 12,22,278-279,310,329-342
+src/opensmi/server/ua_variable_containers.py
+  s_f6cc623adfb8dd::t_dcc242182037c0 224,226-227
+examples/quick_start/main.py
+  s_f6cc623adfb8dd::t_9ac5e6daf6cf61 17,19,35,41-42
+README.md
+  s_f6cc623adfb8dd::t_9ac5e6daf6cf61 59-60,78-79,123,135
+tests/integration/test_paths.py
+  s_f6cc623adfb8dd::t_1585784b749ee5 70-73
+  s_f6cc623adfb8dd::t_ef2fb38bd4fe29 1-69,74-216
+src/opensmi/server/interfaces.py
+  s_f6cc623adfb8dd::t_ed8491bc63f5ef 18,46
+src/opensmi/server/access_control.py
+  s_f6cc623adfb8dd::t_dcc242182037c0 86-88
+src/opensmi/server/base_method.py
+  s_f6cc623adfb8dd::t_537fda42d4095d 9-10
+  s_f6cc623adfb8dd::t_dcc242182037c0 27-28
+src/opensmi/server/mixins/parent_mixin.py
+  s_f6cc623adfb8dd::t_dcc242182037c0 87
+src/opensmi/server/base_machinery_item.py
+  s_f6cc623adfb8dd::t_537fda42d4095d 12
+  s_f6cc623adfb8dd::t_dcc242182037c0 455-456
+src/opensmi/server/_server.py
+  s_f6cc623adfb8dd::t_a793c8ed9aa2f3 33
+  s_f6cc623adfb8dd::t_0b027ebd8fe063 191-227
+---
+{
+  "schema_version": "authorship/3.0.0",
+  "git_ai_version": "1.7.5",
+  "base_commit_sha": "b0e84132dff41572e7a7d5fdf52306f9a600ffe7",
+  "prompts": {},
+  "sessions": {
+    "s_f6cc623adfb8dd": {
+      "agent_id": {
+        "tool": "claude",
+        "id": "09ed30be-351e-4ea9-92e4-ed58b5bfb384",
+        "model": "claude-opus-5-5"
+      },
+      "human_author": "Carsten Harms <Carsten.Harms@dfki.de>"
+    }
+  }
+}
