@@ -7,7 +7,6 @@
 from __future__ import annotations
 
 from abc import ABC, abstractmethod
-from pathlib import PurePosixPath
 from typing import TYPE_CHECKING
 
 from asyncua import ua
@@ -16,6 +15,7 @@ from asyncua.common.node import Node
 from asyncua.ua import NodeId
 from asyncua.ua.status_codes import StatusCodes as UaStatusCodes
 from opensmi.core import SkillState
+from opensmi.core.paths import ObjectPath
 from structlog.stdlib import BoundLogger
 from typing_extensions import deprecated
 
@@ -43,7 +43,7 @@ class AbstractUaObject(ABC):
 
     @property
     @abstractmethod
-    def path(self) -> PurePosixPath:
+    def path(self) -> ObjectPath:
         """Return the full path of the object."""
 
     @property

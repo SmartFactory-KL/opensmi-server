@@ -30,6 +30,7 @@ from opensmi.core.base_server import BaseServer
 from opensmi.core.config import load_dataclass
 from opensmi.core.lifecycle_mixin import LifecycleMixin, lifecycle
 from opensmi.core.nodesets import NODE_SETS, SmartFactoryMachineSetNodeIds
+from opensmi.core.paths import ObjectPath, check_name, check_segment
 from opensmi.core.protocols import NamespaceProvider
 from opensmi.core.repr_mixin import ReprStrMixin
 from opensmi.core.ua_node_util import get_child_without_ns
@@ -186,6 +187,43 @@ class Server(
     @property
     def access_control(self) -> AccessControl:
         return self._access_control
+
+    @override
+    def register_ua_object(self, ua_object: UaObject) -> None:
+        """Register ``ua_object`` after checking its name.
+
+        :raises ValueError: If the name is no valid path segment (empty or containing ``/``), or its path (or an alias)
+            is already taken by another object.
+        """
+        from opensmi.server.user import User  # prevent circular import
+
+        try:
+            check_segment(ua_object.name)
+        except ValueError as err:
+            msg = f"Invalid name for {ua_object.path.parent}/...: {err}"
+            raise ValueError(msg) from None
+        if not isinstance(ua_object, User):  # usernames are only used as text
+            try:
+                check_name(ua_object.name)
+            except ValueError as err:
+                self.logger.warning(
+                    "Name breaks the OpenSMI naming rule, will be rejected in opensmi-server 1.0",
+                    path=str(ua_object.path),
+                    reason=str(err),
+                )
+        super().register_ua_object(ua_object)
+
+    @override
+    def _register_path(self, path: ObjectPath, ua_object: UaObject) -> None:
+        """Map ``path`` to ``ua_object``; a server never accepts two objects with the same path.
+
+        :raises ValueError: If ``path`` already belongs to another object.
+        """
+        existing = self._ua_objects_by_path.get(path)
+        if existing is not None and existing is not ua_object:
+            msg = f"{path} already exists ({existing!r}), can't add {ua_object!r}"
+            raise ValueError(msg)
+        super()._register_path(path, ua_object)
 
     def ua_register_nodeset_xml(self, *, namespace: type[NamespaceProvider], package: str) -> None:
         """Register the given nodeset XML file living in `package`. Overrides existing nodesets based on URI."""

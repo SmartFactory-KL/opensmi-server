@@ -9,7 +9,7 @@ from __future__ import annotations
 import asyncio
 from collections.abc import AsyncGenerator
 from contextlib import asynccontextmanager
-from typing import TYPE_CHECKING
+from typing import TYPE_CHECKING, ClassVar
 
 from asyncua import ua
 from asyncua.common.node import Node
@@ -19,6 +19,7 @@ from asyncua.ua.uaerrors import BadNoMatch
 from opensmi.core import SkillState, lifecycle
 from opensmi.core.errors import OpenSmiRuntimeError, SkillHaltedError
 from opensmi.core.nodesets import SmartFactoryMachineSetNodeIds, SmartFactorySkillSetNodeIds
+from opensmi.core.paths import ObjectPath
 from opensmi.core.ua_node_util import get_child_without_ns, get_node_id
 from typing_extensions import override
 
@@ -274,6 +275,8 @@ class BaseSkill(_BaseSkill):
     before the ``start()`` method is allowed to be executed by the state machine.
     """
 
+    _folder: ClassVar[str | None] = "SkillSet"
+
     def __init__(
         self,
         *,
@@ -304,6 +307,7 @@ class BaseSkill(_BaseSkill):
 
         assert self.parent is not None
         check.parent = self.parent
+        check._skill = self  # noqa: SLF001  path below this skill
 
         assert self._ua_node is not None
         await check.ua_create_node(self._ua_node)
@@ -322,7 +326,20 @@ class BaseSkill(_BaseSkill):
 
 
 class BaseCheck(_BaseSkill):
-    """Abstract base class for checks **without** state machine logic."""
+    """Abstract base class for checks **without** state machine logic.
+
+    Its parent is the skill's machinery item, but its path lies below its skill, e.g.
+    ``/M1/SkillSet/Pick/FeasibilityCheck``.
+    """
+
+    _skill: BaseSkill | None = None
+
+    @property
+    @override
+    def path(self) -> ObjectPath:
+        if self._skill is None:
+            return super().path
+        return self._skill.path / self._segment
 
     @override
     @lifecycle

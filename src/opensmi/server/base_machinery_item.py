@@ -9,6 +9,7 @@ import contextlib
 import time
 from abc import abstractmethod
 from collections.abc import AsyncGenerator, Iterable, Sequence
+from typing import ClassVar
 
 from asyncua import ua
 from asyncua.common.node import Node
@@ -450,6 +451,8 @@ class BaseMachineryItem(DescriptionMixin, UaObject, AbstractUaLogger):
 
 class BaseComponent(IdentificationMixin[MachineryComponentIdentification], BaseMachineryItem):
     """Base class for all components (= OPC UA machinery items)."""
+
+    _folder: ClassVar[str | None] = "Components"
 
     @override
     async def _get_definition(self) -> UaObjectDefinition:

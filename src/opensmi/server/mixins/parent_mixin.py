@@ -84,7 +84,7 @@ class ParentMixin(Generic[_ParentType]):
             )
             raise TypeError(msg)
 
-        self._parent = parent
+        self._set_parent(parent)
 
     @property
     def root_parent(self) -> "BaseMachine":

@@ -83,7 +83,9 @@ class AccessControl(UserManager, AsyncTaskMixin):
                 await user.init()
             else:
                 # TODO(CaHa): Hack, Users node should not be under machine node but under server node instead. -> SiJu
-                await users.ua_node.add_reference(target=user.ua_node, reftype=ua.object_ids.ObjectIds.HasComponent)
+                # owned by the first machine's Users: listed here with Organizes, so clients know the owner
+                await users.ua_node.add_reference(target=user.ua_node, reftype=ua.object_ids.ObjectIds.Organizes)
+                user._add_alias(users.path / user.name)  # noqa: SLF001
 
     async def _add_session(self, session: SessionProtocol) -> None:
         self.logger.debug("Adding session", username=session.user, client=session.name)

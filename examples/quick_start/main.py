@@ -14,9 +14,9 @@ from opensmi.server.mixins import FinalResultDataMixin, ParameterSetMixin
 class ExampleSkillParameterSet(ParameterSet):
     """Parameters of the example skill."""
 
-    x = UaVariable(0, unit=Unit.NANOAMPERE, range=(0, 10))
+    X = UaVariable(0, unit=Unit.NANOAMPERE, range=(0, 10))
     """First parameter of the computation."""
-    y = UaVariable(0, unit="nA", range=(0, 10))
+    Y = UaVariable(0, unit="nA", range=(0, 10))
     """Second parameter of the computation."""
 
 
@@ -32,14 +32,14 @@ class ExampleSkill(
     FinalResultDataMixin[ExampleSkillSimpleFinalResultData],  # provides type-checkable results
     BaseSkillFinite,  # provides finite skill logic etc.
 ):
-    """Compute the sum of ``x`` and ``y`` parameters and store the result in ``ComputationResult``."""
+    """Compute the sum of ``X`` and ``Y`` parameters and store the result in ``ComputationResult``."""
 
     async def _handle_running(self) -> None:
         # define logic that is executed in the RUNNING state
 
         # read our parameters
-        x = await self.parameter_set.x.read()
-        y = await self.parameter_set.y.read()
+        x = await self.parameter_set.X.read()
+        y = await self.parameter_set.Y.read()
 
         # simulate long-running calculation etc.
         await asyncio.sleep(1)

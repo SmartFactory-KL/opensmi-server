@@ -56,8 +56,8 @@ from opensmi.server.mixins import FinalResultDataMixin, ParameterSetMixin, Paren
 class ExampleSkillParameterSet(ParameterSet):
     """Parameters of the example skill."""
 
-    x = UaVariable(0, unit=Unit.NANOAMPERE, range=(0, 10))
-    y = UaVariable(0, unit="nA", range=(0, 10))
+    X = UaVariable(0, unit=Unit.NANOAMPERE, range=(0, 10))
+    Y = UaVariable(0, unit="nA", range=(0, 10))
 
 
 class ExampleSkillSimpleFinalResultData(BaseSkillFinalResultData):
@@ -75,8 +75,8 @@ class ExampleSkill(
         # define logic that is executed in the RUNNING state
 
         # read our parameters
-        x = await self.parameter_set.x.read()
-        y = await self.parameter_set.y.read()
+        x = await self.parameter_set.X.read()
+        y = await self.parameter_set.Y.read()
 
         # simulate long-running calculation etc.
         await asyncio.sleep(1)
@@ -120,7 +120,7 @@ if __name__ == "__main__":
    write parameters or call skill methods.
 4. Navigate to `ExampleMachine/SkillSet/ExampleSkill/SkillExecution`. This is where the skill's `ParameterSet`,
    `StateMachine`, and `FinalResultData` etc. live.
-5. Under `ParameterSet`, write values for `x` and `y`.
+5. Under `ParameterSet`, write values for `X` and `Y`.
 6. Under `StateMachine`, call `Reset()`. Skills start in the `Halted` state and must be reset to `Ready` before
    they can run.
 7. Call `Start()`. The skill moves through `Starting` → `Running` → `Completing` → `Completed`.
@@ -132,7 +132,7 @@ Or simply use our [OpenSMI-Client](https://github.com/SmartFactory-KL/opensmi-cl
 **Explore the safety features:**
 
 - Try writing parameters or calling skill methods *without* holding the Lock — it will be rejected.
-- Try writing `x` or `y` outside their allowed range — it will be rejected.
+- Try writing `X` or `Y` outside their allowed range — it will be rejected.
 - Try acquiring the Lock while authenticated as user `visitor` with password `visitor` — it will be rejected.
 
 See [here](examples) for more OpenSMI server examples.

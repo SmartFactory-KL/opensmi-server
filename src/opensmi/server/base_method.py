@@ -6,6 +6,8 @@
 
 from __future__ import annotations
 
+from typing import ClassVar
+
 from asyncua import ua
 from asyncua.common.methods import uamethod
 from asyncua.common.node import Node
@@ -21,6 +23,8 @@ from opensmi.server.ua_object import UaObjectDefinition
 
 class BaseMethod(BaseCallable, AbstractMethod):
     """Abstract base class for all methods."""
+
+    _folder: ClassVar[str | None] = "MethodSet"
 
     @override
     async def _get_definition(self) -> UaObjectDefinition:

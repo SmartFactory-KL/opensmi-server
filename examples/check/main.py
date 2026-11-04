@@ -25,8 +25,8 @@ feasibility_check_map: dict[int, tuple[int, int]] = {}
 
 
 class _FullSkillFeasibilityCheckParameterSet(ParameterSet):
-    x = UaVariable(0)
-    y = UaVariable(0)
+    X = UaVariable(0)
+    Y = UaVariable(0)
 
 
 class _FullSkillFeasibilityCheckFinalResultData(BaseSkillFinalResultData):
@@ -44,8 +44,8 @@ class FullSkillFeasibilityCheck(
 
     @override
     async def _handle_running(self) -> None:
-        x = await self.parameter_set.x.read()
-        y = await self.parameter_set.y.read()
+        x = await self.parameter_set.X.read()
+        y = await self.parameter_set.Y.read()
 
         await asyncio.sleep(1)  # add your feasibility check here
         if (x + y) % 2 == 0:

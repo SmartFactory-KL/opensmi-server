@@ -221,8 +221,10 @@ class UaVariableContainer(NotificationForwarderMixin, UaObject):
             await variable.ua_create_node(self.ua_node, exist_ok=exist_ok, remove_existing=remove_existing)
             await variable.init()
         else:
+            # owned by another container: listed here with Organizes, so clients know the owner (HasComponent)
             self.logger.debug("Referencing variable!", variable=variable)
-            await self.ua_node.add_reference(variable.ua_node, reftype=ua.object_ids.ObjectIds.HasComponent)
+            await self.ua_node.add_reference(variable.ua_node, reftype=ua.object_ids.ObjectIds.Organizes)
+            variable._add_alias(self.path / variable.name)  # noqa: SLF001
 
     # @override
     # async def _after_init(self) -> None:
