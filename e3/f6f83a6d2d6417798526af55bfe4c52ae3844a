@@ -1,0 +1,26 @@
+tests/unit/test_parent_mixin.py
+  s_686ee0d0317af7::t_58bf9b99e13053 131
+  s_686ee0d0317af7::t_f0ef351388ed18 111,146,221
+  s_686ee0d0317af7::t_372970c411c145 8,12
+  s_686ee0d0317af7::t_2290952fa526c9 5,7,18-20,82-110,112-130,132-145,147-220,222-229
+src/opensmi/server/mixins/__init__.py
+  s_686ee0d0317af7::t_cff3ac34f3fbb5 50-52,54
+src/opensmi/server/mixins/parent_mixin.py
+  s_686ee0d0317af7::t_2a1aa75b297a97 7-10,13,24-25,28-30,33-78,80-81,83-84,86-107,111-121,125-163,173-183,194-199,204,209-211
+---
+{
+  "schema_version": "authorship/3.0.0",
+  "git_ai_version": "1.7.5",
+  "base_commit_sha": "e3f6f83a6d2d6417798526af55bfe4c52ae3844a",
+  "prompts": {},
+  "sessions": {
+    "s_686ee0d0317af7": {
+      "agent_id": {
+        "tool": "claude",
+        "id": "c4108993-3551-444e-8ff4-1b95edff5107",
+        "model": "claude-opus-5-5"
+      },
+      "human_author": "Carsten Harms <Carsten.Harms@dfki.de>"
+    }
+  }
+}
