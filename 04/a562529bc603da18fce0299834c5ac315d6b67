@@ -1,0 +1,45 @@
+src/opensmi/server/access_control.py
+  s_f6cc623adfb8dd::t_aabdab8ae0631d 32
+  s_f6cc623adfb8dd::t_0567451a75a5a0 65
+src/opensmi/server/ua_object_containers.py
+  s_f6cc623adfb8dd::t_1057eda1220680 178,182-185,192-202
+  s_f6cc623adfb8dd::t_efbd37735bf2a5 13
+  s_f6cc623adfb8dd::t_0f2f8ef75ced06 24
+  s_f6cc623adfb8dd::t_1e5daa8bb36e78 9
+  s_f6cc623adfb8dd::t_8d5bff8a899677 177,180
+  s_f6cc623adfb8dd::t_37dc7c9d613343 181
+tests/integration/test_paths.py
+  s_f6cc623adfb8dd::t_ababa6559567a3 14
+  s_f6cc623adfb8dd::t_4fbef30cd45e46 12
+  s_f6cc623adfb8dd::t_f6fe0fc9b07384 116,181,216,218,220
+  s_f6cc623adfb8dd::t_0cd4e6d344fe97 195-199,201,203-213,215,225,228-234
+  s_f6cc623adfb8dd::t_b73fc9ef487d38 217,219,221-224,226-227
+  s_f6cc623adfb8dd::t_b7f247cdf4811d 183
+src/opensmi/server/user.py
+  s_f6cc623adfb8dd::t_2938b8c5c11b01 23
+  s_f6cc623adfb8dd::t_bee8cf1433c9c3 117-118,121
+  s_f6cc623adfb8dd::t_fac6fd8d36a9e6 119-120
+src/opensmi/server/_server.py
+  s_f6cc623adfb8dd::t_daf6c01db475ac 201
+  s_f6cc623adfb8dd::t_fc4990b98ee552 117
+  s_f6cc623adfb8dd::t_60f23364150fe7 46
+  s_f6cc623adfb8dd::t_6d9525ab3e9ed8 199-200,202-203
+  s_f6cc623adfb8dd::t_76faa18fe0ed06 354-356
+  s_f6cc623adfb8dd::t_7dd6da4a3c7e9f 184-189
+---
+{
+  "schema_version": "authorship/3.0.0",
+  "git_ai_version": "1.7.5",
+  "base_commit_sha": "04a562529bc603da18fce0299834c5ac315d6b67",
+  "prompts": {},
+  "sessions": {
+    "s_f6cc623adfb8dd": {
+      "agent_id": {
+        "tool": "claude",
+        "id": "09ed30be-351e-4ea9-92e4-ed58b5bfb384",
+        "model": "claude-opus-5-5"
+      },
+      "human_author": "Carsten Harms <Carsten.Harms@dfki.de>"
+    }
+  }
+}
