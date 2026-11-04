@@ -8,6 +8,95 @@ versions, apply every section between your version and the newest one, oldest fi
 
 ## OpenSMI v0.2 -> v0.3 (unreleased)
 
+### Dependencies
+
+- OpenSMI-Server requires `OpenSMI-Core>=0.7,<0.8`.
+- Clients must handle the new server-wide users folder and the `ErrorCode` event field, see
+  [Users](#users-are-server-wide) and [Notifications](#notifications-error-code-no-longer-in-the-message). Released
+  OpenSMI-Client versions up to now do not show users.
+
+### Server configuration
+
+- `Server(config_path=...)` is now `Server(config=...)`. `config` accepts a path to a TOML file or a
+  `ServerConfiguration` instance.
+- `Server.load_config()` was removed. Pass the config to `__init__()` or assign `server.config` before the server is
+  initialized.
+- `AccessControl(server=...)` is now `AccessControl(config=...)` with an `AccessControlConfiguration`. You only need
+  this if you construct `AccessControl` yourself, the server does it for you.
+
+### Node sets moved to OpenSMI-Core
+
+`opensmi.server.nodesets` was removed. The NodeSet2 XMLs and the generated NodeId classes now live in
+`opensmi.core.nodesets`:
+
+```python
+# Previous version (v0.2)
+from opensmi.server.nodesets import RSLNodeIds
+
+# New version (v0.3)
+from opensmi.core.nodesets import RSLNodeIds
+```
+
+### Paths and names
+
+- Paths now include the OpenSMI folders, e.g. `/M1/Components/Gripper`, `/M1/SkillSet/Pick` and
+  `/M1/MethodSet/Pick`. Feasibility and precondition checks lie below their skill, e.g.
+  `/M1/SkillSet/Pick/FeasibilityCheck`, while their parent is still the machinery item. Use `server.resolve(path)` to
+  look up an object by path.
+- `UaObject.path` is an `ObjectPath` from `opensmi.core.paths` (was `PurePosixPath`). It is never equal to a `str`,
+  so compare with `ObjectPath.parse("/M1/SkillSet/Pick")` or `str(obj.path)`.
+- Every object is checked when it is registered. **These now raise `ValueError`:** an empty name, a name containing
+  `/`, and a path (or alias) that is already taken, e.g. two siblings with the same name.
+- New naming rule for browse names: `^[A-Z][A-Za-z0-9]*$`, and not `True`, `False` or `None`. Names that break it only
+  log a warning for now, but **will be rejected from opensmi-server 1.0 on**. Usernames are exempt. Rename e.g.
+  `pick_place` to `PickPlace`.
+- The parent of an object can't change after it was registered.
+- A variable that is added to a further variable container (e.g. a component variable added to the machine's
+  `Monitoring`) is referenced from there with `Organizes` instead of `HasComponent` and gets an alias path. The
+  `HasComponent` reference stays with its owner.
+
+### Users are server-wide
+
+- Users moved from `<Machine>/MachineryBuildingBlocks/Users` to the server-wide folder `Objects/Users`, created at
+  startup before any machine. Their paths are `/Users/<name>`. Machines no longer have a users folder.
+- `server.users` is the users folder. `server.access_control.users` is typed `Mapping[str, User]`.
+- `AccessControl.init_ua_users()` was removed.
+- `Users` is a reserved machine name, `server.add_machine()` raises `ValueError` for it.
+- Users belong to no machine, so no lock protects them: OPC UA writes to user nodes are always denied.
+
+### Notifications: error code no longer in the message
+
+Error events no longer append `|||<code>` to `Message`. The code is only in the `ErrorCode` event field. Clients that
+parsed the message must read `ErrorCode` instead.
+
+### Other API changes
+
+- `server.get_enum()` was renamed to `server.ensure_enum()`. Its `option_set` parameter was removed.
+- `UaVariable.write_check()` is now `async`. `write_check_callback` may be a sync or async function and may return
+  `False` instead of raising `OutOfRangeError` to reject a value.
+- `UaFiniteStateMachine` is generic over its state type. Its unused internals were removed and `init()` no longer takes
+  `state_machine_type`.
+
+### Relative Spatial Location (RSL)
+
+- `Position` and `Orientation` moved to `opensmi.core.rsl`, which also provides the new `Pose` (position and
+  orientation together).
+- Frames take a `Pose` and keyword-only arguments. `CartesianFrame(name=..., position=..., orientation=..., base=...)`
+  is now `CartesianFrame(name=..., initial_pose=Pose(...), initial_base=...)`. `initial_base` may also be a raw
+  `ua.NodeId`. `PositionFrame` and `WorldFrame` likewise take `initial_pose` (and `initial_base`).
+- New `write_pose()`, `read_pose()` and `update_pose()` methods. `write_position()`/`write_orientation()` and their
+  `read_*()` counterparts still exist.
+- `SpatialObject.add_attach_point()` now takes an `initial_pose` (plus optional `name` and `initial_base`), creates
+  the frame and returns it, instead of taking an initialized `CartesianFrame`. New: `add_internal_frame()` and
+  `add_alternative_frame()`.
+- `SpatialObject` and `SpatialObjectList` are no longer in `Monitoring`, but directly below their parent. The
+  `SpatialObject` browse name is always `SpatialObject`, its `name` is written to the `Identifier` property.
+- `SpatialObjectListMixin` no longer creates the `SpatialObjectList` automatically. Call
+  `await self._init_spatial_object_list()` in `_init()` of your machine. It optionally takes the `WorldFrame` pose and
+  a `name` (default `MachineRoomList`).
+
+See [examples/rsl/main.py](../examples/rsl/main.py) for the current usage.
+
 ### `ParentMixin`: forward references are now resolved and checked
 
 `ParentMixin[...]` now resolves and checks every type argument at runtime, see
