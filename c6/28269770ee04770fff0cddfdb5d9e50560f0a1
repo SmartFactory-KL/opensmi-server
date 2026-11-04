@@ -1,0 +1,51 @@
+examples/rsl/main.py
+  s_686ee0d0317af7::t_58c3dd0f978c22 26-27,69-70
+examples/check/main.py
+  s_686ee0d0317af7::t_58c3dd0f978c22 29,31,36,44-45,69,74,82-83,105-106
+examples/dummy/dummy_skill.py
+  s_686ee0d0317af7::t_58c3dd0f978c22 26,28,30,40-41
+examples/dummy/dummy_component.py
+  s_686ee0d0317af7::t_58c3dd0f978c22 29,32,34,36,41,43,63-64
+examples/dummy/suspendable_dummy_skill.py
+  s_686ee0d0317af7::t_58c3dd0f978c22 17,19,24
+tests/integration/test_descriptions.py
+  s_686ee0d0317af7::t_84fe15abd53656 1-4,6-10,12-44,46-53,55-58,60-92,94-103
+  s_686ee0d0317af7::t_964e8da342f8ef 5,11,45,54,59
+  s_686ee0d0317af7::t_9c9c066bd2d61b 93
+src/opensmi/server/resource.py
+  s_686ee0d0317af7::t_58c3dd0f978c22 43,45,52,54,56
+src/opensmi/server/ua_variable.py
+  s_686ee0d0317af7::t_58c3dd0f978c22 132-134,202,205,211-216
+examples/dummy/dummy_machine.py
+  s_686ee0d0317af7::t_58c3dd0f978c22 32,34,36,67-68
+examples/dummy/composite_skill.py
+  s_686ee0d0317af7::t_58c3dd0f978c22 22,27
+src/opensmi/server/mixins/skill_logic_mixins.py
+  s_686ee0d0317af7::t_58c3dd0f978c22 370
+examples/dummy/continuous_skill_self_halting.py
+  s_686ee0d0317af7::t_58c3dd0f978c22 21
+src/opensmi/server/ua_variable_containers.py
+  s_686ee0d0317af7::t_58c3dd0f978c22 109-117,175-177,186,380,382,384,386,404
+examples/dummy/startup_skill.py
+  s_686ee0d0317af7::t_58c3dd0f978c22 9-10
+examples/dummy/continuous_skill.py
+  s_686ee0d0317af7::t_58c3dd0f978c22 26,36,38,40
+examples/dummy/dummy_skill_resources.py
+  s_686ee0d0317af7::t_58c3dd0f978c22 19,24,26,28,30,32,41-42
+---
+{
+  "schema_version": "authorship/3.0.0",
+  "git_ai_version": "1.7.5",
+  "base_commit_sha": "c628269770ee04770fff0cddfdb5d9e50560f0a1",
+  "prompts": {},
+  "sessions": {
+    "s_686ee0d0317af7": {
+      "agent_id": {
+        "tool": "claude",
+        "id": "c4108993-3551-444e-8ff4-1b95edff5107",
+        "model": "claude-opus-5-5"
+      },
+      "human_author": "Carsten Harms <Carsten.Harms@dfki.de>"
+    }
+  }
+}
