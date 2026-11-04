@@ -29,11 +29,9 @@ from opensmi.core.signal import Signal
 from typing_extensions import override
 
 from opensmi.server.config import AccessControlConfiguration
-from opensmi.server.protocols import SessionProtocol, UserAuthorization, UserProtocol
+from opensmi.server.protocols import SessionProtocol, UserAuthorization
 from opensmi.server.ua_variable import UaVariable
 from opensmi.server.user import User
-
-from .ua_object_containers import Users
 
 if TYPE_CHECKING:
     from asyncua.server.internal_server import InternalServer
@@ -64,7 +62,7 @@ class AccessControl(UserManager, AsyncTaskMixin):
         )
 
     @property
-    def users(self) -> MappingProxyType[str, UserProtocol]:
+    def users(self) -> MappingProxyType[str, User]:
         """Read-only mapping of users."""
         return MappingProxyType(self._users)
 
@@ -72,20 +70,6 @@ class AccessControl(UserManager, AsyncTaskMixin):
     def sessions(self) -> tuple[SessionProtocol, ...]:
         """Read-only sequence of sessions."""
         return tuple(self._sessions)
-
-    async def init_ua_users(self, users: Users) -> None:
-        """Initialize OPC UA representation of all users."""
-        self.logger.debug("Initializing UA users...", users=users)
-        for user in self._users.values():
-            if not user.is_initialized:
-                user.parent = users
-                await user.ua_create_node(users.ua_node, instantiate_optional=True)
-                await user.init()
-            else:
-                # TODO(CaHa): Hack, Users node should not be under machine node but under server node instead. -> SiJu
-                # owned by the first machine's Users: listed here with Organizes, so clients know the owner
-                await users.ua_node.add_reference(target=user.ua_node, reftype=ua.object_ids.ObjectIds.Organizes)
-                user._add_alias(users.path / user.name)  # noqa: SLF001
 
     async def _add_session(self, session: SessionProtocol) -> None:
         self.logger.debug("Adding session", username=session.user, client=session.name)

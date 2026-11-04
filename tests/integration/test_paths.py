@@ -9,7 +9,9 @@ from collections.abc import AsyncGenerator
 import pytest
 import pytest_asyncio
 from asyncua import ua
+from asyncua.ua.object_ids import ObjectIds
 from opensmi.core import ObjectPath
+from opensmi.core.nodesets import MachineryNodeIds
 from structlog.testing import capture_logs
 from typing_extensions import override
 
@@ -111,7 +113,7 @@ async def test_objects_lie_in_their_opensmi_folders(server: Server):
         assert type(server.resolve("/M1/SkillSet/Pick/PreconditionCheck")) is _PreconditionCheck
         assert type(server.resolve("/M1/MethodSet/Pick")) is _Method
         assert type(server.resolve("/M1/Components/Gripper")) is _Component
-        assert server.resolve("/M1/Users/operator").name == "operator"
+        assert server.resolve("/Users/operator").name == "operator"
 
 
 @pytest.mark.asyncio
@@ -176,9 +178,9 @@ async def test_variable_in_a_further_container_is_organized_with_an_alias(groupe
     assert force.path == ObjectPath.parse("/M1/ParameterSet/Force")
     assert force.aliases == frozenset({ObjectPath.parse("/M1/Monitoring/Force")})
 
-    references = await grouped.monitoring.ua_node.get_references(refs=ua.ObjectIds.HierarchicalReferences)
+    references = await grouped.monitoring.ua_node.get_references(refs=ObjectIds.HierarchicalReferences)
     by_target = {ref.NodeId: ref.ReferenceTypeId for ref in references}
-    assert by_target[force.ua_node.nodeid] == ua.NodeId(ua.ObjectIds.Organizes)
+    assert by_target[force.ua_node.nodeid] == ua.NodeId(ua.Int32(ObjectIds.Organizes))
 
 
 @pytest.mark.asyncio
@@ -190,15 +192,46 @@ async def test_alias_must_not_take_an_existing_path(grouped: _GroupedMachine):
         await grouped.monitoring.add(other)
 
 
-@pytest.mark.asyncio
-async def test_users_of_further_machines_are_aliases(server: Server):
-    async with server:
-        await server.add_machine(Machine(name="M1"))
-        await server.add_machine(Machine(name="M2"))
+async def _references(node, reference_type: int) -> set[ua.NodeId]:
+    references = await node.get_references(refs=reference_type, direction=ua.BrowseDirection.Forward)
+    return {ref.NodeId for ref in references}
 
-        operator = server.resolve("/M1/Users/operator")
-        assert server.resolve("/M2/Users/operator") is operator
-        assert operator.aliases == frozenset({ObjectPath.parse("/M2/Users/operator")})
+
+@pytest.mark.asyncio
+async def test_users_belong_to_the_server(server: Server):
+    async with server:
+        operator = server.resolve("/Users/operator")
+        assert server.users["operator"] is operator
+        assert operator.path == ObjectPath.parse("/Users/operator")
+
+        objects = server.ua_server.nodes.objects
+        assert server.users.ua_node.nodeid in await _references(objects, ObjectIds.Organizes)
+        assert operator.ua_node.nodeid in await _references(server.users.ua_node, ObjectIds.HasComponent)
+        parents = await operator.ua_node.get_references(
+            refs=ObjectIds.HasComponent, direction=ua.BrowseDirection.Inverse
+        )
+        assert [ref.NodeId for ref in parents] == [server.users.ua_node.nodeid]
+
+
+@pytest.mark.asyncio
+async def test_machines_have_no_users(server: Server):
+    async with server:
+        machine = await server.add_machine(Machine(name="M1"))
+
+        assert server.resolve_optional("/M1/Users/operator") is None
+        assert server.resolve("/Users/operator").aliases == frozenset()
+        building_blocks = await machine.ua_node.get_child(
+            f"{server.ua_get_namespace_index(MachineryNodeIds)}:MachineryBuildingBlocks"
+        )
+        names = [(await child.read_browse_name()).Name for child in await building_blocks.get_children()]
+        assert "Users" not in names
+
+
+@pytest.mark.asyncio
+async def test_users_is_a_reserved_machine_name(server: Server):
+    async with server:
+        with pytest.raises(ValueError, match="reserved"):
+            await server.add_machine(Machine(name="Users"))
 
 
 # --------------------------------------------------------------------------- parent guard

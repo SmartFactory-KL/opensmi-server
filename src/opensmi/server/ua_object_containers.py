@@ -6,10 +6,11 @@
 
 from __future__ import annotations
 
-from collections.abc import Iterable, Iterator
+from collections.abc import AsyncGenerator, Iterable, Iterator
 from typing import TYPE_CHECKING, Generic, TypeVar
 
 from asyncua import ua
+from opensmi.core.lifecycle_mixin import lifecycle
 from opensmi.core.nodesets import MachineryNodeIds, SmartFactoryMachineSetNodeIds, SmartFactorySkillSetNodeIds
 from typing_extensions import override
 
@@ -20,6 +21,7 @@ from opensmi.server.ua_object import UaObject, UaObjectDefinition
 _ObjectType = TypeVar("_ObjectType", bound=UaObject)
 
 if TYPE_CHECKING:
+    from opensmi.server._server import Server as Server
     from opensmi.server.base_machinery_item import BaseComponent as BaseComponent
     from opensmi.server.base_machinery_item import BaseMachineryItem as BaseMachineryItem
     from opensmi.server.base_method import BaseMethod as BaseMethod
@@ -172,16 +174,29 @@ class Components(ParentMixin["BaseMachineryItem"], UaObjectContainer["BaseCompon
         )
 
 
-class Users(ParentMixin["BaseMachineryItem"], UaObjectContainer["User"]):
-    """Collection of users."""
+class Users(UaObjectContainer["User"]):
+    """Server-wide folder ``Objects/Users``, owning the nodes of all users of `AccessControl`."""
 
-    def __init__(self, parent: BaseMachineryItem) -> None:
-        """Initialize the users collection synchronously."""
-        super().__init__(name="Users", parent=parent)
+    NAME = "Users"
+
+    def __init__(self, *, server: Server) -> None:
+        """Initialize the users folder synchronously."""
+        super().__init__(name=self.NAME)
+        self.server = server
 
     @override
     async def _get_definition(self) -> UaObjectDefinition:
         return UaObjectDefinition(
             object_type=SmartFactoryMachineSetNodeIds.UsersType,
             namespace_uri=SmartFactoryMachineSetNodeIds,
-        )
+        )  # below Objects (a folder), asyncua references it with Organizes
+
+    @lifecycle
+    async def lifecycle_users(self) -> AsyncGenerator[None]:
+        """Create the nodes of all users."""
+        for user in self.server.access_control.users.values():
+            user.parent = self
+            await user.ua_create_node(self.ua_node, instantiate_optional=True)
+            await user.init()
+            self[user.name] = user
+        yield

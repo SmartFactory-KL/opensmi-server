@@ -20,7 +20,7 @@ from typing_extensions import override
 
 from opensmi.server.common import get_scrypt_instance
 from opensmi.server.config import UserConfiguration
-from opensmi.server.protocols import SessionProtocol, UserProtocol
+from opensmi.server.protocols import SessionProtocol, UserAuthorization, UserProtocol
 from opensmi.server.ua_object import UaObject, UaObjectDefinition
 
 
@@ -113,6 +113,11 @@ class User(UaObject, UserProtocol):
         assert self._ua_is_present is not None
         yield
         # no shutdown
+
+    @override
+    def access_allowed(self, user: UserAuthorization, *, lock_required: bool | None = None) -> bool:
+        """Users are never written; they belong to no machine, so no lock protects them."""
+        return False
 
     @property
     @override

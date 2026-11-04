@@ -43,6 +43,7 @@ from opensmi.server.ua_object import UaObject
 if TYPE_CHECKING:
     from opensmi.server import BaseMachine
     from opensmi.server.access_control import AccessControl
+    from opensmi.server.ua_object_containers import Users
 
 _MachineType = TypeVar("_MachineType", bound="BaseMachine", default="BaseMachine")
 
@@ -113,6 +114,7 @@ class Server(
     _ua_machines: Node
 
     _access_control: AccessControl
+    _users: Users
     _ua_server: UaServer
     _ua_address_space: AddressSpace
     _config: ServerConfiguration
@@ -179,6 +181,12 @@ class Server(
 
         self._ua_machines = await get_child_without_ns(self._ua_server.nodes.objects, display_name="Machines")
 
+        from .ua_object_containers import Users  # prevent circular import
+
+        self._users = Users(server=self)
+        await self._users.ua_create_node(self._ua_server.nodes.objects)
+        await self._users.init()
+
     @property
     def logger(self) -> structlog.stdlib.BoundLogger:
         """Return the logger instance of the server. Read-only property."""
@@ -187,6 +195,11 @@ class Server(
     @property
     def access_control(self) -> AccessControl:
         return self._access_control
+
+    @property
+    def users(self) -> Users:
+        """Server-wide users folder ``/Users``, owning every user."""
+        return self._users
 
     @override
     def register_ua_object(self, ua_object: UaObject) -> None:
@@ -338,6 +351,9 @@ class Server(
             await self.init()
 
         assert machine is not None
+        if machine.name == self._users.name:
+            msg = f"Invalid machine name '{machine.name}': reserved for the server-wide users folder {self._users.path}"
+            raise ValueError(msg)
 
         time_start = time.monotonic()
         if not machine.is_initialized:
