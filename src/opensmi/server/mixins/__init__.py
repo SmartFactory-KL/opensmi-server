@@ -47,9 +47,11 @@ add the mixin for that container:
 Optional typing
 ===============
 
-These mixins add type hints and runtime type checking for child objects of `BaseComponent` and `BaseMachine`.
-Nothing depends on them, but we highly recommend them for a better developer experience.
+These mixins add type hints and runtime type checking for the parent of any `UaObject` and for child objects of
+`BaseComponent` and `BaseMachine`. Nothing depends on them, but we highly recommend them for a better developer
+experience.
 
+- `ParentMixin`: Typed ``parent`` property.
 - `ComponentsMixin`: Typed ``components`` property.
 - `MethodSetMixin`: Typed ``method_set`` property.
 - `SkillSetMixin`: Typed ``skill_set`` property.
