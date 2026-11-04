@@ -19,10 +19,12 @@ if TYPE_CHECKING:
 
 class CompositeDummySkillMonitoring(Monitoring):
     progress = UaVariable(initial_value=0.0, unit=Unit.PERCENT)
+    """Progress of the current execution."""
 
 
 class CompositeDummySkillFinalResultData(BaseSkillFinalResultData):
     total = UaVariable(initial_value=0.0)
+    """Sum of all results of the called skill."""
 
 
 class CompositeDummySkill(

@@ -367,6 +367,7 @@ class BaseSkillFinalResultData(FinalResultData):
     """Base final result data for finite skills."""
 
     SuccessfulExecutionsCount = UaVariable(0)
+    """Number of successful executions of this skill since server start."""
 
 
 class ContinuousSkillLogicMixin(_SkillLogicMixin):

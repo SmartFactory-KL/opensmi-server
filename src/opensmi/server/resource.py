@@ -40,18 +40,20 @@ class ResourceAttributes(Attributes):
     """Base attributes for `Resource`."""
 
     Color = UaVariable(initial_value="")
+    """Color of this resource, e.g. 'Blue'."""
     Form = UaVariable(initial_value="")
+    """Form variant of this resource, e.g. 'A'."""
 
 
 class ResourceIdentification(Identification):
     """Identification for `Resource`."""
 
     AssetId: UaVariable[str]
-    """Asset ID of this resource."""
+    """Unique identifier of this resource, assigned by the end user."""
     ComponentName: UaVariable[ua.LocalizedText]
-    """Human-readable (component) name of this resource."""
+    """Human-readable name of this resource."""
     ResourceClass: UaVariable[str]
-    """Type ('ResourceClass') of this resource, i.e. 'Cab', 'Trailer' etc."""
+    """Type of this resource, e.g. 'Cab' or 'Trailer'."""
 
     @override
     async def _get_definition(self) -> UaObjectDefinition:

@@ -23,8 +23,11 @@ class OperationEnum(IntEnum):
 
 class DummySkillParameterSet(DummySkillSimpleParameterSet):
     TestBool = UaVariable(initial_value=False)
+    """Example boolean parameter (unused)."""
     TestString = UaVariable(initial_value="Hello World!")
+    """Example string parameter (unused)."""
     operation = UaVariable(initial_value=OperationEnum.Addition)
+    """Operation applied to ``x`` and ``y``."""
 
 
 class DummySkill(
@@ -34,6 +37,8 @@ class DummySkill(
     FinalResultDataMixin[DummySkillSimpleFinalResultData],
     BaseSkillFinite,
 ):
+    """Compute ``x`` and ``y`` with the chosen ``operation`` and store the result in ``ComputationResult``."""
+
     def __init__(self, *, name: str, delay: float = 1, dependencies: list | None = None):
         super().__init__(name=name)
         self.delay = delay

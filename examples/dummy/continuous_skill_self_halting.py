@@ -18,6 +18,7 @@ from opensmi.server.mixins import FinalResultDataMixin, MonitoringMixin, Paramet
 
 class ContinuousSkillSelfHaltingParameterSet(ContinuousSkillParameterSet):
     loops = UaVariable(initial_value=5)
+    """Number of updates before the skill halts itself."""
 
 
 class ContinuousSkillSelfHalting(

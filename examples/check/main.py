@@ -26,11 +26,14 @@ feasibility_check_map: dict[int, tuple[int, int]] = {}
 
 class _FullSkillFeasibilityCheckParameterSet(ParameterSet):
     X = UaVariable(0)
+    """First summand to check."""
     Y = UaVariable(0)
+    """Second summand to check."""
 
 
 class _FullSkillFeasibilityCheckFinalResultData(BaseSkillFinalResultData):
     FeasibilityID = UaVariable(0)
+    """ID of the successful check, required to start ``FullSkill``."""
 
 
 class FullSkillFeasibilityCheck(
@@ -38,6 +41,8 @@ class FullSkillFeasibilityCheck(
     FinalResultDataMixin[_FullSkillFeasibilityCheckFinalResultData],
     BaseFeasibilityCheck,
 ):
+    """Check whether ``X`` + ``Y`` is odd and return a ``FeasibilityID`` for `FullSkill`."""
+
     @override
     async def _handle_resetting(self) -> None:
         await self.final_result_data.FeasibilityID.reset()
@@ -61,10 +66,12 @@ class FullSkillFeasibilityCheck(
 
 class _FullSkillParameterSet(ParameterSet):
     FeasibilityID = UaVariable(0, write_check_callback=lambda x: x in feasibility_check_map)
+    """ID of a successful feasibility check, whose summands are added."""
 
 
 class _FullSkillFinalResultData(BaseSkillFinalResultData):
     ComputationResult = UaVariable(0)
+    """Sum of the summands of the feasibility check."""
 
 
 class FullSkill(
@@ -72,6 +79,8 @@ class FullSkill(
     FinalResultDataMixin[_FullSkillFinalResultData],
     BaseSkillFinite,
 ):
+    """Add the summands of the feasibility check with the given ``FeasibilityID``."""
+
     @override
     async def _handle_resetting(self) -> None:
         await self.final_result_data.ComputationResult.reset()
@@ -93,6 +102,8 @@ class ExampleMachine(
     SpatialObjectListMixin,
     BaseMachine,
 ):
+    """Example machine with a skill using a feasibility check."""
+
     @override
     async def _write_identification(self) -> None:
         # These identification variables must be set for machines

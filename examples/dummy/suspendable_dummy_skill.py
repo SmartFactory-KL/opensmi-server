@@ -14,11 +14,14 @@ from opensmi.server.mixins import MonitoringMixin, ParameterSetMixin, ParentMixi
 
 class _ParameterSet(ParameterSet):
     MaxSteps = UaVariable(100, historize=True)
+    """Number of steps until the skill completes."""
     TimePerStep = UaVariable(1.0, historize=True, unit="s", range=(0, 1))
+    """Duration of a single step."""
 
 
 class _Monitoring(Monitoring):
     Progress = UaVariable(0.0, unit="pct")
+    """Progress of the current execution."""
 
 
 class SuspendableDummySkill(

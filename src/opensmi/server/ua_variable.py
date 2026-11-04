@@ -129,7 +129,9 @@ class UaVariable(NotificationForwarderMixin, UaObject, Generic[_VariableType]):
             occurs (Triggered by internal and external OPC UA writes). Must raise `OutOfRangeError` (+custom message),
             raise any appropriate `UaStatusCodeError` or return ``False`` when the custom check fails.
         :param dictionary_entry: (Optional) semantic information via OPC UA dictionary entry.
-        :param description: (Optional) A human-readable description for the variable.
+        :param description: (Optional) A human-readable description for the variable. Prefer a docstring right after
+            the variable in its container class instead, which takes precedence and is shown by IDEs. Without both, an
+            existing description (e.g. from the node set) is kept, else a warning is logged.
         :param ua_value_rank: (Optional) OPC UA value rank of this variable. **Advanced**
         :param ua_data_type: (Optional) OPC UA data type of the variable. **Advanced**, make sure this type maps to
             the Python type! You could use this for UInt16, etc. instead of default Int64 types
@@ -197,13 +199,20 @@ class UaVariable(NotificationForwarderMixin, UaObject, Generic[_VariableType]):
             await self.add_dictionary_entry(self._dictionary_entry)
             del self._dictionary_entry  # no longer required
 
+        # precedence: docstring > `description` parameter > existing description (e.g. from the node set)
         if self.description:
             await self.write_description(self.description)
-        else:
+        elif not await self._has_existing_description():
             self.logger.warning("Missing description", path=str(self.path))
 
         yield
         # no shutdown
+
+    async def _has_existing_description(self) -> bool:
+        """Whether the OPC UA node already has a real description, e.g. from the node set."""
+        description = (await self.ua_node.read_description()).Text
+        # asyncua uses the browse name as placeholder description for new nodes
+        return bool(description) and description != (await self.ua_node.read_browse_name()).Name
 
     @property
     def initial_value(self) -> _VariableType:

@@ -29,8 +29,11 @@ from opensmi.server.mixins import (
 
 class DummyMachineParameterSet(ParameterSet):
     DummyStringParameter = UaVariable(initial_value="dummy")
+    """Example string parameter of the machine."""
     DummyIntParameter = UaVariable(initial_value=42, unit="cm", range=(0, 100))
+    """Example integer parameter of the machine, with unit and range."""
     DummyFloatParameter = UaVariable(initial_value=math.pi)
+    """Example float parameter of the machine."""
 
 
 class DummyMachineSkillSet(SkillSet):
@@ -61,6 +64,8 @@ class DummyMachine(
     ResourcesMixin,
     BaseMachine,  # important! mixins etc. first
 ):
+    """Dummy machine demonstrating components, skills, methods, resources and parameters."""
+
     @override
     async def _write_identification(self) -> None:
         # These identification variables must be set for machines

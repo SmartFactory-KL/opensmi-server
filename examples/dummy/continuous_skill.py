@@ -23,6 +23,7 @@ from opensmi.server.mixins import FinalResultDataMixin, MonitoringMixin, Paramet
 
 class ContinuousSkillParameterSet(ParameterSet):
     delay = UaVariable(initial_value=0.0, historize=True, unit="s", range=(0.1, 10))
+    """Delay between updates, also used to simulate long STARTING, RESETTING and HALTING phases."""
 
 
 class ContinuousSkillMonitoring(Monitoring):
@@ -32,8 +33,11 @@ class ContinuousSkillMonitoring(Monitoring):
         unit=4408652,  # unit id for "°C"
         range=(15, 35),
     )
+    """Random temperature, updated while running."""
     rng_int = UaVariable(initial_value=15)
+    """Random integer, updated while running."""
     runtime = UaVariable(initial_value=0.0, historize=True, unit="s")
+    """Time since the skill started running."""
 
 
 class ContinuousSkill(

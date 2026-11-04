@@ -23,6 +23,8 @@ class DummyComponent(
     ParentMixin["ExampleMachine"],
     BaseComponent,  # base class last
 ):
+    """Dummy component with a spatial object."""
+
     @override
     async def _write_identification(self) -> None:
         # These identification variables must be set for components
@@ -64,6 +66,8 @@ class ExampleMachine(
     SpatialObjectListMixin,
     BaseMachine,
 ):
+    """Example machine with a spatial object list (Relative Spatial Location)."""
+
     @override
     async def _write_identification(self) -> None:
         # These identification variables must be set for machines

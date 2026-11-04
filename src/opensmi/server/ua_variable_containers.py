@@ -106,6 +106,15 @@ class UaVariableContainer(NotificationForwarderMixin, UaObject):
         # store in the class's own __dict__ so it never shadows/inherits a parent's mapping
         cls.__attr_docs__ = collect_attr_docs(cls)
 
+    @classmethod
+    def _attr_doc(cls, name: str) -> str | None:
+        """Return the docstring of attribute ``name``, looking it up in the MRO (most derived class first)."""
+        for klass in cls.__mro__:
+            doc = klass.__dict__.get("__attr_docs__", {}).get(name)
+            if doc is not None:
+                return doc
+        return None
+
     def _check_required_variables(self, annotations: dict[str, object]) -> None:
         """Check we have all required existing variables based on annotations."""
         for name, annotation in annotations.items():
@@ -163,7 +172,9 @@ class UaVariableContainer(NotificationForwarderMixin, UaObject):
                 self.logger.debug("Found existing variable template, cloning!", browse_name=browse_name)
                 assert isinstance(variable_template, UaVariable)
                 assert not variable_template.is_initialized
-                variable = variable_template.clone(name=str(browse_name.Name))
+                variable = variable_template.clone(
+                    name=str(browse_name.Name), description=self._attr_doc(str(browse_name.Name))
+                )
             else:
                 if browse_name.Name not in annotations:
                     self.logger.warning("Found existing variable without type annotations!", browse_name=browse_name)
@@ -172,6 +183,7 @@ class UaVariableContainer(NotificationForwarderMixin, UaObject):
                     initial_value=initial_value,
                     unit=properties.unit,
                     range=properties.range,
+                    description=self._attr_doc(str(browse_name.Name)),
                 )
             variable.parent = self
             variable.ua_node = ua_variable_node
@@ -365,9 +377,13 @@ class MachineryComponentIdentification(Identification):
     """
 
     AssetId: UaVariable[str] | None
+    """Unique identifier assigned by the end user, e.g. an inventory number."""
     ComponentName: UaVariable[ua.LocalizedText] | None
+    """Human-readable name assigned by the end user."""
     Manufacturer: UaVariable[ua.LocalizedText]
+    """Name of the manufacturer."""
     SerialNumber: UaVariable[str]
+    """Production number, unique per manufacturer (and model). Never changes during the item's life cycle."""
 
     @override
     async def _get_definition(self) -> UaObjectDefinition:
@@ -385,6 +401,7 @@ class MachineIdentification(MachineryComponentIdentification):
     """
 
     ProductInstanceUri: UaVariable[str]
+    """Globally unique identifier of the machine, assigned by its manufacturer."""
 
     @override
     async def _get_definition(self) -> UaObjectDefinition:

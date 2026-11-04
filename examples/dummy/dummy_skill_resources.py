@@ -16,14 +16,20 @@ if TYPE_CHECKING:
 
 class _ParameterSet(ParameterSet):
     TestResource = UaVariable(initial_value=None, variable_type=Resource)
+    """Resource whose identification and attributes are copied into the final result data."""
 
 
 class _FinalResultData(FinalResultData):
     ComponentName = UaVariable(initial_value=ua.LocalizedText())
+    """Name of the given resource."""
     AssetId = UaVariable(initial_value="")
+    """Asset ID of the given resource."""
     ResourceClass = UaVariable(initial_value="")
+    """Type of the given resource."""
     Color = UaVariable(initial_value="")
+    """Color of the given resource."""
     Form = UaVariable(initial_value="")
+    """Form variant of the given resource."""
 
 
 class DummySkillResources(
@@ -32,6 +38,8 @@ class DummySkillResources(
     FinalResultDataMixin[_FinalResultData],
     BaseSkillFinite,
 ):
+    """Copy the identification and attributes of the given ``TestResource`` into the final result data."""
+
     @override
     async def _init(self) -> None:
         await super()._init()

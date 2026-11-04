@@ -26,15 +26,21 @@ from opensmi.server.ua_object_containers import MethodSet, SkillSet
 
 class DummyComponentParameterSet(ParameterSet):
     DummyStringParameter = UaVariable(initial_value="dummy")
+    """Example string parameter of the component."""
     # bypass_lock=True allows write-access without occupation
     DummyIntParameter = UaVariable(initial_value=42, unit="m", range=(0, 100), bypass_lock=True)
+    """Example integer parameter of the component, writable without occupying the lock."""
     DummyFloatParameter = UaVariable(initial_value=math.pi)
+    """Example float parameter of the component."""
     DummyIntListParameter = UaVariable(initial_value=[42, 84])
+    """Example integer list parameter of the component."""
 
 
 class DummyComponentMonitoring(Monitoring):
     RandomValue = UaVariable(initial_value=0.0, unit="mm", range=(0, 1), historize=True)
+    """Random value between 0 and 1, updated continuously."""
     RandomList = UaVariable(initial_value=[0.0, 1.2], ua_value_rank=ua.ValueRank.OneDimension)
+    """List of random values, updated continuously."""
 
 
 class _SkillSet(SkillSet):
@@ -54,6 +60,8 @@ class DummyComponent(
     NotificationForwarderMixin,  # forward OPC UA logging to our parent
     BaseComponent,  # base class last
 ):
+    """Dummy component demonstrating parameters, monitoring, skills, methods and nested components."""
+
     def __init__(self, *, name: str, param: int):
         super().__init__(name=name)
 

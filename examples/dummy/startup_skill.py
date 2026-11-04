@@ -6,6 +6,8 @@ from opensmi.server.mixins import FinalResultDataMixin
 
 
 class StartupSkill(BaseStartupSkill, FinalResultDataMixin[BaseSkillFinalResultData]):
+    """Startup skill of the dummy machine, does nothing."""
+
     def __init__(self, **kwargs) -> None:
         super().__init__(minimum_access_level=2, **kwargs)
 
