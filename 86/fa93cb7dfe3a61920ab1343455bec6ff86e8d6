@@ -1,0 +1,14 @@
+pyproject.toml
+  h_3a91ce8773dd89 41
+---
+{
+  "schema_version": "authorship/3.0.0",
+  "git_ai_version": "1.7.5",
+  "base_commit_sha": "86fa93cb7dfe3a61920ab1343455bec6ff86e8d6",
+  "prompts": {},
+  "humans": {
+    "h_3a91ce8773dd89": {
+      "author": "Carsten Harms <Carsten.Harms@dfki.de>"
+    }
+  }
+}
