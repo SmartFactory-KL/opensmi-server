@@ -1,0 +1,20 @@
+docs/migration.md
+  s_f48829d459afec::t_9225c5f98af1ea 14-18
+  s_f48829d459afec::t_d43815111aaac9 74-86
+---
+{
+  "schema_version": "authorship/3.0.0",
+  "git_ai_version": "1.7.5",
+  "base_commit_sha": "832667ab57ce72fdae71982689360b1b491e0977",
+  "prompts": {},
+  "sessions": {
+    "s_f48829d459afec": {
+      "agent_id": {
+        "tool": "claude",
+        "id": "21f2014e-e364-4a52-9875-258bc15aac7e",
+        "model": "claude-opus-5-5"
+      },
+      "human_author": "Carsten Harms <Carsten.Harms@dfki.de>"
+    }
+  }
+}
