@@ -170,6 +170,9 @@ class ParentMixin(Generic[_ParentType]):
         def __init__(self, *, parent: _ParentType | None = None, **kwargs: Any) -> None:
             """Type-checking stub for typed ``parent`` parameter."""
 
+        def _set_parent(self, parent: BaseUaObject[Server]) -> None:
+            """Type-checking stub, provided by `BaseUaObject`."""
+
     def __init_subclass__(cls, **kwargs: Any) -> None:
         """Validate the shape of the ``ParentMixin[...]`` type argument at class definition."""
         super().__init_subclass__(**kwargs)

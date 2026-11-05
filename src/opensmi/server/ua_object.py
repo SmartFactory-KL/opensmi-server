@@ -53,7 +53,7 @@ class UaObject(BaseUaObject["Server"], LifecycleMixin, ReprStrMixin, AbstractUaO
         bypass_lock: bool = False,
         server: "Server | None" = None,
         parent: "UaObject | None" = None,
-        **kwargs: dict[str, Any],
+        **kwargs: Any,
     ) -> None:
         """*Cooperative* constructor.
 
