@@ -61,8 +61,7 @@ json = [
 [dependency-groups]
 dev = [
     "basedpyright>=1.39.9",
-    "ruff>=0.15",
-    # "mypy>=2",
+    "ruff==0.17.3",
     "pytest>=9",
     "pytest-asyncio>=1",
     "pytest-cov>=7",
@@ -70,6 +69,7 @@ dev = [
     "pytest-html>=4",
     "pytest-timeout>=2",
     #"reuse[charset-normalizer]"
+    "pre-commit>=4.7.0",
 ]
 
 [tool.setuptools]
@@ -163,14 +163,6 @@ docstring-code-format = true
 # This only has an effect when the `docstring-code-format` setting is
 # enabled.
 docstring-code-line-length = "dynamic"
-
-[tool.mypy]
-packages = "src/opensmi/server"
-
-warn_unused_configs = true
-pretty = true
-
-strict = true
 
 [tool.basedpyright]
 include = ["src"]
