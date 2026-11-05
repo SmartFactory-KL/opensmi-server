@@ -1,0 +1,21 @@
+src/opensmi/server/mixins/parent_mixin.py
+  s_686ee0d0317af7::t_e302fa8fc3b5e1 173-175
+src/opensmi/server/ua_object.py
+  s_686ee0d0317af7::t_90953cbdbff966 56
+---
+{
+  "schema_version": "authorship/3.0.0",
+  "git_ai_version": "1.7.5",
+  "base_commit_sha": "3c7fed21e93fdf235ed48aaff05763e26f5d9fd2",
+  "prompts": {},
+  "sessions": {
+    "s_686ee0d0317af7": {
+      "agent_id": {
+        "tool": "claude",
+        "id": "c4108993-3551-444e-8ff4-1b95edff5107",
+        "model": "claude-opus-5-5"
+      },
+      "human_author": "Carsten Harms <Carsten.Harms@dfki.de>"
+    }
+  }
+}
