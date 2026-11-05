@@ -1,0 +1,21 @@
+pyproject.toml
+  s_f48829d459afec::t_558c2f7ef7ec4f 64
+.pre-commit-config.yaml
+  s_f48829d459afec::t_ed554e323c99c1 1-15
+---
+{
+  "schema_version": "authorship/3.0.0",
+  "git_ai_version": "1.7.5",
+  "base_commit_sha": "5453d8527e6bac3df201f5f40fa4c2ac1eb0ca14",
+  "prompts": {},
+  "sessions": {
+    "s_f48829d459afec": {
+      "agent_id": {
+        "tool": "claude",
+        "id": "21f2014e-e364-4a52-9875-258bc15aac7e",
+        "model": "claude-opus-5-5"
+      },
+      "human_author": "Carsten Harms <Carsten.Harms@dfki.de>"
+    }
+  }
+}
