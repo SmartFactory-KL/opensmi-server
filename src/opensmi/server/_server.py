@@ -23,7 +23,6 @@ from asyncua.common.node import Node
 from asyncua.common.structures104 import new_enum
 from asyncua.crypto.cert_gen import generate_private_key, generate_self_signed_app_certificate
 from asyncua.server.address_space import AddressSpace
-from asyncua.server.history_sql import HistorySQLite
 from asyncua.server.server import Server as UaServer
 from opensmi.core import AsyncTaskMixin, LifecycleState, setup_logging
 from opensmi.core.base_server import BaseServer
@@ -36,6 +35,7 @@ from opensmi.core.repr_mixin import ReprStrMixin
 from opensmi.core.ua_node_util import get_child_without_ns
 from typing_extensions import TypeVar, override
 
+from opensmi.server._history import FixedHistoryManager, FixedHistorySQLite
 from opensmi.server.config import HistoryOption, ServerConfiguration, UaServerConfiguration
 from opensmi.server.ua_dictionary_entry import DictionaryEntry
 from opensmi.server.ua_object import UaObject
@@ -46,14 +46,6 @@ if TYPE_CHECKING:
     from opensmi.server.ua_object_containers import Users
 
 _MachineType = TypeVar("_MachineType", bound="BaseMachine", default="BaseMachine")
-
-
-class _FixedHistorySQLite(HistorySQLite):
-    @override
-    def _get_table_name(self, node_id: ua.NodeId) -> str:
-        if node_id.NodeIdType == ua.NodeIdType.String:
-            return f"{node_id.NamespaceIndex}_{node_id.Identifier}"  # repr creates invalid ' character
-        return f"{node_id.NamespaceIndex}_{node_id.Identifier!r}"
 
 
 def _create_key_and_certificate(config: UaServerConfiguration) -> None:
@@ -169,6 +161,8 @@ class Server(
 
         ua_iserver.method_service = AccessControlMethodService(ua_iserver.aspace)
         ua_iserver.attribute_service = AccessControlAttributeService(aspace=ua_iserver.aspace, server=self)
+        # asyncua's HistoryManager stores events under the wrong node, see `opensmi.server._history`
+        ua_iserver.history_manager = FixedHistoryManager(ua_iserver)
 
         await self._setup_ua_server()
 
@@ -311,7 +305,7 @@ class Server(
         if config.history_db == HistoryOption.SQLITE:
             db_path = Path("./data/opcua_history.sql")
             db_path.parent.mkdir(exist_ok=True)
-            self._ua_server.iserver.history_manager.set_storage(_FixedHistorySQLite(db_path))  # pyright: ignore[reportArgumentType]
+            self._ua_server.iserver.history_manager.set_storage(FixedHistorySQLite(db_path))  # pyright: ignore[reportArgumentType]
             self.logger.info("History storage via SQLite!", path=str(db_path))
 
         if config.encryption:

@@ -51,8 +51,8 @@ class Notification(ParentMixin["BaseMachineryItem"], UaObject, AbstractUaLogger)
             emitting_node=self.ua_node.nodeid,  # type: ignore
         )
 
-        # TODO(CaHa): Fix/Implement? event historizing
-        # await self.server.ua_server.historize_node_event(self.ua_node, count=1000)
+        # historize the events of both generators (must happen after they added their GeneratesEvent references)
+        await self.server.ua_server.historize_node_event(self.ua_node, count=1000)
 
         yield
         # no shutdown
