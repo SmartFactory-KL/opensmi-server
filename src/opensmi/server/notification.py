@@ -62,13 +62,9 @@ class Notification(ParentMixin["BaseMachineryItem"], UaObject, AbstractUaLogger)
     ) -> None:
         self.logger.debug("Generating info event", msg=msg, severity=severity, source=source)
 
-        # TODO(CaHa): Not properly supported in asyncua
-        # if source is None:
-        #     self._ua_info_event_gen.event.SourceNode = self.parent.ua_node.nodeid
-        #     self._ua_info_event_gen.event.SourceName = self.parent.name
-        # else:
-        #     self._ua_info_event_gen.event.SourceNode = source.ua_node.nodeid
-        #     self._ua_info_event_gen.event.SourceName = source.name
+        source_object = self.parent if source is None else source
+        self._ua_info_event_gen.event.SourceNode = source_object.ua_node.nodeid
+        self._ua_info_event_gen.event.SourceName = source_object.name
 
         self._ua_info_event_gen.event.Severity = severity
         self._ua_info_event_gen.event.Message = ua.LocalizedText(msg)
@@ -79,13 +75,9 @@ class Notification(ParentMixin["BaseMachineryItem"], UaObject, AbstractUaLogger)
     ) -> None:
         self.logger.debug("Generating alert event", msg=msg, severity=severity, code=code, source=source)
 
-        # TODO(CaHa): Not properly supported in asyncua
-        # if source is None:
-        #     self._ua_alarm_event_gen.event.SourceNode = self.parent.ua_node.nodeid
-        #     self._ua_alarm_event_gen.event.SourceName = self.parent.name
-        # else:
-        #     self._ua_alarm_event_gen.event.SourceNode = source.ua_node.nodeid
-        #     self._ua_alarm_event_gen.event.SourceName = source.name
+        source_object = self.parent if source is None else source
+        self._ua_alarm_event_gen.event.SourceNode = source_object.ua_node.nodeid
+        self._ua_alarm_event_gen.event.SourceName = source_object.name
 
         self._ua_alarm_event_gen.event.Severity = severity
         self._ua_alarm_event_gen.event.Message = ua.LocalizedText(msg)

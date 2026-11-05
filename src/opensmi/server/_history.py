@@ -6,11 +6,13 @@
 
 from __future__ import annotations
 
-from datetime import timedelta
+from datetime import UTC, datetime, timedelta
 from typing import TYPE_CHECKING, Any
 
+import aiosqlite
 from asyncua import ua
 from asyncua.common.events import Event
+from asyncua.common.sql_injection import validate_table_name
 from asyncua.server.history import HistoryManager, HistoryStorageInterface, SubHandler
 from asyncua.server.history_sql import HistorySQLite
 from typing_extensions import override
@@ -22,7 +24,7 @@ if TYPE_CHECKING:
 
 
 class FixedHistorySQLite(HistorySQLite):
-    """`HistorySQLite` with valid table names for string node ids and without duplicate event columns."""
+    """`HistorySQLite` with working event history (see the comments of the overridden methods)."""
 
     @override
     def _get_table_name(self, node_id: ua.NodeId) -> str:
@@ -34,20 +36,46 @@ class FixedHistorySQLite(HistorySQLite):
     async def _get_event_fields(self, evtypes: list[Node]) -> list[str]:
         # asyncua de-duplicates the property *nodes*, but subtypes may redefine a property with the same name
         # (e.g. ``ConditionClassId`` in alarm types); duplicate column names make ``CREATE TABLE`` fail.
+        # See https://github.com/FreeOpcUa/opcua-asyncio/issues/2076.
         return list(dict.fromkeys(await super()._get_event_fields(evtypes)))
 
     @override
     async def save_event(self, event: Event) -> None:
-        # The table columns are the *properties* of the event types, but events of condition/alarm types also carry
-        # *variables* (e.g. ``AckedState/Id``) for which there is no column, so the INSERT fails. Store only the
-        # fields that have a column.
-        columns = self._event_fields.get(event.emitting_node)
+        # Re-implemented because asyncua's version
+        # - inserts into the table of ``event.SourceNode``, but creates and reads the table of the historized
+        #   (emitting) node, so events with a different ``SourceNode`` are lost
+        #   (https://github.com/FreeOpcUa/opcua-asyncio/issues/2075);
+        # - inserts all event fields, but the table columns are only the *properties* of the event types; events of
+        #   condition/alarm types also carry *variables* (e.g. ``AckedState/Id``) without a column, so the INSERT fails
+        #   (https://github.com/FreeOpcUa/opcua-asyncio/issues/2077);
+        # - deletes old events by comparing the binary ``Time`` column with a text timestamp, which never matches.
+        source = event.emitting_node
+        columns = self._event_fields.get(source)
         if columns is not None:
             fields = event.get_event_props_as_fields_dict()
-            stored = Event.from_field_dict({name: fields[name] for name in columns if name in fields})
-            stored.emitting_node = event.emitting_node
-            event = stored
-        await super().save_event(event)
+            event = Event.from_field_dict({name: fields[name] for name in columns if name in fields})
+        table = self._get_table_name(source)
+        validate_table_name(table)
+        names, placeholders, values = self._format_event(event)
+        timestamp: Any = getattr(event, "Time", None)
+        event_type: Any = getattr(event, "EventType", None)
+        try:
+            await self._db.execute(
+                f'INSERT INTO "{table}" ("_Id", "_Timestamp", "_EventTypeName", {names}) '
+                f"VALUES (NULL, ?, ?, {placeholders})",
+                (str(timestamp), str(event_type), *values),
+            )
+            await self._db.commit()
+        except aiosqlite.Error:
+            self.logger.exception("Historizing SQL Insert Error for events from %s", source)
+        period = self._datachanges_period.get(source)
+        if period:
+            date_limit = datetime.now(UTC) - period
+            try:
+                await self._db.execute(f'DELETE FROM "{table}" WHERE "_Timestamp" < ?', (str(date_limit),))
+                await self._db.commit()
+            except aiosqlite.Error:
+                self.logger.exception("Historizing SQL Delete Old Data Error for events from %s", source)
 
 
 class _EventSourceSubHandler(SubHandler):
@@ -56,6 +84,7 @@ class _EventSourceSubHandler(SubHandler):
     asyncua's history subscription rebuilds each event with ``Event.from_event_fields``, which leaves
     ``emitting_node`` at its default (the Server object, ``i=2253``). The storages key the history
     by ``emitting_node``, so ``save_event`` raises ``KeyError`` and nothing can be read back.
+    See https://github.com/FreeOpcUa/opcua-asyncio/issues/2074.
     """
 
     def __init__(self, storage: HistoryStorageInterface, event_sources: dict[int, ua.NodeId]) -> None:
@@ -72,7 +101,10 @@ class _EventSourceSubHandler(SubHandler):
 
 
 class FixedHistoryManager(HistoryManager):
-    """`HistoryManager` whose event history actually stores events under the historized node."""
+    """`HistoryManager` whose event history actually stores events under the historized node.
+
+    Workaround for https://github.com/FreeOpcUa/opcua-asyncio/issues/2074.
+    """
 
     def __init__(self, iserver: InternalServer) -> None:
         super().__init__(iserver)

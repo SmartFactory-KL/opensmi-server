@@ -4,6 +4,7 @@
 
 import asyncio
 from datetime import UTC, datetime, timedelta
+from typing import Any
 
 import pytest
 from asyncua.client.client import Client
@@ -25,19 +26,24 @@ def server(request, tmp_path, monkeypatch) -> Server:
 @pytest.mark.asyncio
 async def test_notification_event_history(machine: BaseMachine) -> None:
     start = datetime.now(UTC) - timedelta(seconds=1)
+    source = machine.identification
     messages = ["info event", "warning event", "error event"]
     await machine.ua_log_info(messages[0])
-    await machine.ua_log_warning(messages[1])
+    await machine.ua_log_warning(messages[1], source=source)
     await machine.ua_log_error(messages[2], code="E42")
 
     port = machine.server.ua_server.bserver.port
     async with Client(url=f"opc.tcp://visitor:visitor@localhost:{port}") as client:
         node = client.get_node(machine.notification.ua_node.nodeid)
-        read: list[str] = []
+        events: list[Any] = []
         async with asyncio.timeout(5):  # events are stored asynchronously
-            while not set(messages) <= set(read):
+            while not set(messages) <= {event.Message.Text for event in events}:
                 events = await node.read_event_history(start, datetime.now(UTC) + timedelta(seconds=1))
-                read = [event.Message.Text for event in events]  # pyright: ignore[reportAttributeAccessIssue]
                 await asyncio.sleep(0.05)
 
-    assert [m for m in read if m in messages] == messages
+    read = [(e.Message.Text, e.SourceNode, e.SourceName) for e in events if e.Message.Text in messages]
+    assert read == [
+        (messages[0], machine.ua_node.nodeid, machine.name),
+        (messages[1], source.ua_node.nodeid, source.name),
+        (messages[2], machine.ua_node.nodeid, machine.name),
+    ]
