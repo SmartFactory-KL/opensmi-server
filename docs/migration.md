@@ -11,9 +11,11 @@ versions, apply every section between your version and the newest one, oldest fi
 ### Dependencies
 
 - OpenSMI-Server requires `OpenSMI-Core>=0.7,<0.8`.
-- Clients must handle the new server-wide users folder and the `ErrorCode` event field, see
-  [Users](#users-are-server-wide) and [Notifications](#notifications-error-code-no-longer-in-the-message). Released
-  OpenSMI-Client versions up to now do not show users.
+- Clients must handle the new server-wide users folder, the `ErrorCode` event field and the new `SourceNode` of
+  notification events, see [Users](#users-are-server-wide),
+  [Notifications](#notifications-error-code-no-longer-in-the-message) and
+  [`SourceNode`](#notifications-sourcenode-is-the-object-the-message-is-about). Released OpenSMI-Client versions up to
+  now do not show users and drop notifications.
 
 ### Server configuration
 
@@ -68,6 +70,19 @@ from opensmi.core.nodesets import RSLNodeIds
 
 Error events no longer append `|||<code>` to `Message`. The code is only in the `ErrorCode` event field. Clients that
 parsed the message must read `ErrorCode` instead.
+
+### Notifications: `SourceNode` is the object the message is about
+
+Notification events now set `SourceNode` and `SourceName` to the object that logged the message (the `source`
+argument of `ua_log_*()`, else the machinery item the `Notification` belongs to). Before, both were the `Notification`
+object itself. The events are still emitted by the `Notification` object, so clients keep subscribing to it.
+
+Clients that matched incoming events to their subscription by `SourceNode` no longer find a match and drop the events.
+Match by the monitored item instead, e.g. by `event.server_handle` in asyncua. OpenSMI-Core v0.7.0 and older match by
+`SourceNode`, so clients based on them (OpenSMI-Client up to now) need OpenSMI-Core v0.7.1 or newer.
+
+Notification events are now also kept in the server's event history (up to 1000 per `Notification` object) and can be
+read with `HistoryRead`.
 
 ### Other API changes
 
