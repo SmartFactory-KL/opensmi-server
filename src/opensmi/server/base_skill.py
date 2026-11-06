@@ -189,7 +189,7 @@ class _BaseSkill(BaseCallable, AbstractSkill):
 
         logger = self.logger.bind(other_skill=skill.path)
 
-        if skill not in getattr(self, "_dependencies", ()):
+        if skill not in self.dependencies:
             logger.warning("Calling other skill that is not in dependencies!")
 
         if skill not in self._called_skills:  # only add it the first time it is called
@@ -250,7 +250,7 @@ class _BaseSkill(BaseCallable, AbstractSkill):
 
         logger = self.logger.bind(other_skill=skill.path)
 
-        if skill not in getattr(self, "_dependencies", ()):
+        if skill not in self.dependencies:
             logger.warning("Calling other skill that is not in dependencies!")
 
         if skill not in self._called_skills:  # only add it the first time it is called
@@ -276,6 +276,13 @@ class BaseSkill(_BaseSkill):
     """
 
     _folder: ClassVar[str | None] = "SkillSet"
+
+    @property
+    @override
+    def ua_main_node(self) -> Node:
+        # ua_node points to the SkillExecution sub node, but references (e.g. requirements) belong to the skill node
+        assert self._ua_node is not None
+        return self._ua_node
 
     def __init__(
         self,

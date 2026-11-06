@@ -7,6 +7,7 @@
 from __future__ import annotations
 
 from abc import ABC, abstractmethod
+from collections.abc import Sequence
 from typing import TYPE_CHECKING
 
 from asyncua import ua
@@ -24,7 +25,7 @@ from opensmi.server.protocols import SessionProtocol, UserAuthorization
 if TYPE_CHECKING:
     from opensmi.server._server import Server
     from opensmi.server.lock import Lock
-    from opensmi.server.ua_object import UaObjectDefinition
+    from opensmi.server.ua_object import UaObject, UaObjectDefinition
 
 
 class AbstractUaObject(ABC):
@@ -53,6 +54,19 @@ class AbstractUaObject(ABC):
 
         Do not touch unless you know what you are doing!
         """
+
+    @property
+    def ua_main_node(self) -> Node:
+        """OPC UA node representing this object as a whole, e.g. as target or source of references.
+
+        Defaults to `ua_node`. Objects whose `ua_node` points to a sub node (e.g. skills) must override this.
+        """
+        return self.ua_node
+
+    @property
+    def dependencies(self) -> Sequence[UaObject]:
+        """Dependencies of this object, checked before it can be executed. Empty unless `RequirementsMixin` is used."""
+        return ()
 
     @property
     @abstractmethod

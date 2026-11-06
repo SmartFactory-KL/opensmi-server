@@ -5,6 +5,7 @@
 import asyncio
 from abc import ABC
 from collections.abc import Callable
+from dataclasses import dataclass
 from pathlib import PurePosixPath
 from types import SimpleNamespace
 from typing import Any
@@ -20,6 +21,7 @@ from typing_extensions import override
 
 from opensmi.server import BaseSkill
 from opensmi.server.interfaces import AbstractUaObject
+from opensmi.server.mixins import RequirementsMixin
 from opensmi.server.mixins.skill_logic_mixins import ContinuousSkillLogicMixin, FiniteSkillLogicMixin
 from opensmi.server.protocols import UserAuthorization
 from opensmi.server.ua_object import UaObjectDefinition
@@ -538,3 +540,73 @@ async def test_continuous_condition_as_dependency_ready() -> None:
     await continuous.wait_for_state(SkillState.RUNNING)
 
     await continuous.condition_as_dependency_ready(None)  # pyright: ignore[reportArgumentType]
+
+
+### dependencies
+
+
+class ContinuousRequirementsTestSkill(RequirementsMixin, ContinuousTestSkill):
+    pass
+
+
+@dataclass
+class DependencySetup:
+    dependent: ContinuousRequirementsTestSkill
+    other: ContinuousTestSkill
+    requirements_folder: MagicMock
+    other_main_node: MagicMock
+    other_start: AsyncMock
+    dependent_logger: MagicMock
+
+
+def make_dependency_setup() -> DependencySetup:
+    dependent = ContinuousRequirementsTestSkill()
+    folder = MagicMock(add_reference=AsyncMock())
+    dependent._ua_requirements_folder = folder
+    logger = MagicMock()
+    dependent._logger = logger
+    other = ContinuousTestSkill()
+    main_node = MagicMock()
+    other._ua_node = main_node
+    start = AsyncMock()
+    other.start = start
+    return DependencySetup(dependent, other, folder, main_node, start, logger)
+
+
+def not_in_dependencies_warnings(logger: MagicMock) -> list:
+    warning = logger.bind.return_value.warning
+    return [c for c in warning.call_args_list if "not in dependencies" in c.args[0]]
+
+
+@pytest.mark.asyncio
+async def test_add_dependency_references_main_node_of_skill() -> None:
+    s = make_dependency_setup()
+
+    await s.dependent.add_dependency(s.other)
+
+    assert list(s.dependent.dependencies) == [s.other]
+    assert s.requirements_folder.add_reference.await_args.kwargs["target"] is s.other_main_node.nodeid
+
+
+@pytest.mark.asyncio
+async def test_calling_declared_dependency_does_not_warn() -> None:
+    s = make_dependency_setup()
+    await s.dependent.add_dependency(s.other)
+
+    await s.dependent.call_other_continuous_skill(s.other, wait_for_running=False)
+
+    s.other_start.assert_awaited_once()
+    assert not_in_dependencies_warnings(s.dependent_logger) == []
+
+
+@pytest.mark.asyncio
+async def test_calling_undeclared_skill_warns() -> None:
+    s = make_dependency_setup()
+
+    await s.dependent.call_other_continuous_skill(s.other, wait_for_running=False)
+
+    assert len(not_in_dependencies_warnings(s.dependent_logger)) == 1
+
+
+def test_dependencies_empty_without_requirements_mixin() -> None:
+    assert ContinuousTestSkill().dependencies == ()

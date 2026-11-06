@@ -144,7 +144,7 @@ class BaseCallable(DescriptionMixin, NotificationForwarderMixin, UaObject, Abstr
 
     @override
     async def _condition_dependencies_ready(self, _user: UserAuthorization) -> bool:
-        for dependency in getattr(self, "dependencies", ()):
+        for dependency in self.dependencies:
             assert isinstance(dependency, UaObject), f"'{dependency}' is not of type UaObject"
             await dependency.condition_as_dependency_ready(_user)
 
