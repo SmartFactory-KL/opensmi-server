@@ -26,6 +26,7 @@ from opensmi.core.ua_node_util import (
 from typing_extensions import TypeVar, override
 
 from opensmi.server.mixins.notification_mixins import NotificationForwarderMixin
+from opensmi.server.structures import register_structure, structure_array_write_check, structure_class
 from opensmi.server.ua_dictionary_entry import DictionaryEntry
 from opensmi.server.ua_object import UaObject, UaObjectDefinition
 
@@ -256,6 +257,17 @@ class UaVariable(NotificationForwarderMixin, UaObject, Generic[_VariableType]):
         self._historize = historize
         self.logger.debug("Set variable historize", historize=historize)
 
+    async def _ensure_structure(self) -> ua.NodeId | int | None:
+        """Create the structure type of a dataclass value (in namespace 1 like enums) and return its data type."""
+        value = self._initial_value.Value
+        if (structure := structure_class(value)) is None:
+            return self._ua_data_type
+        if isinstance(value, list):
+            self._ua_value_rank = ua.ValueRank.OneDimension
+            if self._write_check_callback is None:
+                self._write_check_callback = structure_array_write_check(structure)
+        return await register_structure(self.server, structure, 1)
+
     @override
     async def _get_definition(self) -> UaObjectDefinition:
         raise NotImplementedError  # We don't use this since we override own _ua_create_node
@@ -283,8 +295,9 @@ class UaVariable(NotificationForwarderMixin, UaObject, Generic[_VariableType]):
                     msg = "Ranges can only be used in combination with a unit!"
                     raise ValueError(msg)
 
+                data_type = await self._ensure_structure()
                 self.ua_node = await ua_location.add_variable(
-                    nodeid=node_id, bname=browse_name, val=self._initial_value, datatype=self._ua_data_type
+                    nodeid=node_id, bname=browse_name, val=self._initial_value, datatype=data_type
                 )
                 if self._ua_value_rank is not None:
                     await self.ua_node.write_value_rank(self._ua_value_rank)
