@@ -2,92 +2,81 @@
 #
 # SPDX-License-Identifier: CC0-1.0
 
-"""Example to demonstrate structure DataTypes minted without a nodeset (``opensmi.server.structures``).
+"""Example to demonstrate structured values defined as dataclasses (``opensmi.server.structures``).
 
-It mints ``Point`` and ``Waypoint`` (which nests a ``Point``), publishes one ``Waypoint`` and an array of
-``Point`` as parameters of a machine, and changes the waypoint once after the server has started.
-Run ``client.py`` against it.
+A machine publishes the current workpiece, which nests its dimensions, and a list of measurements. The server
+changes the workpiece once after it has started. Run ``client.py`` against it.
 """
 
 import asyncio
+from dataclasses import dataclass, field
 
 from asyncua import ua
 
 from opensmi.server import BaseMachine, ParameterSet, Server, UaVariable
 from opensmi.server.mixins import ParameterSetMixin
-from opensmi.server.structures import (
-    StructureDefinition,
-    StructureField,
-    encode,
-    registry_for,
-    structure_array_write_check,
-    structure_node_id,
-)
-
-URI = "urn:example:structures"
-
-DOUBLE = ua.VariantType.Double
-
-POINT = StructureDefinition(
-    type_name="Point",
-    fields=tuple(StructureField(name=name, variant_type=DOUBLE) for name in "xyz"),
-)
-WAYPOINT = StructureDefinition(
-    type_name="Waypoint",
-    fields=(
-        StructureField(name="name", variant_type=ua.VariantType.String),
-        StructureField(name="position", variant_type=ua.VariantType.ExtensionObject, datatype=POINT),
-    ),
-)
 
 
-class ExampleMachine(ParameterSetMixin[ParameterSet], BaseMachine):
-    """Machine that gets two structured parameters in ``main``."""
+@dataclass
+class Dimensions:
+    """Size of a workpiece in mm."""
+
+    length: float = 0.0
+    width: float = 0.0
+    height: float = 0.0
+
+
+@dataclass
+class Workpiece:
+    """A workpiece with its dimensions."""
+
+    id: str = ""
+    material: str = ""
+    dimensions: Dimensions = field(default_factory=Dimensions)
+
+
+@dataclass
+class Measurement:
+    """One measured value and whether it is within tolerance."""
+
+    name: str = ""
+    value: float = 0.0
+    in_tolerance: bool = True
+
+
+class ExampleParameterSet(ParameterSet):
+    """Parameters of the example machine."""
+
+    # The structure types are created on the server when the variables are created
+    # bypass_lock=True allows write-access without occupation
+    CurrentWorkpiece = UaVariable(
+        initial_value=Workpiece("W-001", "steel", Dimensions(120.0, 80.0, 10.0)), writable=True, bypass_lock=True
+    )
+    """The workpiece the machine is working on."""
+    Measurements = UaVariable(initial_value=[Measurement("length", 120.0)], writable=True, bypass_lock=True)
+    """The measurements of the current workpiece."""
+
+
+class ExampleMachine(ParameterSetMixin[ExampleParameterSet], BaseMachine):
+    """Machine with a structured parameter and a list of structured measurements."""
 
     async def _write_identification(self) -> None:
         # These identification variables must be set for machines
         await self.identification.SerialNumber.write("1234-56789-abc")
         await self.identification.ProductInstanceUri.write("urn:smartfactory.de-model:snr-1234-56789-abc")
         await self.identification.Manufacturer.write(
-            ua.LocalizedText("Technologie-Initiative SmartFactory KL e. V.", "de-DE")
+            ua.LocalizedText("Technologie-Initiative SmartFactory KL e. V.", "en-US")
         )
 
 
 async def main() -> None:
-    """Mint the structures, publish the parameters and serve."""
+    """Serve the machine and change its workpiece."""
     async with Server() as server:
-        ns = await server.ua_server.register_namespace(URI)
-        await registry_for(server.ua_server).mint(server.ua_server, ns, WAYPOINT)  # mints Point first
         machine = await server.add_machine(ExampleMachine())
-
-        # The NodeIds of the structures contain the namespace index, so the variables are added once it is known
-        origin = {"x": 0.0, "y": 0.0, "z": 0.0}
-        target = UaVariable(
-            encode(WAYPOINT, {"name": "dock", "position": origin}, ns),
-            name="Target",
-            ua_data_type=structure_node_id("Waypoint", ns),
-            writable=True,
-            bypass_lock=True,  # a client can write without taking the machine lock first
-            description="The waypoint the machine drives to.",
-        )
-        path = UaVariable(
-            [encode(POINT, origin, ns)],
-            name="Path",
-            ua_data_type=structure_node_id("Point", ns),
-            ua_value_rank=ua.ValueRank.OneDimension,
-            writable=True,
-            bypass_lock=True,
-            # asyncua accepts any ExtensionObject in any variable; this keeps other values out
-            write_check_callback=structure_array_write_check(POINT, ns),
-            description="The points of the path, in order.",
-        )
-        await machine.parameter_set.add(target)
-        await machine.parameter_set.add(path)
         await server.start(blocking=False)
 
-        # Updating a structure is writing a newly encoded value
-        await target.write(encode(WAYPOINT, {"name": "bay 3", "position": {"x": 1.5, "y": -2.0, "z": 0.25}}, ns))
-        print(f"Serving {URI!r} on {server.config.ua_server.endpoint_address}", flush=True)  # noqa: T201
+        await machine.parameter_set.CurrentWorkpiece.write(Workpiece("W-002", "aluminium", Dimensions(90.0, 60.0, 5.0)))
+        print(f"Serving on {server.config.ua_server.endpoint_address}", flush=True)  # noqa: T201
         await asyncio.Event().wait()
 
 

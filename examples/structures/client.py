@@ -2,10 +2,10 @@
 #
 # SPDX-License-Identifier: CC0-1.0
 
-"""Client for ``server.py``: reads the structures with plain asyncua and tries a write of the wrong type.
+"""Client for ``server.py``: reads and writes the structures with plain asyncua and tries a write of the wrong type.
 
-The client knows nothing about ``Point`` or ``Waypoint``. ``load_data_type_definitions`` builds the Python classes
-from the ``DataTypeDefinition`` that the server published.
+The client knows none of the classes. ``load_data_type_definitions`` builds them from the ``DataTypeDefinition``
+that the server published.
 """
 
 import asyncio
@@ -17,23 +17,29 @@ URL = "opc.tcp://operator:operator@localhost:4841/server"
 
 
 async def main() -> None:
-    """Read both variables and try a write of the wrong type."""
+    """Read both variables, add a measurement and try a write of the wrong type."""
     async with Client(URL) as client:
         await client.load_data_type_definitions()
 
-        target = client.get_node("ns=1;s=ExampleMachine.ParameterSet.Target")
-        waypoint = await target.read_value()
-        print(f"Target: {waypoint.name!r} at ({waypoint.position.x}, {waypoint.position.y}, {waypoint.position.z})")  # noqa: T201
+        workpiece_node = client.get_node("ns=1;s=ExampleMachine.ParameterSet.CurrentWorkpiece")
+        workpiece = await workpiece_node.read_value()
+        size = workpiece.dimensions
+        print(f"Workpiece: {workpiece.id} ({workpiece.material}), {size.length} x {size.width} x {size.height} mm")  # noqa: T201
 
-        path = client.get_node("ns=1;s=ExampleMachine.ParameterSet.Path")
-        points = await path.read_value()
-        print(f"Path: {len(points)} point(s), first at x={points[0].x}")  # noqa: T201
+        measurements_node = client.get_node("ns=1;s=ExampleMachine.ParameterSet.Measurements")
+        measurements = await measurements_node.read_value()
+        print(f"Measurements: {[each.name for each in measurements]}")  # noqa: T201
 
-        # A Waypoint where an array of Point belongs: the server's write check refuses it
+        # Add a measurement, built from a copy of the first one
+        width = type(measurements[0])(name="width", value=size.width, in_tolerance=False)
+        await measurements_node.write_value(ua.Variant([*measurements, width], ua.VariantType.ExtensionObject))
+        print(f"Measurements now: {[each.name for each in await measurements_node.read_value()]}")  # noqa: T201
+
+        # A workpiece where a list of measurements belongs: the server refuses it
         try:
-            await path.write_value(ua.Variant([waypoint], ua.VariantType.ExtensionObject))
+            await measurements_node.write_value(ua.Variant([workpiece], ua.VariantType.ExtensionObject))
         except ua.UaStatusCodeError as err:
-            print(f"Writing a Waypoint to Path was refused: {ua.StatusCode(err.code).name}")  # noqa: T201
+            print(f"Writing a workpiece to Measurements was refused: {ua.StatusCode(err.code).name}")  # noqa: T201
 
 
 if __name__ == "__main__":
