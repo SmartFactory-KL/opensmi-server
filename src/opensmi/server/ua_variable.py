@@ -334,7 +334,8 @@ class UaVariable(NotificationForwarderMixin, UaObject, Generic[_VariableType]):
     async def sync_writes(self, write_value: ua.WriteValue) -> list[ua.WriteValue]:
         """Return ``write_value`` for this variable and the writes that bring the rest of its tree in step with it.
 
-        All carry one ``SourceTimestamp``. A variable that is not part of a complex variable returns ``write_value``.
+        All carry one ``SourceTimestamp`` and the ``StatusCode`` of ``write_value``, so a bad status reaches every node.
+        A variable that is not part of a complex variable returns ``write_value``.
         """
         if self._complex_parent is None and not self._children:
             return [write_value]
@@ -345,7 +346,11 @@ class UaVariable(NotificationForwarderMixin, UaObject, Generic[_VariableType]):
             ua.WriteValue(
                 NodeId=node.ua_node.nodeid,
                 AttributeId=ua.attribute_ids.AttributeIds.Value,
-                Value=ua.DataValue(ua.Variant(part, node._initial_value.VariantType), SourceTimestamp=timestamp),  # noqa: SLF001  # pyright: ignore[reportArgumentType]
+                Value=ua.DataValue(
+                    ua.Variant(part, node._initial_value.VariantType),  # noqa: SLF001
+                    StatusCode=write_value.Value.StatusCode,
+                    SourceTimestamp=timestamp,  # pyright: ignore[reportArgumentType]
+                ),
             )
             for node, part in changes[1:]
         ]

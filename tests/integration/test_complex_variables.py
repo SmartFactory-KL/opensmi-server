@@ -328,6 +328,21 @@ async def test_a_write_gives_the_parent_and_the_affected_nodes_one_source_timest
 
 
 @pytest.mark.asyncio
+async def test_the_status_of_a_parent_write_reaches_every_node(empty_server) -> None:
+    current = (await empty_server.add_machine(PartMachine())).parameter_set.Current
+    nodes = (current, current["Size"], current["Size"]["Edge"]["Radius"], current["Id"])
+
+    for status in (ua.StatusCodes.BadNoCommunication, ua.StatusCodes.Good):
+        value = ua.Variant(make_part(id="P-4"), ua.VariantType.ExtensionObject)
+        await current.ua_node.write_value(ua.DataValue(Value=value, StatusCode=ua.StatusCode(status)))
+
+        for node in nodes:
+            data_value = await node.ua_node.read_data_value(raise_on_bad_status=False)
+            assert data_value.StatusCode.value == status, node.path
+    assert await current["Id"].read() == "P-4"
+
+
+@pytest.mark.asyncio
 async def test_a_refused_parent_write_changes_no_node(empty_server) -> None:
     guarded = (await empty_server.add_machine(PartMachine())).parameter_set.Guarded
     before = await snapshot(guarded)
