@@ -219,15 +219,23 @@ class AccessControlAttributeService(AttributeService):
                     continue
 
                 if isinstance(ua_object, UaVariable):
-                    try:
-                        value = ua_write_value.Value.Value.Value
-                        await ua_object.write_check(value)
-                    except UaStatusCodeError as err:
-                        result.append(ua.StatusCode(err.code))
-                        continue
-                    except OutOfRangeError as err:
-                        await ua_object.ua_log_error(err.msg, code=err.error_code)
-                        result.append(ua.StatusCode(ua.UInt32(StatusCodes.BadOutOfRange)))
+                    # one write at a time per complex variable: a leaf write merges into the parent's current value
+                    async with ua_object.tree_lock:
+                        try:
+                            value = ua_write_value.Value.Value.Value
+                            await ua_object.write_check(value)
+                        except UaStatusCodeError as err:
+                            result.append(ua.StatusCode(err.code))
+                            continue
+                        except OutOfRangeError as err:
+                            await ua_object.ua_log_error(err.msg, code=err.error_code)
+                            result.append(ua.StatusCode(ua.UInt32(StatusCodes.BadOutOfRange)))
+                            continue
+
+                        # a complex variable: the children (or the parent) get their part in the same call
+                        write_values = await ua_object.sync_writes(ua_write_value)
+                        result_sync = await super().write(ua.WriteParameters(write_values), user)  # pyright: ignore[reportArgumentType]
+                        result.append(next((code for code in result_sync if not code.is_good()), result_sync[0]))
                         continue
 
             # no failed checks? use default asyncua behavior:

@@ -125,6 +125,11 @@ class _Field(NamedTuple):
     """A `_SCALARS` class, or a dataclass for a nested structure."""
     array: bool
 
+    @property
+    def variant_type(self) -> ua.VariantType:
+        """The VariantType of the field, or of its elements: ``ExtensionObject`` for a nested structure."""
+        return _SCALARS.get(self.element, ua.VariantType.ExtensionObject)
+
 
 def _fields(cls: type) -> list[_Field]:
     if not (isinstance(cls, type) and dataclasses.is_dataclass(cls)):
