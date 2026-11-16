@@ -4,7 +4,8 @@ Shows structured values defined as dataclasses. The machine has two parameters: 
 (id, material and nested `Dimensions`), and `Measurements`, a list of `Measurement` (name, value, in tolerance). They
 are declared like any other variable, with a dataclass instance as `initial_value`. The structure types are created on
 the server when the variables are created, and the server reads and writes the dataclass objects directly. A list of
-a dataclass is checked on every write: only a list of that dataclass is accepted. The server changes the workpiece once
+a dataclass is checked on every write: only a list of that dataclass is accepted (a list that starts empty names its
+class with `variable_type`). The server changes the workpiece once
 after it starts.
 
 `client.py` is plain asyncua and knows none of the classes. It calls `load_data_type_definitions`, which builds them

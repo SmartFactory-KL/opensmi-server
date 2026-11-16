@@ -47,7 +47,8 @@ class Measurement:
 class ExampleParameterSet(ParameterSet):
     """Parameters of the example machine."""
 
-    # The structure types are created on the server when the variables are created
+    # The structure types are created on the server when the variables are created, in namespace 1 like enums.
+    # A list that starts empty names its class instead: UaVariable(initial_value=[], variable_type=Measurement)
     # bypass_lock=True allows write-access without occupation
     CurrentWorkpiece = UaVariable(
         initial_value=Workpiece("W-001", "steel", Dimensions(120.0, 80.0, 10.0)), writable=True, bypass_lock=True
