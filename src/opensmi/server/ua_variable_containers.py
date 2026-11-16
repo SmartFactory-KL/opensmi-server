@@ -20,6 +20,7 @@ from opensmi.core.nodesets import (
     SmartFactoryMachineSetNodeIds,
     SmartFactorySkillSetNodeIds,
 )
+from opensmi.core.paths import check_segment
 from opensmi.core.ua_node_util import get_properties
 from typing_extensions import override
 
@@ -83,6 +84,8 @@ class UaVariableContainer(NotificationForwarderMixin, UaObject):
             minimum_access_level=minimum_access_level,
             **kwargs,
         )
+        self._writable = writable
+        self._groups: dict[str, VariableGroup] = {}
 
         # class variables of type UaVariable are used as templates, we need to instantiate our own private ones.
         # find all variables, including inherited ones
@@ -99,6 +102,12 @@ class UaVariableContainer(NotificationForwarderMixin, UaObject):
                         "Cloned UaVariable template", name=name, class_variable=class_variable, cloned_variable=clone
                     )
                     setattr(self, name, clone)
+                elif isinstance(class_variable, VariableGroup):
+                    group = class_variable.clone(
+                        name=name, writable=writable, minimum_access_level=self.minimum_access_level
+                    )
+                    self._groups[name] = group
+                    setattr(self, name, group)
 
     def __init_subclass__(cls, **kwargs) -> None:
         """Collect unofficial Python docstrings for all attributes."""
@@ -209,6 +218,11 @@ class UaVariableContainer(NotificationForwarderMixin, UaObject):
                 variable.parent = self
                 await variable.ua_create_node(self.ua_node)
                 await variable.init()
+        for group in self._groups.values():
+            if not group.is_initialized:
+                group.parent = self
+                await group.ua_create_node(self.ua_node)
+                await group.init()
         yield
 
     async def add(
@@ -238,6 +252,56 @@ class UaVariableContainer(NotificationForwarderMixin, UaObject):
             await self.ua_node.add_reference(variable.ua_node, reftype=ua.object_ids.ObjectIds.Organizes)
             variable._add_alias(self.path / variable.name)  # noqa: SLF001
 
+    async def add_group(
+        self, name: str, *, display_name: str | None = None, runtime_keyed: bool = False
+    ) -> "VariableGroup":
+        """Add a group, an Object that holds variables and further groups, and return it.
+
+        :param name: The name of the group.
+        :param display_name: The display name of the group. Defaults to the name.
+        :param runtime_keyed: Whether the name comes from runtime data (a sensor, a diagnostic id, an order). Such a
+            name is only held to the hard rule of ``opensmi.core.paths``: not empty and without ``/``.
+        :raises ValueError: If the name is empty or contains ``/``.
+        :raises RuntimeError: If the container already has a node of this name.
+        """
+        group = VariableGroup(
+            name=name,
+            display_name=display_name,
+            runtime_keyed=runtime_keyed,
+            writable=self._writable,
+            minimum_access_level=self.minimum_access_level,
+        )
+        group.parent = self
+        await group.ua_create_node(self.ua_node)
+        await group.init()
+        self._groups[name] = group
+        return group
+
+    async def remove_group(self, name: str) -> None:
+        """Remove a group with everything below it.
+
+        :raises KeyError: If no group with given name exists.
+        """
+        group = self._groups.pop(name)
+        if self.__dict__.get(name) is group:  # declared in the class
+            delattr(self, name)
+        group._unregister()  # noqa: SLF001
+        await group.ua_node.delete(recursive=True)
+
+    def _unregister(self) -> None:
+        """Unregister this container and everything below it from the server."""
+        for variable in self:
+            if variable.parent is self:  # not one that another container owns
+                self._unregister_variable(variable)
+        for group in self._groups.values():
+            group._unregister()  # noqa: SLF001
+        self.server.unregister_ua_object(self)
+
+    def _unregister_variable(self, variable: UaVariable) -> None:
+        for child in variable.children.values():
+            self._unregister_variable(child)
+        self.server.unregister_ua_object(variable)
+
     # @override
     # async def _after_init(self) -> None:
     #     await super()._after_init()
@@ -258,10 +322,17 @@ class UaVariableContainer(NotificationForwarderMixin, UaObject):
         """Reset all contained `UaVariable` to their initial value."""
         for variable in self:
             await variable.reset()
+        for group in self._groups.values():
+            await group.reset_all()
 
     async def read_all(self) -> Mapping[str, Any]:
-        """Read all contained variables and return a mapping from variable name to value."""
-        return {var.name: await var.read() for var in self}
+        """Read all contained variables and return a mapping from variable name to value.
+
+        A group is a nested mapping of its own.
+        """
+        values = {var.name: await var.read() for var in self}
+        values.update({name: await group.read_all() for name, group in self._groups.items()})
+        return values
 
     async def write_all(self, mapping: Mapping[str, Any]) -> None:
         """Write to all given ``mapping`` of variables name and their values.
@@ -270,25 +341,30 @@ class UaVariableContainer(NotificationForwarderMixin, UaObject):
         :raises OutOfRangeError: if value of ``mapping`` is not within the range of the corresponding variable.
         """
         for name, value in mapping.items():
-            await self[name].write(value)
+            if name in self._groups:
+                await self._groups[name].write_all(value)
+            else:
+                await self[name].write(value)
 
     #
     # Pythonic container interface
     #
 
-    def __getitem__(self, name: str) -> UaVariable:
-        """Get a `UaVariable` by the given ``name``.
+    def __getitem__(self, name: str) -> Any:  # a `UaVariable`, or a `VariableGroup`
+        """Get a `UaVariable` or a `VariableGroup` by the given ``name``.
 
-        :raises KeyError: If no variable with given name exists.
+        :raises KeyError: If no variable or group with given name exists.
         """
+        if name in self._groups:
+            return self._groups[name]
         if isinstance(variable := self.__dict__.get(name), UaVariable):
             return variable
-        msg = f"No UaVariable named '{name}' contained in {self.path}!"
+        msg = f"No UaVariable or VariableGroup named '{name}' contained in {self.path}!"
         raise KeyError(msg)
 
     def __contains__(self, key: object) -> bool:
-        """Whether a variable with given ``name`` exists in this container."""
-        return isinstance(key, str) and isinstance(self.__dict__.get(key), UaVariable)
+        """Whether a variable or group with given ``name`` exists in this container."""
+        return isinstance(key, str) and (key in self._groups or isinstance(self.__dict__.get(key), UaVariable))
 
     def __len__(self) -> int:
         """Return the number of contained `UaVariable`."""
@@ -297,6 +373,70 @@ class UaVariableContainer(NotificationForwarderMixin, UaObject):
     def __iter__(self) -> Iterator[UaVariable]:
         """Iterate over the contained `UaVariable`."""
         return (var for var in self.__dict__.values() if isinstance(var, UaVariable))
+
+
+class VariableGroup(UaVariableContainer):
+    """A group of variables and further groups: an Object of ``BaseObjectType`` below a variable container.
+
+    It can sit in `ParameterSet`, `Monitoring`, `FinalResultData` or another group. Declare it like a `UaVariable`,
+    as a class attribute of a container class, or add it at runtime with `UaVariableContainer.add_group`::
+
+        class FollowPath(VariableGroup):
+            MaxVelX = UaVariable(initial_value=0.5, writable=True)
+
+
+        class Parameters(ParameterSet):
+            FollowPath = FollowPath()
+
+    The group inherits ``writable`` and ``minimum_access_level`` from its container. Names that come from runtime data
+    are exempt from the naming rule with ``runtime_keyed``, see `UaVariableContainer.add_group`.
+    """
+
+    def __init__(
+        self,
+        *,
+        name: str | None = None,
+        display_name: str | None = None,
+        runtime_keyed: bool = False,
+        **kwargs,
+    ) -> None:
+        """*Cooperative* constructor.
+
+        :param name: The name of the group. Defaults to the Python class name.
+        :param display_name: The display name of the group. Defaults to the name.
+        :param runtime_keyed: Whether the name comes from runtime data. Then it is only held to the hard rule of
+            ``opensmi.core.paths`` (not empty, no ``/``) instead of the naming rule.
+        :raises ValueError: If the name is empty or contains ``/``.
+        """
+        name = type(self).__name__ if name is None else name
+        check_segment(name)
+        super().__init__(name=name, **kwargs)
+        self._display_name = display_name
+        self.runtime_keyed = runtime_keyed
+        """Whether the name comes from runtime data, and is exempt from the naming rule."""
+
+    def clone(self, *, name: str, writable: bool, minimum_access_level: int) -> "VariableGroup":
+        """Return a new group of the same class for a container; it must be initialized before using it."""
+        return type(self)(
+            name=name,
+            display_name=self._display_name,
+            runtime_keyed=self.runtime_keyed,
+            writable=writable,
+            minimum_access_level=minimum_access_level,
+        )
+
+    @override
+    async def _get_definition(self) -> UaObjectDefinition:
+        return UaObjectDefinition(object_type=ua.NodeId(ua.Int32(ua.object_ids.ObjectIds.BaseObjectType)))
+
+    @lifecycle
+    async def _lifecycle_group(self) -> AsyncGenerator[None]:
+        if self._display_name is not None:
+            await self.ua_node.write_attribute(
+                ua.attribute_ids.AttributeIds.DisplayName,
+                ua.DataValue(ua.Variant(ua.LocalizedText(self._display_name))),
+            )
+        yield
 
 
 class ParameterSet(UaVariableContainer):

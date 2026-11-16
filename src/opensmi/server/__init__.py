@@ -32,6 +32,7 @@ from opensmi.server.ua_variable_containers import Attributes as Attributes
 from opensmi.server.ua_variable_containers import FinalResultData as FinalResultData
 from opensmi.server.ua_variable_containers import Monitoring as Monitoring
 from opensmi.server.ua_variable_containers import ParameterSet as ParameterSet
+from opensmi.server.ua_variable_containers import VariableGroup as VariableGroup
 from opensmi.server.user import User as User
 
 
