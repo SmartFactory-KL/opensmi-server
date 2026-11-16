@@ -14,11 +14,12 @@ from asyncua import ua
 from asyncua.client.client import Client
 from asyncua.common.utils import Buffer
 from asyncua.ua.object_ids import ObjectIds
+from asyncua.ua.status_codes import StatusCodes
 from asyncua.ua.ua_binary import extensionobject_from_binary, extensionobject_to_binary
 
 from opensmi.server import BaseMachine, ParameterSet, UaVariable
 from opensmi.server.mixins import ParameterSetMixin
-from opensmi.server.structures import StructureConflictError, register_structure
+from opensmi.server.structures import TypeConflictError
 
 
 @dataclass
@@ -82,7 +83,7 @@ async def exists(server, node_id: ua.NodeId) -> bool:
 
 @pytest.mark.asyncio
 async def test_register_creates_the_data_type_under_base_structure(empty_server, namespace) -> None:
-    node_id = await register_structure(empty_server.ua_server, Point, namespace)
+    node_id = await empty_server.ensure_structure(Point, namespace_index=namespace)
 
     assert node_id == ua.NodeId("Point", namespace)
     node = empty_server.ua_server.get_node(node_id)
@@ -93,18 +94,14 @@ async def test_register_creates_the_data_type_under_base_structure(empty_server,
 
 
 @pytest.mark.asyncio
-async def test_register_accepts_the_opensmi_server_as_well(empty_server, namespace) -> None:
-    assert await register_structure(empty_server, Point, namespace) == ua.NodeId("Point", namespace)
-
-
-@pytest.mark.asyncio
-async def test_the_namespace_defaults_to_the_one_registered_last(empty_server, namespace) -> None:
-    assert await register_structure(empty_server.ua_server, Point) == ua.NodeId("Point", namespace)
+async def test_the_namespace_defaults_to_one(empty_server) -> None:
+    assert await empty_server.ensure_structure(Point) == ua.NodeId("Point", 1)
+    assert await exists(empty_server.ua_server, ua.NodeId("Point.DefaultBinary", 1))
 
 
 @pytest.mark.asyncio
 async def test_the_definition_names_the_encoding_and_maps_the_type_hints(empty_server, namespace) -> None:
-    await register_structure(empty_server.ua_server, Shape, namespace)
+    await empty_server.ensure_structure(Shape, namespace_index=namespace)
 
     definition = await empty_server.ua_server.get_node(ua.NodeId("Shape", namespace)).read_data_type_definition()
 
@@ -126,14 +123,14 @@ async def test_the_definition_names_the_encoding_and_maps_the_type_hints(empty_s
 
 @pytest.mark.asyncio
 async def test_nested_structures_are_registered_too(empty_server, namespace) -> None:
-    await register_structure(empty_server.ua_server, Shape, namespace)
+    await empty_server.ensure_structure(Shape, namespace_index=namespace)
 
     assert await exists(empty_server.ua_server, ua.NodeId("Point", namespace))
 
 
 @pytest.mark.asyncio
 async def test_the_encoding_node_is_a_default_binary_object_typed_data_type_encoding(empty_server, namespace) -> None:
-    await register_structure(empty_server.ua_server, Point, namespace)
+    await empty_server.ensure_structure(Point, namespace_index=namespace)
 
     encoding = empty_server.ua_server.get_node(ua.NodeId("Point.DefaultBinary", namespace))
 
@@ -147,9 +144,9 @@ async def test_the_encoding_node_is_a_default_binary_object_typed_data_type_enco
 
 @pytest.mark.asyncio
 async def test_register_is_idempotent(empty_server, namespace) -> None:
-    first = await register_structure(empty_server.ua_server, Shape, namespace)
-    second = await register_structure(empty_server.ua_server, Shape, namespace)
-    point = await register_structure(empty_server.ua_server, Point, namespace)
+    first = await empty_server.ensure_structure(Shape, namespace_index=namespace)
+    second = await empty_server.ensure_structure(Shape, namespace_index=namespace)
+    point = await empty_server.ensure_structure(Point, namespace_index=namespace)
 
     assert first == second == ua.NodeId("Shape", namespace)
     assert point == ua.NodeId("Point", namespace)
@@ -162,10 +159,10 @@ async def test_register_is_idempotent(empty_server, namespace) -> None:
 
 @pytest.mark.asyncio
 async def test_an_equal_class_registers_again_and_encodes(empty_server, namespace) -> None:
-    await register_structure(empty_server.ua_server, Point, namespace)
+    await empty_server.ensure_structure(Point, namespace_index=namespace)
     again = make_dataclass("Point", [("x", ua.Double, ua.Double(0.0)), ("y", ua.Double, ua.Double(0.0))])
 
-    await register_structure(empty_server.ua_server, again, namespace)
+    await empty_server.ensure_structure(again, namespace_index=namespace)
 
     variable = await empty_server.ua_server.nodes.objects.add_variable(
         ua.NodeId("again", namespace), ua.QualifiedName("again", namespace), again(1.0, 2.0)
@@ -175,21 +172,21 @@ async def test_an_equal_class_registers_again_and_encodes(empty_server, namespac
 
 @pytest.mark.asyncio
 async def test_a_different_class_under_a_taken_name_is_refused(empty_server, namespace) -> None:
-    await register_structure(empty_server.ua_server, Point, namespace)
+    await empty_server.ensure_structure(Point, namespace_index=namespace)
     other = make_dataclass("Point", [("x", ua.Float, ua.Float(0.0))])
 
-    with pytest.raises(StructureConflictError, match="Point"):
-        await register_structure(empty_server.ua_server, other, namespace)
+    with pytest.raises(TypeConflictError, match="Point"):
+        await empty_server.ensure_structure(other, namespace_index=namespace)
 
 
 @pytest.mark.asyncio
 async def test_a_nested_conflict_is_refused_before_anything_is_created(empty_server, namespace) -> None:
-    await register_structure(empty_server.ua_server, Point, namespace)
+    await empty_server.ensure_structure(Point, namespace_index=namespace)
     other = make_dataclass("Point", [("x", ua.Float, ua.Float(0.0))])
     wrapper = make_dataclass("Wrapper", [("inner", other)])
 
-    with pytest.raises(StructureConflictError, match="Point"):
-        await register_structure(empty_server.ua_server, wrapper, namespace)
+    with pytest.raises(TypeConflictError, match="Point"):
+        await empty_server.ensure_structure(wrapper, namespace_index=namespace)
 
     assert not await exists(empty_server.ua_server, ua.NodeId("Wrapper", namespace))
 
@@ -199,8 +196,8 @@ async def test_two_classes_of_one_name_within_one_structure_are_refused(empty_se
     other = make_dataclass("Point", [("z", ua.Double, ua.Double(0.0))])
     clash = make_dataclass("Clash", [("a", Point), ("b", other)])
 
-    with pytest.raises(StructureConflictError, match="Point"):
-        await register_structure(empty_server.ua_server, clash, namespace)
+    with pytest.raises(TypeConflictError, match="Point"):
+        await empty_server.ensure_structure(clash, namespace_index=namespace)
 
     assert not await exists(empty_server.ua_server, ua.NodeId("Point", namespace))
     assert not await exists(empty_server.ua_server, ua.NodeId("Clash", namespace))
@@ -223,7 +220,7 @@ async def test_unsupported_field_types_are_refused_with_the_field_named(empty_se
     odd = make_dataclass("Odd", [("wrong", hint)])
 
     with pytest.raises(TypeError, match=rf"wrong.*{message}|{message}.*wrong"):
-        await register_structure(empty_server.ua_server, odd, namespace)
+        await empty_server.ensure_structure(odd, namespace_index=namespace)
 
     assert not await exists(empty_server.ua_server, ua.NodeId("Odd", namespace))
 
@@ -231,7 +228,7 @@ async def test_unsupported_field_types_are_refused_with_the_field_named(empty_se
 @pytest.mark.asyncio
 async def test_something_that_is_not_a_dataclass_is_refused(empty_server, namespace) -> None:
     with pytest.raises(TypeError, match="dataclass"):
-        await register_structure(empty_server.ua_server, dict, namespace)
+        await empty_server.ensure_structure(dict, namespace_index=namespace)
 
 
 @pytest.mark.asyncio
@@ -241,7 +238,7 @@ async def test_a_dataclass_made_at_runtime_works_like_a_written_one(empty_server
         [("frame", ua.String, ua.String("map")), ("position", Point, field(default_factory=Point))],
     )
 
-    node_id = await register_structure(empty_server.ua_server, pose, namespace)
+    node_id = await empty_server.ensure_structure(pose, namespace_index=namespace)
     variable = await empty_server.ua_server.nodes.objects.add_variable(
         ua.NodeId("pose", namespace),
         ua.QualifiedName("pose", namespace),
@@ -256,7 +253,7 @@ async def test_a_dataclass_made_at_runtime_works_like_a_written_one(empty_server
 @pytest.mark.asyncio
 async def test_a_client_round_trips_a_value_through_load_data_type_definitions(empty_server, namespace) -> None:
     ua_server = empty_server.ua_server
-    node_id = await register_structure(ua_server, Shape, namespace)
+    node_id = await empty_server.ensure_structure(Shape, namespace_index=namespace)
     variable = await ua_server.nodes.objects.add_variable(
         ua.NodeId("shapes", namespace),
         ua.QualifiedName("shapes", namespace),
@@ -290,7 +287,7 @@ async def test_a_client_round_trips_a_value_through_load_data_type_definitions(e
 
 @pytest.mark.asyncio
 async def test_registered_classes_travel_as_extension_objects(empty_server, namespace) -> None:
-    await register_structure(empty_server.ua_server, Shape, namespace)
+    await empty_server.ensure_structure(Shape, namespace_index=namespace)
 
     wire = extensionobject_to_binary(SHAPE_VALUE)
     received = extensionobject_from_binary(Buffer(wire))
@@ -303,7 +300,7 @@ async def test_registered_classes_travel_as_extension_objects(empty_server, name
 @pytest.mark.asyncio
 async def test_a_client_can_read_the_definition_without_generating_classes(empty_server, namespace) -> None:
     ua_server = empty_server.ua_server
-    await register_structure(ua_server, Point, namespace)
+    await empty_server.ensure_structure(Point, namespace_index=namespace)
 
     async with Client(f"opc.tcp://operator:operator@localhost:{ua_server.bserver.port}") as client:
         definition = await client.get_node(ua.NodeId("Point", namespace)).read_data_type_definition()
@@ -327,7 +324,7 @@ class Plain:
 
 @pytest.mark.asyncio
 async def test_plain_annotations_stand_for_the_ua_types(empty_server, namespace) -> None:
-    await register_structure(empty_server.ua_server, Plain, namespace)
+    await empty_server.ensure_structure(Plain, namespace_index=namespace)
 
     definition = await empty_server.ua_server.get_node(ua.NodeId("Plain", namespace)).read_data_type_definition()
     value = Plain(1.5, 2, "three", True, b"", [5.5], [Point(6.0, 7.0)])
@@ -390,3 +387,176 @@ async def test_a_variable_with_a_dataclass_value_registers_the_structure_itself(
     assert (await results.read())[0] == Measurement("width", in_tolerance=False)
     with pytest.raises(ua.UaStatusCodeError):
         await results.write_check([Dimensions()])  # pyright: ignore[reportArgumentType]
+
+
+@dataclass
+class Gauge:
+    reading: ua.Double = 0.0
+
+
+class GaugeMachine(BaseMachine):
+    async def _write_identification(self) -> None:
+        await self.identification.SerialNumber.write("1")
+        await self.identification.ProductInstanceUri.write("urn:example:1")
+        await self.identification.Manufacturer.write(ua.LocalizedText("Example", "en"))
+
+
+class GaugeParameters(ParameterSet):
+    Plain = UaVariable(initial_value=Gauge(2.0), writable=True, bypass_lock=True)
+
+
+class PlainGaugeMachine(ParameterSetMixin[GaugeParameters], GaugeMachine):
+    pass
+
+
+@pytest.mark.asyncio
+async def test_an_explicit_ua_data_type_is_used_and_no_second_type_is_minted(empty_server, namespace) -> None:
+    node_id = await empty_server.ensure_structure(Gauge, namespace_index=namespace)
+
+    class Explicit(ParameterSet):
+        Chosen = UaVariable(initial_value=Gauge(1.0), ua_data_type=node_id, writable=True, bypass_lock=True)
+
+    class ExplicitMachine(ParameterSetMixin[Explicit], GaugeMachine):
+        pass
+
+    machine = await empty_server.add_machine(ExplicitMachine())
+
+    assert (await machine.parameter_set.Chosen.ua_node.read_data_type()) == node_id
+    assert not await exists(empty_server.ua_server, ua.NodeId("Gauge", 1))
+    assert (await machine.parameter_set.Chosen.read()) == Gauge(1.0)
+
+
+@pytest.mark.asyncio
+async def test_a_class_that_has_a_data_type_keeps_it(empty_server, namespace) -> None:
+    node_id = await empty_server.ensure_structure(Gauge, namespace_index=namespace)
+
+    machine = await empty_server.add_machine(PlainGaugeMachine())
+
+    assert (await machine.parameter_set.Plain.ua_node.read_data_type()) == node_id
+    assert not await exists(empty_server.ua_server, ua.NodeId("Gauge", 1))
+
+
+@pytest.mark.asyncio
+async def test_a_class_without_a_data_type_gets_one_in_namespace_one(empty_server) -> None:
+    machine = await empty_server.add_machine(PlainGaugeMachine())
+
+    assert (await machine.parameter_set.Plain.ua_node.read_data_type()) == ua.NodeId("Gauge", 1)
+    assert await empty_server.ensure_structure(Gauge) == ua.NodeId("Gauge", 1)
+
+
+@pytest.mark.asyncio
+async def test_a_scalar_structure_variable_refuses_other_values(empty_server) -> None:
+    machine = await empty_server.add_machine(PlainGaugeMachine())
+    plain = machine.parameter_set.Plain
+
+    await plain.write_check(Gauge(3.0))
+    for wrong in (Dimensions(), 1.0, [Gauge()]):
+        with pytest.raises(ua.UaStatusCodeError) as refused:
+            await plain.write_check(wrong)  # pyright: ignore[reportArgumentType]
+        assert refused.value.code == StatusCodes.BadTypeMismatch
+
+
+@pytest.mark.asyncio
+async def test_a_write_check_callback_replaces_the_scalar_check(empty_server) -> None:
+    class Custom(ParameterSet):
+        Free = UaVariable(initial_value=Gauge(), write_check_callback=lambda _: None, bypass_lock=True)
+
+    class CustomMachine(ParameterSetMixin[Custom], GaugeMachine):
+        pass
+
+    machine = await empty_server.add_machine(CustomMachine())
+
+    await machine.parameter_set.Free.write_check(Dimensions())  # pyright: ignore[reportArgumentType]
+
+
+class EmptyParameters(ParameterSet):
+    Readings = UaVariable(initial_value=[], variable_type=Measurement, writable=True, bypass_lock=True)
+
+
+class EmptyMachine(ParameterSetMixin[EmptyParameters], GaugeMachine):
+    pass
+
+
+@pytest.mark.asyncio
+async def test_an_empty_list_with_variable_type_declares_an_array_of_the_structure(empty_server) -> None:
+    machine = await empty_server.add_machine(EmptyMachine())
+    readings = machine.parameter_set.Readings
+
+    assert (await readings.ua_node.read_data_type()) == ua.NodeId("Measurement", 1)
+    assert (await readings.ua_node.read_value_rank()) == ua.ValueRank.OneDimension
+    assert (await readings.read()) == []
+    await readings.write([Measurement("length")])
+    assert (await readings.read()) == [Measurement("length")]
+    with pytest.raises(ua.UaStatusCodeError):
+        await readings.write_check([Dimensions()])  # pyright: ignore[reportArgumentType]
+
+
+@dataclass
+class Fresh:
+    value: float = 0.0
+
+
+@pytest.mark.asyncio
+async def test_a_refused_registration_leaves_the_annotations_of_the_class_alone(empty_server, namespace) -> None:
+    await empty_server.ensure_structure(Point, namespace_index=namespace)
+    other = make_dataclass("Point", [("x", ua.Float, ua.Float(0.0))])
+    wrapper = make_dataclass("Wrapper", [("plain", float), ("inner", other)])
+
+    with pytest.raises(TypeConflictError):
+        await empty_server.ensure_structure(wrapper, namespace_index=namespace)
+
+    assert wrapper.__annotations__["plain"] is float
+
+
+@pytest.mark.asyncio
+async def test_registering_changes_the_annotations_to_ua_classes(empty_server) -> None:
+    await empty_server.ensure_structure(Fresh)
+
+    assert Fresh.__annotations__["value"] is ua.Double
+
+
+def two_doubles(name: str) -> type:
+    return make_dataclass(name, [("x", ua.Double, ua.Double(0.0)), ("y", ua.Double, ua.Double(0.0))])
+
+
+@pytest.mark.asyncio
+async def test_register_structure_binds_a_class_to_an_existing_data_type(empty_server, namespace) -> None:
+    node_id = await empty_server.ensure_structure(Point, namespace_index=namespace)
+    elsewhere = two_doubles("Elsewhere")
+
+    await empty_server.register_structure(elsewhere, ua_data_type=node_id)
+
+    assert not await exists(empty_server.ua_server, ua.NodeId("Elsewhere", namespace))
+    assert not await exists(empty_server.ua_server, ua.NodeId("Elsewhere", 1))
+    received = extensionobject_from_binary(Buffer(extensionobject_to_binary(elsewhere(1.0, 2.0))))
+    assert type(received) is elsewhere
+    assert received == elsewhere(1.0, 2.0)
+
+
+@pytest.mark.asyncio
+async def test_a_bound_class_is_used_by_variables(empty_server, namespace) -> None:
+    node_id = await empty_server.ensure_structure(Point, namespace_index=namespace)
+    bound = two_doubles("Bound")
+    await empty_server.register_structure(bound, ua_data_type=node_id)
+
+    class BoundParameters(ParameterSet):
+        Value = UaVariable(initial_value=bound(1.0, 2.0), writable=True, bypass_lock=True)
+
+    class BoundMachine(ParameterSetMixin[BoundParameters], GaugeMachine):
+        pass
+
+    machine = await empty_server.add_machine(BoundMachine())
+
+    assert (await machine.parameter_set.Value.ua_node.read_data_type()) == node_id
+    assert (await machine.parameter_set.Value.read()) == bound(1.0, 2.0)
+    assert not await exists(empty_server.ua_server, ua.NodeId("Bound", 1))
+
+
+@pytest.mark.asyncio
+async def test_register_structure_refuses_a_data_type_without_default_binary_encoding(empty_server, namespace) -> None:
+    bare = await empty_server.ua_server.nodes.base_structure_type.add_data_type(
+        ua.NodeId("Bare", namespace), ua.QualifiedName("Bare", namespace)
+    )
+
+    with pytest.raises(ValueError, match="Default Binary"):
+        await empty_server.register_structure(Point, ua_data_type=bare.nodeid)

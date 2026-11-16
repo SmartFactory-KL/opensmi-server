@@ -4,9 +4,9 @@
 
 """Structure DataTypes defined as dataclasses, for companion specifications without a nodeset.
 
-A dataclass is the definition. `register_structure` creates the DataType, its Default Binary encoding and
-its ``DataTypeDefinition`` on a server, and teaches asyncua the class, so instances can be stored in a
-variable, written to it and read from it like any other value::
+A dataclass is the definition. `Server.ensure_structure` creates the DataType, its Default Binary encoding and
+its ``DataTypeDefinition``, and teaches asyncua the class, so instances can be stored in a variable, written to
+it and read from it like any other value::
 
     @dataclass
     class Point:
@@ -14,35 +14,42 @@ variable, written to it and read from it like any other value::
         y: float = 0.0
 
 
-    data_type = await register_structure(server, Point)
+    data_type = await server.ensure_structure(Point)
     position = UaVariable(Point(), name="Position", ua_data_type=data_type)
 
 A `UaVariable` whose initial value is such a dataclass instance, or a list of them, does this itself, in
-namespace 1 like enums.
-A client needs no class of its own: ``Client.load_data_type_definitions()`` builds one from the
-``DataTypeDefinition``.
+namespace 1 like enums. For an empty list, pass the class as ``variable_type``. If the DataType already exists
+(from an imported nodeset, or created elsewhere), `Server.register_structure` binds a class to it without
+creating anything. A client needs no class of its own: ``Client.load_data_type_definitions()`` builds one from
+the ``DataTypeDefinition``.
 
 **Field types.** Annotate fields with plain Python types, which stand for ``float``: Double, ``int``: Int64
 (like a plain int in a `UaVariable`), ``str``: String, ``bool``: Boolean and ``bytes``: ByteString. Where a
 field needs another OPC UA type, use the classes of ``asyncua.ua``: ``SByte``, ``Byte``, ``Int16``, ``UInt16``,
-``Int32``, ``UInt32``, ``UInt64``, ``Float`` and the like. A field may also be another dataclass (registered
-first, automatically) or a ``list`` of any of these for a one-dimensional array. Anything else is refused with a
-`TypeError` that names the field. Because asyncua encodes by the annotations of the class and knows only its own
-types, `register_structure` replaces the plain annotations of the class by the ``ua`` classes, in place.
+``Int32``, ``UInt32``, ``UInt64``, ``Float`` and the like. A field may also be another dataclass (created
+first, automatically by ``ensure_structure``) or a ``list`` of any of these for a one-dimensional array.
+Anything else is refused with a `TypeError` that names the field. Because asyncua encodes by the annotations of
+the class and knows only its own types, registering a class replaces its plain annotations by the ``ua``
+classes, in place. This changes the class for everybody who uses it.
 
 **Names.** The NodeIds are strings derived from the class name (``<name>`` and ``<name>.DefaultBinary``), so
-they do not depend on the order of registration. Registering again does nothing. A different class under a name
-that is taken is refused with `StructureConflictError` before any node is created.
+they do not depend on the order of registration. Creating again does nothing. A different class under a name
+that is taken in the same namespace is refused with `TypeConflictError` before any node is created.
 
-**One process.** asyncua keeps its table of structure classes per process, keyed by NodeId. Two servers in one
-process that use the same namespace index and class name must therefore mean the same structure.
+**Trust.** Beyond that conflict check, nothing is verified. A class bound with ``register_structure`` must match
+the DataTypeDefinition of its DataType, a variable with an explicit ``ua_data_type`` needs its class registered
+or bound with that DataType, and only the first element of a list decides the class of a variable. Get these
+wrong and encoding fails; use them only if you know what you are doing.
+
+**One process.** asyncua keeps its table of structure classes per process, keyed by NodeId. This is acceptable
+here because one `Server` per process is the normal case; two Servers in one process must not give different
+classes the same name in one namespace.
 """
 
 import asyncio
 import dataclasses
 import types
 import typing
-import weakref
 from enum import Enum
 from typing import TYPE_CHECKING, Final, NamedTuple
 
@@ -56,14 +63,19 @@ if TYPE_CHECKING:
 
     from asyncua.server.server import Server
 
-    from opensmi.server import Server as OpensmiServer
-
-__all__ = ["StructureConflictError", "register_structure", "structure_array_write_check", "structure_class"]
+__all__ = [
+    "StructureRegistry",
+    "TypeConflictError",
+    "structure_array_write_check",
+    "structure_class",
+    "structure_write_check",
+]
 
 _STRUCTURE: Final = ua.NodeId(ua.Int32(ObjectIds.Structure), ua.Int16(0))
 _DATA_TYPE_ENCODING_TYPE: Final = ua.NodeId(ua.Int32(ObjectIds.DataTypeEncodingType), ua.Int16(0))
 _HAS_TYPE_DEFINITION: Final = ua.NodeId(ua.Int32(ObjectIds.HasTypeDefinition), ua.Int16(0))
 _ENCODING_SUFFIX: Final = ".DefaultBinary"
+_ENCODING_NAME: Final = "Default Binary"
 
 _SCALARS: Final[dict[object, ua.VariantType]] = {
     getattr(ua, name): ua.VariantType[name]
@@ -97,8 +109,8 @@ _PLAIN: Final[dict[object, type]] = {
 _Key = tuple[str, str, bool]
 
 
-class StructureConflictError(ValueError):
-    """A structure cannot be registered because its name is taken by a different definition."""
+class TypeConflictError(ValueError):
+    """A type cannot be created because its name is taken by a different definition."""
 
 
 class _Field(NamedTuple):
@@ -112,15 +124,17 @@ class _Field(NamedTuple):
         return self.name, ("" if self.element in _SCALARS else "@") + self.element.__name__, self.array
 
 
-class _Registry:
-    """What was created on one server, by namespace index and name, as the keys of the fields."""
+class StructureRegistry:
+    """What a `Server` knows about structures. Lives as long as the server and is never reset."""
 
     def __init__(self) -> None:
-        self.created: dict[tuple[int, str], tuple[_Key, ...]] = {}
+        """Create an empty registry."""
         self.lock = asyncio.Lock()
-
-
-_REGISTRIES: Final[weakref.WeakKeyDictionary[object, _Registry]] = weakref.WeakKeyDictionary()
+        """Held while structures are created or bound."""
+        self.by_class: dict[type, ua.NodeId] = {}
+        """The DataType of each class that has one, whether created here or bound to an existing one."""
+        self.created: dict[tuple[int, str], tuple[_Key, ...]] = {}
+        """The keys of the fields of each structure created, by namespace index and name."""
 
 
 def _fields(cls: type) -> list[_Field]:
@@ -128,11 +142,13 @@ def _fields(cls: type) -> list[_Field]:
         msg = f"{cls!r} is not a dataclass"
         raise TypeError(msg)
     hints = typing.get_type_hints(cls)
-    fields = [_Field(each.name, *_element(cls, each.name, hints[each.name])) for each in dataclasses.fields(cls)]
+    return [_Field(each.name, *_element(cls, each.name, hints[each.name])) for each in dataclasses.fields(cls)]
+
+
+def _use_ua_annotations(cls: type, fields: list[_Field]) -> None:
     # asyncua encodes by the annotations of the class, and it only knows its own types: float would not encode
     for each in fields:
         cls.__annotations__[each.name] = list[each.element] if each.array else each.element
-    return fields
 
 
 def _element(cls: type, name: str, hint: object) -> tuple[type, bool]:
@@ -156,10 +172,17 @@ def _is_user_dataclass(hint: type) -> bool:
     return dataclasses.is_dataclass(hint) and not hint.__module__.startswith("asyncua")
 
 
-def structure_class(value: object) -> type | None:
-    """Return the dataclass of a value, or of the first element of a list, or ``None`` if it is not a structure."""
-    if isinstance(value, list) and value:
-        value = value[0]
+def structure_class(value: object, variable_type: object = None) -> type | None:
+    """Return the dataclass of a value, or of the first element of a list, or ``None`` if it is not a structure.
+
+    Only the first element decides, the others are not looked at. An empty list has no element, so its class is
+    ``variable_type``, if that is a dataclass.
+    """
+    if isinstance(value, list):
+        if value:
+            value = value[0]
+        elif isinstance(variable_type, type) and _is_user_dataclass(variable_type):
+            return variable_type
     cls = type(value)
     return cls if _is_user_dataclass(cls) and not issubclass(cls, Enum) else None
 
@@ -181,47 +204,55 @@ def _require_same(name: str, known: tuple[_Key, ...], wanted: tuple[_Key, ...]) 
     if known != wanted:
         listed = ", ".join(repr(each[0]) for each in known)
         msg = f"structure {name!r} is already defined with the fields {listed}, which differ"
-        raise StructureConflictError(msg)
+        raise TypeConflictError(msg)
 
 
-async def register_structure(
-    server: "Server | OpensmiServer", cls: type, namespace_index: int | None = None
+async def ensure_structure(
+    registry: StructureRegistry, server: "Server", cls: type, namespace_index: int = 1
 ) -> ua.NodeId:
     """Create the DataType of a dataclass on a server, and of the dataclasses it nests, unless they exist.
 
-    For each structure the DataType node comes first, then its Default Binary encoding node and last the
-    ``DataTypeDefinition`` attribute. The classes are registered with asyncua as well, whether or not the nodes
-    existed, so their instances encode and decode.
-
-    :param server: The asyncua server whose address space gets the types, or the opensmi server that holds it.
-    :param cls: The dataclass. Its name is the name of the DataType.
-    :param namespace_index: The namespace of the types. By default the one registered last, so register your
-        own namespace first.
-    :raises TypeError: if ``cls`` is not a dataclass or a field has an unsupported type.
-    :raises StructureConflictError: if a structure of that name exists with other fields, or ``cls`` nests two
-        different classes of one name. Nothing is created in that case.
-    :return: The NodeId of the DataType, to pass as ``ua_data_type`` of a variable.
+    This is `Server.ensure_structure`, see there.
     """
-    ua_server = typing.cast("Server", getattr(server, "ua_server", server))
     found: dict[str, tuple[type, list[_Field]]] = {}
     _collect(cls, found)
-    if namespace_index is None:
-        namespace_index = len(await ua_server.get_namespace_array()) - 1
-    registry = _REGISTRIES.setdefault(ua_server, _Registry())
     async with registry.lock:
         keys = {name: tuple(each.key() for each in fields) for name, (_, fields) in found.items()}
         for name, key in keys.items():
             known = registry.created.get((namespace_index, name))
             if known is not None:
                 _require_same(name, known, key)
+        # only now that nothing was refused may the annotations of the classes change
+        for each, fields in found.values():
+            _use_ua_annotations(each, fields)
         for name, (each, fields) in found.items():
             if (namespace_index, name) not in registry.created:
-                await _create(ua_server, namespace_index, name, fields)
+                await _create(server, namespace_index, name, fields)
                 registry.created[namespace_index, name] = keys[name]
             ua.register_extension_object(
                 name, _node_id(name + _ENCODING_SUFFIX, namespace_index), each, _node_id(name, namespace_index)
             )
+            registry.by_class.setdefault(each, _node_id(name, namespace_index))
     return _node_id(cls.__name__, namespace_index)
+
+
+async def register_structure(registry: StructureRegistry, server: "Server", cls: type, ua_data_type: ua.NodeId) -> None:
+    """Bind a dataclass to a DataType that exists. This is `Server.register_structure`, see there."""
+    fields = _fields(cls)
+    encoding_id = None
+    for reference in await server.get_node(ua_data_type).get_references(
+        refs=ObjectIds.HasEncoding, direction=ua.BrowseDirection.Forward
+    ):
+        if (await server.get_node(reference.NodeId).read_browse_name()).Name == _ENCODING_NAME:
+            encoding_id = reference.NodeId
+            break
+    if encoding_id is None:
+        msg = f"the DataType {ua_data_type.to_string()} has no {_ENCODING_NAME!r} encoding"
+        raise ValueError(msg)
+    async with registry.lock:
+        _use_ua_annotations(cls, fields)
+        ua.register_extension_object(cls.__name__, encoding_id, cls, ua_data_type)
+        registry.by_class[cls] = ua_data_type
 
 
 def _node_id(name: str, namespace_index: int) -> ua.NodeId:
@@ -240,7 +271,7 @@ async def _create(server: "Server", namespace_index: int, name: str, fields: lis
         _node_id(name, namespace_index), ua.QualifiedName(Name=name, NamespaceIndex=ua.Int16(namespace_index))
     )
     encoding = await create_encoding(
-        node, encoding_id, ua.QualifiedName(Name="Default Binary", NamespaceIndex=ua.Int16(0))
+        node, encoding_id, ua.QualifiedName(Name=_ENCODING_NAME, NamespaceIndex=ua.Int16(0))
     )
     await encoding.add_reference(_DATA_TYPE_ENCODING_TYPE, _HAS_TYPE_DEFINITION)
     await node.write_data_type_definition(definition)
@@ -271,6 +302,20 @@ def structure_array_write_check(cls: type) -> "Callable[[object], None]":
 
     def check(value: object) -> None:
         if not isinstance(value, (list, tuple)) or not all(isinstance(each, cls) for each in value):
+            raise ua.UaStatusCodeError(StatusCodes.BadTypeMismatch)
+
+    return check
+
+
+def structure_write_check(cls: type) -> "Callable[[object], None]":
+    """Return a ``write_check_callback`` for a `UaVariable` that holds one ``cls``.
+
+    Refuses with ``BadTypeMismatch`` (`ua.UaStatusCodeError`) a value that is not an instance of ``cls``, for the
+    reason given at `structure_array_write_check`.
+    """
+
+    def check(value: object) -> None:
+        if not isinstance(value, cls):
             raise ua.UaStatusCodeError(StatusCodes.BadTypeMismatch)
 
     return check
