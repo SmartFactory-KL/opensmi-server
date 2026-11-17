@@ -75,7 +75,7 @@ from asyncua.common.ua_utils import data_type_to_variant_type
 from asyncua.ua.object_ids import ObjectIds
 from asyncua.ua.status_codes import StatusCodes
 
-from opensmi.server.data_types import _name_taken, _TypeRegistry
+from opensmi.server.data_types import _name_taken, _type_node_id, _TypeRegistry
 from opensmi.server.errors import TypeConflictError
 
 __all__: list[str] = []  # everything here is private; use Server and UaVariable
@@ -221,9 +221,12 @@ async def _ensure_structure(
             await _create(server, namespace_index, name, fields, registry.by_class)
             registry.by_name[namespace_index, name] = each
             ua.register_extension_object(
-                name, _node_id(name + _ENCODING_SUFFIX, namespace_index), each, _node_id(name, namespace_index)
+                name,
+                _type_node_id(name + _ENCODING_SUFFIX, namespace_index),
+                each,
+                _type_node_id(name, namespace_index),
             )
-            registry.by_class[each] = _node_id(name, namespace_index)
+            registry.by_class[each] = _type_node_id(name, namespace_index)
         return registry.by_class[cls]
 
 
@@ -331,14 +334,10 @@ async def _require_matching_definition(
             raise TypeConflictError(msg)
 
 
-def _node_id(name: str, namespace_index: int) -> ua.NodeId:
-    return ua.StringNodeId(Identifier=ua.String(name), NamespaceIndex=ua.Int16(namespace_index))
-
-
 async def _create(
     server: "Server", namespace_index: int, name: str, fields: list[_Field], known: dict[type, ua.NodeId]
 ) -> None:
-    encoding_id = _node_id(name + _ENCODING_SUFFIX, namespace_index)
+    encoding_id = _type_node_id(name + _ENCODING_SUFFIX, namespace_index)
     definition = ua.StructureDefinition(
         DefaultEncodingId=encoding_id,
         BaseDataType=_STRUCTURE,
@@ -346,7 +345,7 @@ async def _create(
         Fields=[_ua_field(each, namespace_index, known) for each in fields],
     )
     node = await server.nodes.base_structure_type.add_data_type(
-        _node_id(name, namespace_index), ua.QualifiedName(Name=name, NamespaceIndex=ua.Int16(namespace_index))
+        _type_node_id(name, namespace_index), ua.QualifiedName(Name=name, NamespaceIndex=ua.Int16(namespace_index))
     )
     encoding = await create_encoding(
         node, encoding_id, ua.QualifiedName(Name=_ENCODING_NAME, NamespaceIndex=ua.Int16(0))
@@ -359,7 +358,7 @@ def _ua_field(each: _Field, namespace_index: int, known: dict[type, ua.NodeId]) 
     if each.element in _SCALARS:
         datatype = ua.NodeId(ua.Int32(_SCALARS[each.element].value), ua.Int16(0))
     else:
-        datatype = known.get(each.element) or _node_id(each.element.__name__, namespace_index)
+        datatype = known.get(each.element) or _type_node_id(each.element.__name__, namespace_index)
     return ua.StructureField(
         Name=ua.String(each.name),
         DataType=datatype,

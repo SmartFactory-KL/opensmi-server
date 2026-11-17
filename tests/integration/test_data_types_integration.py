@@ -265,3 +265,27 @@ async def test_an_enum_with_gaps_bound_to_a_nodeset_type_can_be_held_by_a_variab
     assert await value.read() is Gapped.FOUR
     await value.write(Gapped.TWO)
     assert await value.read() is Gapped.TWO
+
+
+@pytest.mark.asyncio
+async def test_a_created_enum_has_its_name_as_node_id(empty_server) -> None:
+    assert await empty_server.ensure_enum(Level) == ua.NodeId("Level", 1)
+    assert await empty_server.ensure_enum(mode_enum()) == ua.NodeId("Mode", 1)
+
+
+@pytest.mark.asyncio
+async def test_a_machine_named_like_a_created_enum_clashes(empty_server) -> None:
+    # a machine's NodeId is ns=1;s=<name> like a created type's, until instance NodeIds change; the error is not clear
+    machine = machine_with(UaVariable(0))
+    await empty_server.ensure_enum(IntEnum(machine.name, ["A"], start=0))
+
+    with pytest.raises(ua.UaStatusCodeError):
+        await empty_server.add_machine(machine)
+
+
+@pytest.mark.asyncio
+async def test_an_enum_named_like_a_machine_clashes(empty_server) -> None:
+    machine = await empty_server.add_machine(machine_with(UaVariable(0)))
+
+    with pytest.raises(ua.uaerrors.BadNodeIdExists):
+        await empty_server.ensure_enum(IntEnum(machine.name, ["A"], start=0))

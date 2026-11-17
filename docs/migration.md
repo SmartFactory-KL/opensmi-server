@@ -17,6 +17,11 @@ versions, apply every section between your version and the newest one, oldest fi
 - `server.register_enum()` is now `async`: `await server.register_enum(...)`. It compares the members of the enum with
   what the DataType publishes and raises `TypeConflictError` if they differ. Binding the same enum to the same DataType
   again no longer raises; binding it to another DataType still needs `overwrite=True`.
+- An enum DataType the server creates has the NodeId `ns=1;s=<EnumName>` instead of a numeric one that depended on the
+  order enums were created in (like `ns=1;i=3012`). Clients that find enum types by BrowseName, as OpenSMI-Client does,
+  are not affected; update code or NodeSet exports that stored the numeric NodeIds. A machine of the same name as an
+  enum now clashes with it, as with structures: adding the machine after the enum fails with an unrelated looking
+  `UaStatusCodeError`, creating the enum after the machine with `BadNodeIdExists`. Rename one of them.
 
 ## OpenSMI v0.2 -> v0.3
 

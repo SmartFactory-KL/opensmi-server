@@ -10,7 +10,8 @@ name otherwise. A class that breaks this is refused with `opensmi.server.errors.
 created.
 
 Enumerations are created by `Server.ensure_enum` (in namespace 1) or bound to an existing DataType with
-`Server.register_enum`; structures are described in `opensmi.server.structures`.
+`Server.register_enum`; structures are described in `opensmi.server.structures`. A created DataType, enumeration or
+structure, has the NodeId ``ns=<index>;s=<name>``, so it does not depend on the order types are created in.
 
 Everything is reached through `Server` and `UaVariable`; the contents of this module are private.
 """
@@ -53,6 +54,11 @@ class _TypeRegistry:
             raise _name_taken(name, owner, cls, namespace_index)
 
 
+def _type_node_id(name: str, namespace_index: int) -> ua.NodeId:
+    """Return the NodeId of a DataType the server creates: its name as a string, so not the order of creation."""
+    return ua.StringNodeId(Identifier=ua.String(name), NamespaceIndex=ua.Int16(namespace_index))
+
+
 def _qualified(cls: type) -> str:
     return f"{cls.__module__}.{cls.__qualname__}"
 
@@ -74,7 +80,9 @@ async def _ensure_enum(registry: _TypeRegistry, server: "Server", enum_type: typ
         name = enum_type.__name__
         _require_consecutive(enum_type)
         registry.check_name(1, name, enum_type)
-        node = await new_enum(server=server, idx=1, name=name, fields=[enum_type(index).name for index in enum_type])
+        node = await new_enum(
+            server=server, idx=_type_node_id(name, 1), name=name, fields=[member.name for member in enum_type]
+        )
         registry.by_class[enum_type] = node.nodeid
         registry.by_name[1, name] = enum_type
         return node.nodeid
