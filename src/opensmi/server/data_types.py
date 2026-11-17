@@ -27,6 +27,7 @@ from opensmi.server.errors import TypeConflictError
 __all__: list[str] = []  # everything here is private; use Server and UaVariable
 
 if TYPE_CHECKING:
+    from asyncua.common.node import Node
     from asyncua.server.server import Server
 
 
@@ -78,11 +79,71 @@ async def _ensure_enum(registry: _TypeRegistry, server: "Server", enum_type: typ
         return node.nodeid
 
 
-def _register_enum(
-    registry: _TypeRegistry, enum_type: type[IntEnum], ua_data_type: ua.NodeId, *, overwrite: bool
-) -> None:
-    """Bind an enumeration to an existing DataType. This is `Server.register_enum`."""
-    if enum_type in registry.by_class and not overwrite:
-        msg = f"{enum_type.__name__} already registered"
-        raise ValueError(msg)
-    registry.by_class[enum_type] = ua_data_type
+async def _register_enum(
+    registry: _TypeRegistry, server: "Server", enum_type: type[IntEnum], ua_data_type: ua.NodeId, *, overwrite: bool
+) -> bool:
+    """Bind an enumeration to an existing DataType. This is `Server.register_enum`.
+
+    :return: Whether the DataType published its members, so the enumeration could be compared with them.
+    """
+    node = server.get_node(ua_data_type)
+    published = await _published_members(node)
+    browse_name = await node.read_browse_name()
+    async with registry.lock:
+        known = registry.by_class.get(enum_type)
+        if known is not None and known != ua_data_type and not overwrite:
+            msg = (
+                f"{enum_type.__name__} already has the DataType {known.to_string()}, not {ua_data_type.to_string()}; "
+                "pass overwrite=True to bind it to the other one"
+            )
+            raise TypeConflictError(msg)
+        for other, data_type in registry.by_class.items():
+            if data_type == ua_data_type and other is not enum_type:
+                msg = (
+                    f"the DataType {ua_data_type.to_string()} already belongs to {_qualified(other)}, so "
+                    f"{_qualified(enum_type)} cannot be bound to it"
+                )
+                raise TypeConflictError(msg)
+        registry.check_name(browse_name.NamespaceIndex, browse_name.Name, enum_type)
+        if published is not None:
+            _require_same_members(enum_type, ua_data_type, published)
+        if known is not None and known != ua_data_type:  # overwrite: the enum gives up its old type name
+            for key in [key for key, owner in registry.by_name.items() if owner is enum_type]:
+                del registry.by_name[key]
+        registry.by_class[enum_type] = ua_data_type
+        registry.by_name[browse_name.NamespaceIndex, browse_name.Name] = enum_type
+    return published is not None
+
+
+async def _published_members(node: "Node") -> dict[str, int] | None:
+    """Return the members an enumeration DataType publishes, by name, or ``None`` if it publishes none.
+
+    Looks at the ``DataTypeDefinition`` first, then the ``EnumValues`` and the ``EnumStrings`` property.
+    """
+    try:
+        definition = await node.read_data_type_definition()
+    except ua.UaStatusCodeError:
+        definition = None
+    if isinstance(definition, ua.EnumDefinition):
+        return {each.Name: each.Value for each in definition.Fields}
+    for name in ("EnumValues", "EnumStrings"):
+        try:
+            values = await (await node.get_child(f"0:{name}")).read_value()
+        except ua.UaStatusCodeError:
+            continue
+        if name == "EnumValues":
+            return {each.DisplayName.Text: each.Value for each in values}
+        return {each.Text: index for index, each in enumerate(values)}
+    return None
+
+
+def _require_same_members(enum_type: type[IntEnum], ua_data_type: ua.NodeId, published: dict[str, int]) -> None:
+    wanted = {member.name: member.value for member in enum_type}
+    if wanted == published:
+        return
+    differing = sorted(name for name in wanted.keys() | published.keys() if wanted.get(name) != published.get(name))
+    msg = (
+        f"{enum_type.__name__} does not match the DataType {ua_data_type.to_string()}: the members {differing} differ "
+        f"(the enum has {wanted}, the DataType {published})"
+    )
+    raise TypeConflictError(msg)

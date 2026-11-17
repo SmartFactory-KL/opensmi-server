@@ -90,6 +90,9 @@ read with `HistoryRead`.
 - Two different `IntEnum` classes of one name are refused: `server.ensure_enum()` raises `TypeConflictError`
   (`opensmi.server.errors`, also exported from `opensmi.server`) for the second instead of creating a second DataType
   with the same BrowseName. The same holds for an enum and a structure of one name. Rename one of them.
+- `server.register_enum()` is now `async`: `await server.register_enum(...)`. It compares the members of the enum with
+  what the DataType publishes and raises `TypeConflictError` if they differ. Binding the same enum to the same DataType
+  again no longer raises; binding it to another DataType still needs `overwrite=True`.
 - `UaVariable.write_check()` is now `async`. `write_check_callback` may be a sync or async function and may return
   `False` instead of raising `OutOfRangeError` to reject a value.
 - `UaFiniteStateMachine` is generic over its state type. Its unused internals were removed and `init()` no longer takes

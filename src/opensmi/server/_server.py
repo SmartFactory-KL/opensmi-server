@@ -548,9 +548,26 @@ class Server(
         """Whether the server is stopped."""
         return self._state == ServerState.STOPPED
 
-    def register_enum(self, enum_type: type[IntEnum], *, ua_data_type: ua.NodeId, overwrite: bool = False) -> None:
-        """Use an existing enumeration OPC UA data type for ``enum_type`` instead of creating one."""
-        _register_enum(self._types, enum_type, ua_data_type, overwrite=overwrite)
+    async def register_enum(
+        self, enum_type: type[IntEnum], *, ua_data_type: ua.NodeId, overwrite: bool = False
+    ) -> None:
+        """Use an existing enumeration OPC UA data type for ``enum_type`` instead of creating one.
+
+        The members of ``enum_type`` are compared with what the DataType publishes: its ``DataTypeDefinition``, else
+        its ``EnumValues``, else its ``EnumStrings``. A DataType that publishes none of them is accepted with a warning.
+        Binding the same enum to the same DataType again does nothing.
+
+        :param overwrite: Bind ``enum_type`` even if it already has another DataType.
+        :raises TypeConflictError: if a member is missing, extra or numbered differently, ``enum_type`` already has
+            another DataType (unless ``overwrite``), another class has this DataType, or another class uses its name.
+        """
+        compared = await _register_enum(self._types, self.ua_server, enum_type, ua_data_type, overwrite=overwrite)
+        if not compared:
+            self.logger.warning(
+                "Enum type publishes no members, cannot check them",
+                name=enum_type.__name__,
+                ua_data_type=ua_data_type.to_string(),
+            )
         self.logger.info("Registered new enum type", name=enum_type.__name__, ua_data_type=ua_data_type.to_string())
 
     async def ensure_enum(self, enum_type: type[IntEnum]) -> ua.NodeId:
