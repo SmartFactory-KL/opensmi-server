@@ -37,6 +37,7 @@ from typing_extensions import TypeVar, override
 
 from opensmi.server._history import FixedHistoryManager, FixedHistorySQLite
 from opensmi.server.config import HistoryOption, ServerConfiguration, UaServerConfiguration
+from opensmi.server.structures import StructureRegistry, ensure_structure, register_structure
 from opensmi.server.ua_dictionary_entry import DictionaryEntry
 from opensmi.server.ua_object import UaObject
 
@@ -120,6 +121,8 @@ class Server(
         """Maps created custom enums to OPC UA type nodes."""
         self._enum_lock: asyncio.Lock = asyncio.Lock()
         """Lock used when creating new OPC UA enums."""
+        self._ua_structures = StructureRegistry()
+        """Lock, DataType of each structure class and shapes of the created structures."""
         self._ua_nodesets_xml: dict[str, NodesetReference] = {}
         """Maps nodeset XML URIs to information how to load the corresponding XML file."""
         self._dictionary_entries: dict[str, ua.NodeId] = {}
@@ -573,6 +576,43 @@ class Server(
             self._ua_enums[enum_type] = ua_node.nodeid
             self.logger.info("Created new enum type", name=enum_type.__name__, ua_node_id=ua_node.nodeid.to_string())
             return ua_node.nodeid
+
+    async def ensure_structure(self, cls: type, *, namespace_index: int | None = None) -> ua.NodeId:
+        """Return the OPC UA DataType of a dataclass. Creates it, and the dataclasses it nests, unless they exist.
+
+        A class has one DataType per server. A class that already has one, created here or bound with
+        `register_structure`, gets it back, also when it is nested in the class asked for. Only the classes without
+        one are created: for each the DataType node comes first, then its Default Binary encoding node and last the
+        ``DataTypeDefinition`` attribute. They are registered with asyncua as well, so their instances encode and
+        decode. The annotations of a created class are changed: plain Python types are replaced by the
+        ``asyncua.ua`` classes they stand for (see `opensmi.server.structures`).
+
+        :param cls: The dataclass. Its name is the name of the DataType.
+        :param namespace_index: The namespace for the types to create, 1 like enums if not given.
+        :raises TypeError: if ``cls`` is not a dataclass or a field has an unsupported type.
+        :raises TypeConflictError: if ``cls`` already has a DataType in a namespace other than ``namespace_index``,
+            a different class of that name was created in that namespace, or ``cls`` nests two different classes of
+            one name. Nothing is created and the class stays untouched then.
+        :return: The NodeId of the DataType, to pass as ``ua_data_type`` of a variable.
+        """
+        return await ensure_structure(self._ua_structures, self.ua_server, cls, namespace_index)
+
+    async def register_structure(self, cls: type, *, ua_data_type: ua.NodeId) -> None:
+        """Use an existing structure OPC UA data type for ``cls`` instead of creating one.
+
+        For a DataType from an imported nodeset or created elsewhere. Nothing is created: the Default Binary
+        encoding is found through the ``HasEncoding`` reference of the DataType and the class is registered with
+        asyncua. Like `ensure_structure`, this changes the annotations of the class. Nested dataclasses must be
+        bound the same way, first.
+
+        The class is **not** compared with the ``DataTypeDefinition``: it must match, with fields of the same
+        names, types and order, or encoding fails. Use this only if you know what you are doing.
+
+        :raises ValueError: if the DataType has no Default Binary encoding.
+        :raises TypeConflictError: if ``cls`` already has a different DataType on this server.
+        """
+        await register_structure(self._ua_structures, self.ua_server, cls, ua_data_type)
+        self.logger.info("Registered structure type", name=cls.__name__, ua_data_type=ua_data_type.to_string())
 
     def __del__(self) -> None:
         if self.lifecycle_state in (

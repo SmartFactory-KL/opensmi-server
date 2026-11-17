@@ -26,6 +26,7 @@ from opensmi.core.ua_node_util import (
 from typing_extensions import TypeVar, override
 
 from opensmi.server.mixins.notification_mixins import NotificationForwarderMixin
+from opensmi.server.structures import structure_array_write_check, structure_class, structure_write_check
 from opensmi.server.ua_dictionary_entry import DictionaryEntry
 from opensmi.server.ua_object import UaObject, UaObjectDefinition
 
@@ -56,6 +57,10 @@ def _get_initial_value_and_type(
                 return initial_value, str  # pyright: ignore[reportReturnType]
             case _:
                 return initial_value, type(initial_value.Value)
+
+    if initial_value == [] and structure_class(initial_value, variable_type) is not None:
+        # an empty list has no element to guess the type from
+        return ua.Variant(Value=[], VariantType=ua.VariantType.ExtensionObject), list  # pyright: ignore[reportReturnType]
 
     if initial_value is not None:
         return ua.Variant(Value=initial_value), type(initial_value)
@@ -170,6 +175,7 @@ class UaVariable(NotificationForwarderMixin, UaObject, Generic[_VariableType]):
         # customization for _ua_create_node
         self._ua_value_rank: int | None = ua_value_rank
         self._ua_data_type: ua.NodeId | int | None = ua_data_type
+        self._variable_type = variable_type
 
     @lifecycle
     async def _init(self) -> AsyncGenerator[None]:
@@ -256,6 +262,25 @@ class UaVariable(NotificationForwarderMixin, UaObject, Generic[_VariableType]):
         self._historize = historize
         self.logger.debug("Set variable historize", historize=historize)
 
+    async def _ensure_structure(self) -> ua.NodeId | int | None:
+        """Return the data type of the variable, creating the structure type of a dataclass value if needed.
+
+        An explicit ``ua_data_type`` is used as is. Else a class that has a DataType keeps it, and else gets one
+        in namespace 1 like enums.
+        """
+        value = self._initial_value.Value
+        if (structure := structure_class(value, self._variable_type)) is None:
+            return self._ua_data_type
+        if isinstance(value, list):
+            self._ua_value_rank = ua.ValueRank.OneDimension
+        if self._write_check_callback is None:
+            self._write_check_callback = (
+                structure_array_write_check(structure) if isinstance(value, list) else structure_write_check(structure)
+            )
+        if self._ua_data_type is not None:
+            return self._ua_data_type
+        return await self.server.ensure_structure(structure)
+
     @override
     async def _get_definition(self) -> UaObjectDefinition:
         raise NotImplementedError  # We don't use this since we override own _ua_create_node
@@ -283,8 +308,9 @@ class UaVariable(NotificationForwarderMixin, UaObject, Generic[_VariableType]):
                     msg = "Ranges can only be used in combination with a unit!"
                     raise ValueError(msg)
 
+                data_type = await self._ensure_structure()
                 self.ua_node = await ua_location.add_variable(
-                    nodeid=node_id, bname=browse_name, val=self._initial_value, datatype=self._ua_data_type
+                    nodeid=node_id, bname=browse_name, val=self._initial_value, datatype=data_type
                 )
                 if self._ua_value_rank is not None:
                     await self.ua_node.write_value_rank(self._ua_value_rank)
@@ -501,7 +527,7 @@ class UaVariable(NotificationForwarderMixin, UaObject, Generic[_VariableType]):
             writable=writable,
             historize=self._historize,
             bypass_lock=self.bypass_lock,
-            variable_type=self._initial_value_type,
+            variable_type=self._variable_type or self._initial_value_type,
             optional_ok=self.optional_ok,
             write_check_callback=self._write_check_callback,  # pyright: ignore[reportArgumentType]
             dictionary_entry=self._dictionary_entry,
