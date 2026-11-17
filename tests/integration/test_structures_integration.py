@@ -664,3 +664,107 @@ async def test_an_optional_structure_variable_accepts_none(empty_server) -> None
     machine = await empty_server.add_machine(OptionalMachine())
 
     await machine.parameter_set.Maybe.write_check(None)
+
+
+@pytest.mark.asyncio
+@pytest.mark.parametrize(
+    ("fields", "message"),
+    [
+        ([("x", ua.Double, ua.Double(0.0)), ("z", ua.Double, ua.Double(0.0))], "fields"),
+        ([("y", ua.Double, ua.Double(0.0)), ("x", ua.Double, ua.Double(0.0))], "fields"),
+        ([("x", ua.Double, ua.Double(0.0))], "fields"),
+        ([("x", ua.Float, ua.Float(0.0)), ("y", ua.Double, ua.Double(0.0))], "'x' is Float, the DataType has Double"),
+        ([("x", list[ua.Double]), ("y", ua.Double, ua.Double(0.0))], "'x' has the ValueRank"),
+    ],
+    ids=["other name", "other order", "missing field", "other type", "array"],
+)
+async def test_register_structure_refuses_a_class_that_differs_from_the_definition(
+    empty_server, namespace, fields, message
+) -> None:
+    remote = await nodeset_type(empty_server, "Remote", namespace)
+    differs = make_dataclass("Differs", fields)
+
+    with pytest.raises(TypeConflictError, match=message):
+        await empty_server.register_structure(differs, ua_data_type=remote)
+
+    assert differs not in empty_server._types.by_class
+
+
+@pytest.mark.asyncio
+async def test_register_structure_accepts_a_field_type_that_encodes_the_same(empty_server, namespace) -> None:
+    remote = await nodeset_type(empty_server, "Remote", namespace)
+    node = empty_server.ua_server.get_node(remote)
+    definition = await node.read_data_type_definition()
+    definition.Fields[0].DataType = ua.NodeId(ua.ObjectIds.Duration)  # a subtype of Double
+    await node.write_data_type_definition(definition)
+
+    await empty_server.register_structure(two_doubles("Timed"), ua_data_type=remote)
+
+
+async def nodeset_wrapper(server, namespace: int, inner: ua.NodeId) -> ua.NodeId:
+    """A nodeset structure Wrapper with one field of the structure ``inner``."""
+    await _create(server.ua_server, namespace, "Wrapper", _fields(make_dataclass("Wrapper", [("inner", Point)])), {})
+    node = server.ua_server.get_node(ua.NodeId("Wrapper", namespace))
+    definition = await node.read_data_type_definition()
+    definition.Fields[0].DataType = inner
+    await node.write_data_type_definition(definition)
+    return ua.NodeId("Wrapper", namespace)
+
+
+@pytest.mark.asyncio
+async def test_register_structure_refuses_a_nested_class_without_a_data_type(empty_server, namespace) -> None:
+    inner = await nodeset_type(empty_server, "Inner", namespace)
+    wrapper = await nodeset_wrapper(empty_server, namespace, inner)
+    unbound = two_doubles("Inner")
+
+    with pytest.raises(TypeConflictError, match="bind it first"):
+        await empty_server.register_structure(make_dataclass("Wrapper", [("inner", unbound)]), ua_data_type=wrapper)
+
+
+@pytest.mark.asyncio
+async def test_register_structure_binds_nested_classes_bound_first(empty_server, namespace) -> None:
+    inner = await nodeset_type(empty_server, "Inner", namespace)
+    wrapper = await nodeset_wrapper(empty_server, namespace, inner)
+    bound_inner = two_doubles("Inner")
+    await empty_server.register_structure(bound_inner, ua_data_type=inner)
+    bound_wrapper = make_dataclass("Wrapper", [("inner", bound_inner)])
+
+    await empty_server.register_structure(bound_wrapper, ua_data_type=wrapper)
+
+    value = bound_wrapper(bound_inner(1.0, 2.0))
+    assert extensionobject_from_binary(Buffer(extensionobject_to_binary(value))) == value
+
+
+@pytest.mark.asyncio
+async def test_register_structure_refuses_a_nested_class_with_another_data_type(empty_server, namespace) -> None:
+    inner = await nodeset_type(empty_server, "Inner", namespace)
+    wrapper = await nodeset_wrapper(empty_server, namespace, inner)
+    elsewhere = two_doubles("Elsewhere")
+    await empty_server.ensure_structure(elsewhere)
+
+    with pytest.raises(TypeConflictError, match="Elsewhere"):
+        await empty_server.register_structure(make_dataclass("Wrapper", [("inner", elsewhere)]), ua_data_type=wrapper)
+
+
+@pytest.mark.asyncio
+async def test_register_structure_refuses_a_data_type_without_definition(empty_server, namespace) -> None:
+    remote = await nodeset_type(empty_server, "Remote", namespace)
+    del empty_server.ua_server.iserver.aspace[remote].attributes[ua.AttributeIds.DataTypeDefinition]
+
+    with pytest.raises(ValueError, match="DataTypeDefinition"):
+        await empty_server.register_structure(two_doubles("Remote"), ua_data_type=remote)
+
+
+@pytest.mark.asyncio
+async def test_register_structure_overwrite_rebinds_the_class(empty_server, namespace) -> None:
+    first = await nodeset_type(empty_server, "First", namespace)
+    second = await nodeset_type(empty_server, "Second", namespace)
+    moving = two_doubles("Moving")
+    await empty_server.register_structure(moving, ua_data_type=first)
+
+    await empty_server.register_structure(moving, ua_data_type=second, overwrite=True)
+
+    assert empty_server._types.by_class[moving] == second
+    assert (namespace, "First") not in empty_server._types.by_name
+    assert empty_server._types.by_name[namespace, "Second"] is moving
+    assert ua.typeid_by_extension_objects[moving] == ua.NodeId("Second.DefaultBinary", namespace)

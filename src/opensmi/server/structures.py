@@ -48,10 +48,12 @@ them) is refused with ``BadTypeMismatch``. A ``write_check_callback`` of the var
 instead of it, so it always gets a value of the right class. ``None`` passes the check if the variable is
 ``optional_ok``.
 
-**Trust.** Beyond these checks, nothing is verified. A class bound with ``register_structure`` must match
-the DataTypeDefinition of its DataType, a variable with an explicit ``ua_data_type`` needs its class registered
-or bound with that DataType, and only the first element of a list decides the class of a variable. Get these
-wrong and encoding fails; use them only if you know what you are doing.
+**Binding.** ``register_structure`` compares the class with the DataTypeDefinition of the existing DataType and
+refuses a class whose fields differ in name, order, type or array-ness with `TypeConflictError`.
+
+**Trust.** Beyond these checks, nothing is verified. A variable with an explicit ``ua_data_type`` needs its class
+registered or bound with that DataType, and only the first element of a list decides the class of a variable. Get
+these wrong and encoding fails; use them only if you know what you are doing.
 
 **One process.** asyncua keeps its table of structure classes per process, keyed by NodeId. This is acceptable
 here because one `Server` per process is the normal case; two Servers in one process must not give different
@@ -69,6 +71,7 @@ from typing import TYPE_CHECKING, Final, NamedTuple
 
 from asyncua import ua
 from asyncua.common.manage_nodes import create_encoding
+from asyncua.common.ua_utils import data_type_to_variant_type
 from asyncua.ua.object_ids import ObjectIds
 from asyncua.ua.status_codes import StatusCodes
 
@@ -224,7 +227,9 @@ async def _ensure_structure(
         return registry.by_class[cls]
 
 
-async def _register_structure(registry: _TypeRegistry, server: "Server", cls: type, ua_data_type: ua.NodeId) -> None:
+async def _register_structure(
+    registry: _TypeRegistry, server: "Server", cls: type, ua_data_type: ua.NodeId, *, overwrite: bool = False
+) -> None:
     """Bind a dataclass to a DataType that exists. This is `Server.register_structure`, see there."""
     fields = _fields(cls)
     encoding_id = None
@@ -237,11 +242,15 @@ async def _register_structure(registry: _TypeRegistry, server: "Server", cls: ty
     if encoding_id is None:
         msg = f"the DataType {ua_data_type.to_string()} has no {_ENCODING_NAME!r} encoding"
         raise ValueError(msg)
+    definition = await _read_definition(server, ua_data_type)
     browse_name = await server.get_node(ua_data_type).read_browse_name()
     async with registry.lock:
         known = registry.by_class.get(cls)
-        if known is not None and known != ua_data_type:
-            msg = f"{cls.__name__} already has the DataType {known.to_string()}, not {ua_data_type.to_string()}"
+        if known is not None and known != ua_data_type and not overwrite:
+            msg = (
+                f"{cls.__name__} already has the DataType {known.to_string()}, not {ua_data_type.to_string()}; "
+                "pass overwrite=True to bind it to the other one"
+            )
             raise TypeConflictError(msg)
         for other, data_type in registry.by_class.items():
             if data_type == ua_data_type and other is not cls:
@@ -251,10 +260,75 @@ async def _register_structure(registry: _TypeRegistry, server: "Server", cls: ty
                 )
                 raise TypeConflictError(msg)
         registry.check_name(browse_name.NamespaceIndex, browse_name.Name, cls)
+        await _require_matching_definition(server, registry, cls, fields, ua_data_type, definition)
+        if known is not None and known != ua_data_type:  # overwrite: the class gives up its old type name
+            for key in [key for key, owner in registry.by_name.items() if owner is cls]:
+                del registry.by_name[key]
         _use_ua_annotations(cls, fields)
         ua.register_extension_object(cls.__name__, encoding_id, cls, ua_data_type)
         registry.by_class[cls] = ua_data_type
         registry.by_name[browse_name.NamespaceIndex, browse_name.Name] = cls
+
+
+async def _read_definition(server: "Server", ua_data_type: ua.NodeId) -> ua.StructureDefinition:
+    """Return the definition of a plain structure DataType, or refuse a DataType that has none or is another kind."""
+    where = f"the DataType {ua_data_type.to_string()}"
+    try:
+        definition = await server.get_node(ua_data_type).read_data_type_definition()
+    except ua.UaStatusCodeError as error:
+        msg = f"{where} has no DataTypeDefinition to check the class against"
+        raise ValueError(msg) from error
+    if not isinstance(definition, ua.StructureDefinition):
+        msg = f"{where} is not a structure"
+        raise ValueError(msg)  # noqa: TRY004  # a DataType of the wrong kind, not a wrong Python type
+    if definition.StructureType != ua.StructureType.Structure:
+        msg = f"{where} is a {definition.StructureType.name}, only plain structures are supported"
+        raise ValueError(msg)
+    return definition
+
+
+async def _require_matching_definition(
+    server: "Server",
+    registry: _TypeRegistry,
+    cls: type,
+    fields: list[_Field],
+    ua_data_type: ua.NodeId,
+    definition: ua.StructureDefinition,
+) -> None:
+    """Refuse a class whose fields differ from the definition in name, order, type or array-ness.
+
+    A built-in field matches every DataType that encodes like it (``Duration`` for ``ua.Double``, an enumeration for
+    ``ua.Int32``). A nested dataclass must already have exactly the DataType of the field.
+    """
+    where = f"{cls.__name__} does not match the DataType {ua_data_type.to_string()}"
+    wanted, published = [each.name for each in fields], [each.Name for each in definition.Fields]
+    if wanted != published:
+        msg = f"{where}: the class has the fields {wanted}, the DataType {published}"
+        raise TypeConflictError(msg)
+    for each, field in zip(fields, definition.Fields, strict=True):
+        array = field.ValueRank == ua.ValueRank.OneDimension
+        if field.ValueRank not in (ua.ValueRank.Scalar, ua.ValueRank.OneDimension) or array != each.array:
+            msg = f"{where}: field {each.name!r} has the ValueRank {field.ValueRank}"
+            raise TypeConflictError(msg)
+        if each.element in _SCALARS:
+            published_type = await data_type_to_variant_type(server.get_node(field.DataType))
+            if published_type != _SCALARS[each.element]:
+                msg = f"{where}: field {each.name!r} is {each.element.__name__}, the DataType has {published_type.name}"
+                raise TypeConflictError(msg)
+            continue
+        nested = registry.by_class.get(each.element)
+        if nested is None:
+            msg = (
+                f"{where}: field {each.name!r} is the dataclass {each.element.__name__}, which has no DataType; "
+                "bind it first"
+            )
+            raise TypeConflictError(msg)
+        if nested != field.DataType:
+            msg = (
+                f"{where}: field {each.name!r} is {each.element.__name__} with the DataType {nested.to_string()}, "
+                f"the DataType has {field.DataType.to_string()}"
+            )
+            raise TypeConflictError(msg)
 
 
 def _node_id(name: str, namespace_index: int) -> ua.NodeId:

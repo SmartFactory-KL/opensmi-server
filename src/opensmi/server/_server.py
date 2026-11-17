@@ -585,21 +585,26 @@ class Server(
         """
         return await _ensure_structure(self._types, self.ua_server, cls, namespace_index)
 
-    async def register_structure(self, cls: type, *, ua_data_type: ua.NodeId) -> None:
+    async def register_structure(self, cls: type, *, ua_data_type: ua.NodeId, overwrite: bool = False) -> None:
         """Use an existing structure OPC UA data type for ``cls`` instead of creating one.
 
         For a DataType from an imported nodeset or created elsewhere. Nothing is created: the Default Binary
         encoding is found through the ``HasEncoding`` reference of the DataType and the class is registered with
-        asyncua. Like `ensure_structure`, this changes the annotations of the class. Nested dataclasses must be
-        bound the same way, first.
+        asyncua. Like `ensure_structure`, this changes the annotations of the class.
 
-        The class is **not** compared with the ``DataTypeDefinition``: it must match, with fields of the same
-        names, types and order, or encoding fails. Use this only if you know what you are doing.
+        The class is compared with the ``DataTypeDefinition`` first: the fields must have the same names, in the
+        same order, each scalar or a one-dimensional array like the field, and with a type that encodes the same
+        (``ua.Double`` matches ``Duration``). A nested dataclass must already have the DataType of its field, so bind
+        nested classes first.
 
-        :raises ValueError: if the DataType has no Default Binary encoding.
-        :raises TypeConflictError: if ``cls`` already has a different DataType on this server.
+        :param overwrite: Bind ``cls`` even if it already has another DataType. Structures created before that nest
+            ``cls`` keep referring to its old DataType.
+        :raises ValueError: if the DataType has no Default Binary encoding, no ``DataTypeDefinition``, or is not a
+            plain structure (optional fields, union).
+        :raises TypeConflictError: if the class does not match the definition, ``cls`` already has another DataType
+            (unless ``overwrite``), another class has this DataType, or another class uses its name.
         """
-        await _register_structure(self._types, self.ua_server, cls, ua_data_type)
+        await _register_structure(self._types, self.ua_server, cls, ua_data_type, overwrite=overwrite)
         self.logger.info("Registered structure type", name=cls.__name__, ua_data_type=ua_data_type.to_string())
 
     def __del__(self) -> None:
