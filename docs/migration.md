@@ -3,10 +3,22 @@
 This guide helps you upgrade to the newest version of OpenSMI-Server. Sections are ordered newest first. If you skip
 versions, apply every section between your version and the newest one, oldest first.
 
-- [OpenSMI v0.2 -> v0.3 (unreleased)](#opensmi-v02---v03-unreleased)
+- [OpenSMI v0.3 -> v0.4 (unreleased)](#opensmi-v03---v04-unreleased)
+- [OpenSMI v0.2 -> v0.3](#opensmi-v02---v03)
 - [OpenSMI v0.1 -> v0.2](#opensmi-v01---v02)
 
-## OpenSMI v0.2 -> v0.3 (unreleased)
+## OpenSMI v0.3 -> v0.4 (unreleased)
+
+### Enum types
+
+- Two different `IntEnum` classes of one name are refused: `server.ensure_enum()` raises `TypeConflictError`
+  (`opensmi.server.errors`, also exported from `opensmi.server`) for the second instead of creating a second DataType
+  with the same BrowseName. The same holds for an enum and a structure of one name. Rename one of them.
+- `server.register_enum()` is now `async`: `await server.register_enum(...)`. It compares the members of the enum with
+  what the DataType publishes and raises `TypeConflictError` if they differ. Binding the same enum to the same DataType
+  again no longer raises; binding it to another DataType still needs `overwrite=True`.
+
+## OpenSMI v0.2 -> v0.3
 
 ### Dependencies
 
@@ -87,12 +99,6 @@ read with `HistoryRead`.
 ### Other API changes
 
 - `server.get_enum()` was renamed to `server.ensure_enum()`. Its `option_set` parameter was removed.
-- Two different `IntEnum` classes of one name are refused: `server.ensure_enum()` raises `TypeConflictError`
-  (`opensmi.server.errors`, also exported from `opensmi.server`) for the second instead of creating a second DataType
-  with the same BrowseName. The same holds for an enum and a structure of one name. Rename one of them.
-- `server.register_enum()` is now `async`: `await server.register_enum(...)`. It compares the members of the enum with
-  what the DataType publishes and raises `TypeConflictError` if they differ. Binding the same enum to the same DataType
-  again no longer raises; binding it to another DataType still needs `overwrite=True`.
 - `UaVariable.write_check()` is now `async`. `write_check_callback` may be a sync or async function and may return
   `False` instead of raising `OutOfRangeError` to reject a value.
 - `UaFiniteStateMachine` is generic over its state type. Its unused internals were removed and `init()` no longer takes
