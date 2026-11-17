@@ -87,6 +87,9 @@ read with `HistoryRead`.
 ### Other API changes
 
 - `server.get_enum()` was renamed to `server.ensure_enum()`. Its `option_set` parameter was removed.
+- Two different `IntEnum` classes of one name are refused: `server.ensure_enum()` raises `TypeConflictError`
+  (`opensmi.server.errors`, also exported from `opensmi.server`) for the second instead of creating a second DataType
+  with the same BrowseName. The same holds for an enum and a structure of one name. Rename one of them.
 - `UaVariable.write_check()` is now `async`. `write_check_callback` may be a sync or async function and may return
   `False` instead of raising `OutOfRangeError` to reject a value.
 - `UaFiniteStateMachine` is generic over its state type. Its unused internals were removed and `init()` no longer takes

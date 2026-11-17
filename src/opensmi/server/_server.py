@@ -20,7 +20,6 @@ import asyncua
 import structlog
 from asyncua import ua
 from asyncua.common.node import Node
-from asyncua.common.structures104 import new_enum
 from asyncua.crypto.cert_gen import generate_private_key, generate_self_signed_app_certificate
 from asyncua.server.address_space import AddressSpace
 from asyncua.server.server import Server as UaServer
@@ -37,7 +36,8 @@ from typing_extensions import TypeVar, override
 
 from opensmi.server._history import FixedHistoryManager, FixedHistorySQLite
 from opensmi.server.config import HistoryOption, ServerConfiguration, UaServerConfiguration
-from opensmi.server.structures import _ensure_structure, _register_structure, _StructureRegistry
+from opensmi.server.data_types import _ensure_enum, _register_enum, _TypeRegistry
+from opensmi.server.structures import _ensure_structure, _register_structure
 from opensmi.server.ua_dictionary_entry import DictionaryEntry
 from opensmi.server.ua_object import UaObject
 
@@ -117,12 +117,8 @@ class Server(
 
         self._machines: list[BaseMachine] = []
         self._state = ServerState.STOPPED
-        self._ua_enums: dict[type[IntEnum], ua.NodeId] = {}
-        """Maps created custom enums to OPC UA type nodes."""
-        self._enum_lock: asyncio.Lock = asyncio.Lock()
-        """Lock used when creating new OPC UA enums."""
-        self._ua_structures = _StructureRegistry()
-        """Lock, DataType of each structure class and shapes of the created structures."""
+        self._types = _TypeRegistry()
+        """The DataTypes of enum and structure classes, created or bound, and the type names they use."""
         self._ua_nodesets_xml: dict[str, NodesetReference] = {}
         """Maps nodeset XML URIs to information how to load the corresponding XML file."""
         self._dictionary_entries: dict[str, ua.NodeId] = {}
@@ -554,28 +550,20 @@ class Server(
 
     def register_enum(self, enum_type: type[IntEnum], *, ua_data_type: ua.NodeId, overwrite: bool = False) -> None:
         """Use an existing enumeration OPC UA data type for ``enum_type`` instead of creating one."""
-        if enum_type in self._ua_enums and not overwrite:
-            msg = f"{enum_type.__name__} already registered"
-            raise ValueError(msg)
-        self._ua_enums[enum_type] = ua_data_type
+        _register_enum(self._types, enum_type, ua_data_type, overwrite=overwrite)
         self.logger.info("Registered new enum type", name=enum_type.__name__, ua_data_type=ua_data_type.to_string())
 
     async def ensure_enum(self, enum_type: type[IntEnum]) -> ua.NodeId:
-        """Return OPC UA Node representation of given enum type. Creates OPC UA representation automatically."""
-        # TODO(CaHa): proper option set support using IntFlag
-        async with self._enum_lock:
-            if (node_id := self._ua_enums.get(enum_type)) is not None:
-                return node_id
+        """Return OPC UA Node representation of given enum type. Creates OPC UA representation automatically.
 
-            ua_node = await new_enum(
-                server=self.ua_server,
-                idx=1,
-                name=enum_type.__name__,  # type: ignore
-                fields=[enum_type(index).name for index in enum_type],
-            )
-            self._ua_enums[enum_type] = ua_node.nodeid
-            self.logger.info("Created new enum type", name=enum_type.__name__, ua_node_id=ua_node.nodeid.to_string())
-            return ua_node.nodeid
+        :raises TypeConflictError: if a different enum or structure class already uses the name in namespace 1.
+        """
+        # TODO(CaHa): proper option set support using IntFlag
+        known = enum_type in self._types.by_class
+        node_id = await _ensure_enum(self._types, self.ua_server, enum_type)
+        if not known:
+            self.logger.info("Created new enum type", name=enum_type.__name__, ua_node_id=node_id.to_string())
+        return node_id
 
     async def ensure_structure(self, cls: type, *, namespace_index: int | None = None) -> ua.NodeId:
         """Return the OPC UA DataType of a dataclass. Creates it, and the dataclasses it nests, unless they exist.
@@ -595,7 +583,7 @@ class Server(
             one name. Nothing is created and the class stays untouched then.
         :return: The NodeId of the DataType, to pass as ``ua_data_type`` of a variable.
         """
-        return await _ensure_structure(self._ua_structures, self.ua_server, cls, namespace_index)
+        return await _ensure_structure(self._types, self.ua_server, cls, namespace_index)
 
     async def register_structure(self, cls: type, *, ua_data_type: ua.NodeId) -> None:
         """Use an existing structure OPC UA data type for ``cls`` instead of creating one.
@@ -611,7 +599,7 @@ class Server(
         :raises ValueError: if the DataType has no Default Binary encoding.
         :raises TypeConflictError: if ``cls`` already has a different DataType on this server.
         """
-        await _register_structure(self._ua_structures, self.ua_server, cls, ua_data_type)
+        await _register_structure(self._types, self.ua_server, cls, ua_data_type)
         self.logger.info("Registered structure type", name=cls.__name__, ua_data_type=ua_data_type.to_string())
 
     def __del__(self) -> None:

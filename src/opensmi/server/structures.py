@@ -61,7 +61,6 @@ Everything is reached through `Server` and `UaVariable`; the contents of this mo
 `TypeConflictError` lives in `opensmi.server.errors`.
 """
 
-import asyncio
 import dataclasses
 import types
 import typing
@@ -73,6 +72,7 @@ from asyncua.common.manage_nodes import create_encoding
 from asyncua.ua.object_ids import ObjectIds
 from asyncua.ua.status_codes import StatusCodes
 
+from opensmi.server.data_types import _name_taken, _TypeRegistry
 from opensmi.server.errors import TypeConflictError
 
 __all__: list[str] = []  # everything here is private; use Server and UaVariable
@@ -121,19 +121,6 @@ class _Field(NamedTuple):
     element: type
     """A `_SCALARS` class, or a dataclass for a nested structure."""
     array: bool
-
-
-class _StructureRegistry:
-    """What a `Server` knows about structures. Lives as long as the server and is never reset."""
-
-    def __init__(self) -> None:
-        """Create an empty registry."""
-        self.lock = asyncio.Lock()
-        """Held while structures are created or bound."""
-        self.by_class: dict[type, ua.NodeId] = {}
-        """The one DataType of each class that has one, whether created here or bound to an existing one."""
-        self.created: dict[tuple[int, str], type] = {}
-        """The class of each structure created, by namespace index and name."""
 
 
 def _fields(cls: type) -> list[_Field]:
@@ -203,17 +190,8 @@ def _collect(cls: type, found: dict[str, tuple[type, list[_Field]]], known: dict
     found[cls.__name__] = (cls, fields)
 
 
-def _name_taken(name: str, owner: type, cls: type, namespace_index: int | None = None) -> TypeConflictError:
-    where = "" if namespace_index is None else f" in namespace {namespace_index}"
-    msg = (
-        f"structure {name!r}{where} is already defined by {owner.__module__}.{owner.__qualname__}, "
-        f"so {cls.__module__}.{cls.__qualname__} cannot have it, even with the same fields"
-    )
-    return TypeConflictError(msg)
-
-
 async def _ensure_structure(
-    registry: _StructureRegistry, server: "Server", cls: type, namespace_index: int | None = None
+    registry: _TypeRegistry, server: "Server", cls: type, namespace_index: int | None = None
 ) -> ua.NodeId:
     """Create the DataType of a dataclass on a server, and of the dataclasses it nests, unless they exist.
 
@@ -232,15 +210,13 @@ async def _ensure_structure(
         found: dict[str, tuple[type, list[_Field]]] = {}
         _collect(cls, found, registry.by_class)
         for name, (each, _) in found.items():
-            # a class in found has no DataType yet, so whoever has the name is a different class
-            if (owner := registry.created.get((namespace_index, name))) is not None:
-                raise _name_taken(name, owner, each, namespace_index)
+            registry.check_name(namespace_index, name, each)
         # only now that nothing was refused may the annotations of the classes change
         for each, fields in found.values():
             _use_ua_annotations(each, fields)
         for name, (each, fields) in found.items():
             await _create(server, namespace_index, name, fields, registry.by_class)
-            registry.created[namespace_index, name] = each
+            registry.by_name[namespace_index, name] = each
             ua.register_extension_object(
                 name, _node_id(name + _ENCODING_SUFFIX, namespace_index), each, _node_id(name, namespace_index)
             )
@@ -248,9 +224,7 @@ async def _ensure_structure(
         return registry.by_class[cls]
 
 
-async def _register_structure(
-    registry: _StructureRegistry, server: "Server", cls: type, ua_data_type: ua.NodeId
-) -> None:
+async def _register_structure(registry: _TypeRegistry, server: "Server", cls: type, ua_data_type: ua.NodeId) -> None:
     """Bind a dataclass to a DataType that exists. This is `Server.register_structure`, see there."""
     fields = _fields(cls)
     encoding_id = None
@@ -263,6 +237,7 @@ async def _register_structure(
     if encoding_id is None:
         msg = f"the DataType {ua_data_type.to_string()} has no {_ENCODING_NAME!r} encoding"
         raise ValueError(msg)
+    browse_name = await server.get_node(ua_data_type).read_browse_name()
     async with registry.lock:
         known = registry.by_class.get(cls)
         if known is not None and known != ua_data_type:
@@ -275,9 +250,11 @@ async def _register_structure(
                     f"{other.__qualname__}, so {cls.__module__}.{cls.__qualname__} cannot be bound to it"
                 )
                 raise TypeConflictError(msg)
+        registry.check_name(browse_name.NamespaceIndex, browse_name.Name, cls)
         _use_ua_annotations(cls, fields)
         ua.register_extension_object(cls.__name__, encoding_id, cls, ua_data_type)
         registry.by_class[cls] = ua_data_type
+        registry.by_name[browse_name.NamespaceIndex, browse_name.Name] = cls
 
 
 def _node_id(name: str, namespace_index: int) -> ua.NodeId:
