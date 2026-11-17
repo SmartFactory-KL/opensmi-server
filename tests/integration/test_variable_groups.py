@@ -241,6 +241,21 @@ async def test_a_complex_variable_works_inside_a_group(empty_server) -> None:
 
     assert await parameters["Station"]["Spot"].read() == Spot(1.0, 5.0)
 
+    child_path = str(spot["Y"].path)
+    await parameters.remove_group("Station")
+    assert empty_server.resolve_optional(child_path) is None
+
+
+@pytest.mark.asyncio
+async def test_remove_group_removes_a_declared_group_from_its_container(empty_server) -> None:
+    parameters = (await empty_server.add_machine(GroupMachine())).parameter_set
+
+    await parameters.remove_group("Controller")
+
+    assert "Controller" not in parameters
+    assert "Controller" not in vars(parameters)
+    assert set(await browse(parameters.ua_node)) == {"Plain"}
+
 
 class Process(VariableGroup):
     Speed = UaVariable(initial_value=0.0, bypass_lock=True)

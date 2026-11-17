@@ -388,6 +388,20 @@ async def test_an_external_leaf_write_is_checked_by_the_parents_callback(empty_s
 
 
 @pytest.mark.asyncio
+async def test_an_external_write_of_another_type_is_refused_with_its_status(empty_server) -> None:
+    current = (await empty_server.add_machine(PartMachine())).parameter_set.Current
+    before = await snapshot(current)
+
+    async with Client(url(empty_server)) as client:
+        node = client.get_node(current.ua_node.nodeid)
+        with pytest.raises(ua.UaStatusCodeError) as refused:
+            await node.write_value(ua.Variant(600.0, ua.VariantType.Double))
+
+    assert refused.value.code == ua.StatusCodes.BadTypeMismatch
+    assert await snapshot(current) == before
+
+
+@pytest.mark.asyncio
 async def test_children_inherit_the_access_of_the_parent(empty_server) -> None:
     parameters = (await empty_server.add_machine(PartMachine())).parameter_set
     current, fixed = parameters.Current, parameters.Fixed
