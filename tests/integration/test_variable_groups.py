@@ -240,3 +240,32 @@ async def test_a_complex_variable_works_inside_a_group(empty_server) -> None:
     await spot["Y"].write(5.0)
 
     assert await parameters["Station"]["Spot"].read() == Spot(1.0, 5.0)
+
+
+class Process(VariableGroup):
+    Speed = UaVariable(initial_value=0.0, bypass_lock=True)
+
+
+class MachineryReadings(Monitoring):
+    Process = Process(object_type=ua.NodeId(ObjectIds.FolderType))
+
+
+class MachineryMachine(MonitoringMixin[MachineryReadings], BaseMachine):
+    async def _write_identification(self) -> None:
+        await self.identification.SerialNumber.write("2")
+        await self.identification.ProductInstanceUri.write("urn:example:2")
+        await self.identification.Manufacturer.write(ua.LocalizedText("Example", "en"))
+
+
+@pytest.mark.asyncio
+async def test_a_group_can_be_a_folder_like_the_machinery_monitoring_sub_structures(empty_server) -> None:
+    monitoring = (await empty_server.add_machine(MachineryMachine())).monitoring
+
+    declared = monitoring["Process"]
+    added = await monitoring.add_group("Health", object_type=ua.NodeId(ObjectIds.FolderType))
+    nested = await added.add_group("Detail")
+
+    assert await declared.ua_node.read_type_definition() == ua.NodeId(ObjectIds.FolderType)
+    assert await added.ua_node.read_type_definition() == ua.NodeId(ObjectIds.FolderType)
+    assert await nested.ua_node.read_type_definition() == ua.NodeId(ObjectIds.BaseObjectType)
+    assert set(await browse(declared.ua_node)) == {"Speed"}

@@ -253,7 +253,12 @@ class UaVariableContainer(NotificationForwarderMixin, UaObject):
             variable._add_alias(self.path / variable.name)  # noqa: SLF001
 
     async def add_group(
-        self, name: str, *, display_name: str | None = None, runtime_keyed: bool = False
+        self,
+        name: str,
+        *,
+        display_name: str | None = None,
+        runtime_keyed: bool = False,
+        object_type: ua.NodeId | None = None,
     ) -> "VariableGroup":
         """Add a group, an Object that holds variables and further groups, and return it.
 
@@ -261,6 +266,7 @@ class UaVariableContainer(NotificationForwarderMixin, UaObject):
         :param display_name: The display name of the group. Defaults to the name.
         :param runtime_keyed: Whether the name comes from runtime data (a sensor, a diagnostic id, an order). Such a
             name is only held to the hard rule of ``opensmi.core.paths``: not empty and without ``/``.
+        :param object_type: The ObjectType of the group, see `VariableGroup`. Defaults to ``BaseObjectType``.
         :raises ValueError: If the name is empty or contains ``/``.
         :raises RuntimeError: If the container already has a node of this name.
         """
@@ -268,6 +274,7 @@ class UaVariableContainer(NotificationForwarderMixin, UaObject):
             name=name,
             display_name=display_name,
             runtime_keyed=runtime_keyed,
+            object_type=object_type,
             writable=self._writable,
             minimum_access_level=self.minimum_access_level,
         )
@@ -376,7 +383,7 @@ class UaVariableContainer(NotificationForwarderMixin, UaObject):
 
 
 class VariableGroup(UaVariableContainer):
-    """A group of variables and further groups: an Object of ``BaseObjectType`` below a variable container.
+    """A group of variables and further groups: an Object below a variable container, of ``BaseObjectType`` by default.
 
     It can sit in `ParameterSet`, `Monitoring`, `FinalResultData` or another group. Declare it like a `UaVariable`,
     as a class attribute of a container class, or add it at runtime with `UaVariableContainer.add_group`::
@@ -390,6 +397,10 @@ class VariableGroup(UaVariableContainer):
 
     The group inherits ``writable`` and ``minimum_access_level`` from its container. Names that come from runtime data
     are exempt from the naming rule with ``runtime_keyed``, see `UaVariableContainer.add_group`.
+
+    ``object_type`` gives the group another ObjectType, for example ``FolderType`` for the sub-structures ``Status``,
+    ``Health``, ``Process`` and ``Consumption`` that OPC 40001-1 (Machinery) puts below its ``MonitoringType``. The
+    type is instantiated as is, with its mandatory children.
     """
 
     def __init__(
@@ -398,6 +409,7 @@ class VariableGroup(UaVariableContainer):
         name: str | None = None,
         display_name: str | None = None,
         runtime_keyed: bool = False,
+        object_type: ua.NodeId | None = None,
         **kwargs,
     ) -> None:
         """*Cooperative* constructor.
@@ -406,6 +418,7 @@ class VariableGroup(UaVariableContainer):
         :param display_name: The display name of the group. Defaults to the name.
         :param runtime_keyed: Whether the name comes from runtime data. Then it is only held to the hard rule of
             ``opensmi.core.paths`` (not empty, no ``/``) instead of the naming rule.
+        :param object_type: The ObjectType of the group. Defaults to ``BaseObjectType``.
         :raises ValueError: If the name is empty or contains ``/``.
         """
         name = type(self).__name__ if name is None else name
@@ -414,6 +427,7 @@ class VariableGroup(UaVariableContainer):
         self._display_name = display_name
         self.runtime_keyed = runtime_keyed
         """Whether the name comes from runtime data, and is exempt from the naming rule."""
+        self._object_type = object_type or ua.NodeId(ua.Int32(ua.object_ids.ObjectIds.BaseObjectType))
 
     def clone(self, *, name: str, writable: bool, minimum_access_level: int) -> "VariableGroup":
         """Return a new group of the same class for a container; it must be initialized before using it."""
@@ -421,13 +435,14 @@ class VariableGroup(UaVariableContainer):
             name=name,
             display_name=self._display_name,
             runtime_keyed=self.runtime_keyed,
+            object_type=self._object_type,
             writable=writable,
             minimum_access_level=minimum_access_level,
         )
 
     @override
     async def _get_definition(self) -> UaObjectDefinition:
-        return UaObjectDefinition(object_type=ua.NodeId(ua.Int32(ua.object_ids.ObjectIds.BaseObjectType)))
+        return UaObjectDefinition(object_type=self._object_type)
 
     @lifecycle
     async def _lifecycle_group(self) -> AsyncGenerator[None]:
