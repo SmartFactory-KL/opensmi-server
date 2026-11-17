@@ -1,0 +1,33 @@
+src/opensmi/server/structures.py
+  s_a526d1d9df6b9d::t_bbf9edbfa81f01 37-38,42-43,45-51,60-61,63,65
+src/opensmi/server/ua_variable.py
+  s_a526d1d9df6b9d::t_ad88b2d8e66a29 29,179-181,274,276,280,401-403
+  s_a526d1d9df6b9d::t_f632905a898163 404
+tests/unit/test_structures.py
+  s_a526d1d9df6b9d::t_6d6225c71314b1 25-30,34-37,46-55,57,59-75
+src/opensmi/server/_structures.py
+  s_a526d1d9df6b9d::t_54af947f656d21 60
+  s_a526d1d9df6b9d::t_5d4577fa07fbcb 1-59,61-279
+examples/structures/README.md
+  s_a526d1d9df6b9d::t_424b95ae84166c 6-8
+src/opensmi/server/_server.py
+  s_a526d1d9df6b9d::t_ad88b2d8e66a29 40
+tests/integration/test_structures_integration.py
+  s_a526d1d9df6b9d::t_3d3640bfc56154 21,162-163,165,167-168,170-182,472-474,476,482,484-488,541-546,549,563,592,640-666
+---
+{
+  "schema_version": "authorship/3.0.0",
+  "git_ai_version": "1.7.5",
+  "base_commit_sha": "364a53b0527d4295cc66897bc3634c23278f93d2",
+  "prompts": {},
+  "sessions": {
+    "s_a526d1d9df6b9d": {
+      "agent_id": {
+        "tool": "claude",
+        "id": "0c4ccdfb-90f7-42e8-91d1-ee4323d812e7",
+        "model": "claude-opus-5-5"
+      },
+      "human_author": "Carsten Harms <Carsten.Harms@dfki.de>"
+    }
+  }
+}
