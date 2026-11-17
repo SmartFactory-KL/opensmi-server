@@ -279,8 +279,6 @@ class UaVariable(NotificationForwarderMixin, UaObject, Generic[_VariableType]):
             )
         if self._ua_data_type is not None:
             return self._ua_data_type
-        if (known := self.server._ua_structures.by_class.get(structure)) is not None:  # noqa: SLF001
-            return known
         return await self.server.ensure_structure(structure)
 
     @override

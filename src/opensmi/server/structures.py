@@ -33,8 +33,13 @@ the class and knows only its own types, registering a class replaces its plain a
 classes, in place. This changes the class for everybody who uses it.
 
 **Names.** The NodeIds are strings derived from the class name (``<name>`` and ``<name>.DefaultBinary``), so
-they do not depend on the order of registration. Creating again does nothing. A different class under a name
-that is taken in the same namespace is refused with `TypeConflictError` before any node is created.
+they do not depend on the order of registration. A different class under a name that is taken in the same
+namespace is refused with `TypeConflictError` before any node is created.
+
+**One DataType per class.** A class has one DataType per server, because asyncua encodes a class with exactly one
+encoding. Asking again for a class that has one, or nesting it in another, gives back that DataType, the bound
+one included, and creates nothing. Asking for it in another namespace, or binding it to another DataType, is
+refused with `TypeConflictError`.
 
 **Trust.** Beyond that conflict check, nothing is verified. A class bound with ``register_structure`` must match
 the DataTypeDefinition of its DataType, a variable with an explicit ``ua_data_type`` needs its class registered
@@ -110,7 +115,7 @@ _Key = tuple[str, str, bool]
 
 
 class TypeConflictError(ValueError):
-    """A type cannot be created because its name is taken by a different definition."""
+    """A type cannot be created or bound: its name is taken by a different definition, or the class has another."""
 
 
 class _Field(NamedTuple):
@@ -132,7 +137,7 @@ class StructureRegistry:
         self.lock = asyncio.Lock()
         """Held while structures are created or bound."""
         self.by_class: dict[type, ua.NodeId] = {}
-        """The DataType of each class that has one, whether created here or bound to an existing one."""
+        """The one DataType of each class that has one, whether created here or bound to an existing one."""
         self.created: dict[tuple[int, str], tuple[_Key, ...]] = {}
         """The keys of the fields of each structure created, by namespace index and name."""
 
@@ -187,16 +192,19 @@ def structure_class(value: object, variable_type: object = None) -> type | None:
     return cls if _is_user_dataclass(cls) and not issubclass(cls, Enum) else None
 
 
-def _collect(cls: type, found: dict[str, tuple[type, list[_Field]]]) -> None:
-    """Add the structures ``cls`` needs to ``found``, nested ones first and ``cls`` itself last."""
+def _collect(cls: type, found: dict[str, tuple[type, list[_Field]]], known: dict[type, ua.NodeId]) -> None:
+    """Add the structures ``cls`` needs to ``found``, nested ones first and ``cls`` itself last.
+
+    A nested class in ``known`` already has its DataType and is not collected.
+    """
     fields = _fields(cls)
-    known = found.get(cls.__name__)
-    if known is not None:
-        _require_same(cls.__name__, tuple(each.key() for each in known[1]), tuple(each.key() for each in fields))
+    seen = found.get(cls.__name__)
+    if seen is not None:
+        _require_same(cls.__name__, tuple(each.key() for each in seen[1]), tuple(each.key() for each in fields))
         return
     for each in fields:
-        if each.element not in _SCALARS:
-            _collect(each.element, found)
+        if each.element not in _SCALARS and each.element not in known:
+            _collect(each.element, found, known)
     found[cls.__name__] = (cls, fields)
 
 
@@ -208,15 +216,24 @@ def _require_same(name: str, known: tuple[_Key, ...], wanted: tuple[_Key, ...]) 
 
 
 async def ensure_structure(
-    registry: StructureRegistry, server: "Server", cls: type, namespace_index: int = 1
+    registry: StructureRegistry, server: "Server", cls: type, namespace_index: int | None = None
 ) -> ua.NodeId:
     """Create the DataType of a dataclass on a server, and of the dataclasses it nests, unless they exist.
 
     This is `Server.ensure_structure`, see there.
     """
-    found: dict[str, tuple[type, list[_Field]]] = {}
-    _collect(cls, found)
     async with registry.lock:
+        if (known := registry.by_class.get(cls)) is not None:
+            if namespace_index is not None and known.NamespaceIndex != namespace_index:
+                msg = (
+                    f"{cls.__name__} already has the DataType {known.to_string()}, "
+                    f"so it cannot get one in namespace {namespace_index}"
+                )
+                raise TypeConflictError(msg)
+            return known
+        namespace_index = 1 if namespace_index is None else namespace_index
+        found: dict[str, tuple[type, list[_Field]]] = {}
+        _collect(cls, found, registry.by_class)
         keys = {name: tuple(each.key() for each in fields) for name, (_, fields) in found.items()}
         for name, key in keys.items():
             known = registry.created.get((namespace_index, name))
@@ -227,13 +244,13 @@ async def ensure_structure(
             _use_ua_annotations(each, fields)
         for name, (each, fields) in found.items():
             if (namespace_index, name) not in registry.created:
-                await _create(server, namespace_index, name, fields)
+                await _create(server, namespace_index, name, fields, registry.by_class)
                 registry.created[namespace_index, name] = keys[name]
             ua.register_extension_object(
                 name, _node_id(name + _ENCODING_SUFFIX, namespace_index), each, _node_id(name, namespace_index)
             )
-            registry.by_class.setdefault(each, _node_id(name, namespace_index))
-    return _node_id(cls.__name__, namespace_index)
+            registry.by_class[each] = _node_id(name, namespace_index)
+        return registry.by_class[cls]
 
 
 async def register_structure(registry: StructureRegistry, server: "Server", cls: type, ua_data_type: ua.NodeId) -> None:
@@ -250,6 +267,10 @@ async def register_structure(registry: StructureRegistry, server: "Server", cls:
         msg = f"the DataType {ua_data_type.to_string()} has no {_ENCODING_NAME!r} encoding"
         raise ValueError(msg)
     async with registry.lock:
+        known = registry.by_class.get(cls)
+        if known is not None and known != ua_data_type:
+            msg = f"{cls.__name__} already has the DataType {known.to_string()}, not {ua_data_type.to_string()}"
+            raise TypeConflictError(msg)
         _use_ua_annotations(cls, fields)
         ua.register_extension_object(cls.__name__, encoding_id, cls, ua_data_type)
         registry.by_class[cls] = ua_data_type
@@ -259,13 +280,15 @@ def _node_id(name: str, namespace_index: int) -> ua.NodeId:
     return ua.StringNodeId(Identifier=ua.String(name), NamespaceIndex=ua.Int16(namespace_index))
 
 
-async def _create(server: "Server", namespace_index: int, name: str, fields: list[_Field]) -> None:
+async def _create(
+    server: "Server", namespace_index: int, name: str, fields: list[_Field], known: dict[type, ua.NodeId]
+) -> None:
     encoding_id = _node_id(name + _ENCODING_SUFFIX, namespace_index)
     definition = ua.StructureDefinition(
         DefaultEncodingId=encoding_id,
         BaseDataType=_STRUCTURE,
         # Plain structure: every field is present, so there are no optional fields and no encoding mask.
-        Fields=[_ua_field(each, namespace_index) for each in fields],
+        Fields=[_ua_field(each, namespace_index, known) for each in fields],
     )
     node = await server.nodes.base_structure_type.add_data_type(
         _node_id(name, namespace_index), ua.QualifiedName(Name=name, NamespaceIndex=ua.Int16(namespace_index))
@@ -277,11 +300,11 @@ async def _create(server: "Server", namespace_index: int, name: str, fields: lis
     await node.write_data_type_definition(definition)
 
 
-def _ua_field(each: _Field, namespace_index: int) -> ua.StructureField:
+def _ua_field(each: _Field, namespace_index: int, known: dict[type, ua.NodeId]) -> ua.StructureField:
     if each.element in _SCALARS:
         datatype = ua.NodeId(ua.Int32(_SCALARS[each.element].value), ua.Int16(0))
     else:
-        datatype = _node_id(each.element.__name__, namespace_index)
+        datatype = known.get(each.element) or _node_id(each.element.__name__, namespace_index)
     return ua.StructureField(
         Name=ua.String(each.name),
         DataType=datatype,

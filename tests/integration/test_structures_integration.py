@@ -560,3 +560,57 @@ async def test_register_structure_refuses_a_data_type_without_default_binary_enc
 
     with pytest.raises(ValueError, match="Default Binary"):
         await empty_server.register_structure(Point, ua_data_type=bare.nodeid)
+
+
+@pytest.mark.asyncio
+async def test_a_bound_class_nested_in_a_created_one_keeps_its_data_type(empty_server, namespace) -> None:
+    bound_type = await empty_server.ensure_structure(
+        two_doubles("Size"), namespace_index=namespace
+    )  # as from a nodeset
+    size = two_doubles("Size")
+    await empty_server.register_structure(size, ua_data_type=bound_type)
+    part = make_dataclass("Part", [("size", size)])
+
+    part_type = await empty_server.ensure_structure(part)
+
+    assert not await exists(empty_server.ua_server, ua.NodeId("Size", 1))
+    assert empty_server._ua_structures.by_class[size] == bound_type
+    assert ua.typeid_by_extension_objects[size] == ua.NodeId("Size.DefaultBinary", namespace)
+    definition = await empty_server.ua_server.get_node(part_type).read_data_type_definition()
+    assert [each.DataType for each in definition.Fields] == [bound_type]
+
+
+@pytest.mark.asyncio
+async def test_a_class_that_has_a_data_type_is_given_it_back(empty_server, namespace) -> None:
+    spot = two_doubles("Spot")
+    known = await empty_server.ensure_structure(spot, namespace_index=namespace)
+
+    assert await empty_server.ensure_structure(spot) == known
+    assert not await exists(empty_server.ua_server, ua.NodeId("Spot", 1))
+
+
+@pytest.mark.asyncio
+async def test_a_class_is_refused_a_second_data_type_in_another_namespace(empty_server, namespace) -> None:
+    spot = two_doubles("Spot")
+    first = await empty_server.ensure_structure(spot)
+
+    with pytest.raises(TypeConflictError, match="namespace"):
+        await empty_server.ensure_structure(spot, namespace_index=namespace)
+
+    assert not await exists(empty_server.ua_server, ua.NodeId("Spot", namespace))
+    assert empty_server._ua_structures.by_class[spot] == first
+    assert ua.typeid_by_extension_objects[spot] == ua.NodeId("Spot.DefaultBinary", 1)
+
+
+@pytest.mark.asyncio
+async def test_register_structure_refuses_a_class_that_has_another_data_type(empty_server, namespace) -> None:
+    mark = two_doubles("Mark")
+    first = await empty_server.ensure_structure(mark)
+    other = await empty_server.ensure_structure(two_doubles("Other"), namespace_index=namespace)
+
+    with pytest.raises(TypeConflictError, match="Mark"):
+        await empty_server.register_structure(mark, ua_data_type=other)
+    await empty_server.register_structure(mark, ua_data_type=first)  # the same one again is fine
+
+    assert empty_server._ua_structures.by_class[mark] == first
+    assert ua.typeid_by_extension_objects[mark] == ua.NodeId("Mark.DefaultBinary", 1)
