@@ -7,10 +7,23 @@ from collections.abc import AsyncGenerator
 import pytest
 import pytest_asyncio
 from asyncua import ua
+from opensmi.core import setup_logging
 from typing_extensions import override
 
 from opensmi.server import BaseMachine, Server
 from opensmi.server.config import ServerConfiguration
+
+
+@pytest.fixture(scope="session", autouse=True)
+def _logging_set_up_before_any_capture() -> None:
+    """Set up logging once, as the first started `Server` of the process would.
+
+    `setup_logging` runs once per process and calls ``structlog.configure``. Run by a server started inside a test's
+    ``capture_logs()``, it replaced the capture, and that test saw no logs: whether it did depended on which test an
+    xdist worker happened to run first.
+    """
+    logging = ServerConfiguration().logging
+    setup_logging(log_levels=logging.minimum_levels, log_format=logging.format)
 
 
 @pytest.fixture
