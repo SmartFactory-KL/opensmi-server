@@ -224,3 +224,44 @@ async def test_an_enum_variable_uses_the_bound_data_type(empty_server) -> None:
 async def test_enums_and_structures_refuse_units_and_ranges(empty_server, variable) -> None:
     with pytest.raises(ValueError, match="units or ranges"):
         await empty_server.add_machine(machine_with(variable()))
+
+
+class Gapped(IntEnum):
+    ONE = 1
+    TWO = 2
+    FOUR = 4
+
+
+@pytest.mark.asyncio
+async def test_ensure_enum_refuses_values_that_are_not_0_to_n(empty_server) -> None:
+    with pytest.raises(ValueError, match="must start at 0 and increase by 1 per member"):
+        await empty_server.ensure_enum(Gapped)
+
+    assert await enum_children(empty_server) == []
+
+
+@pytest.mark.asyncio
+async def test_a_variable_of_an_enum_with_gaps_is_refused_when_its_node_is_created(empty_server) -> None:
+    with pytest.raises(ValueError, match="register_enum"):
+        await empty_server.add_machine(machine_with(UaVariable(Gapped.ONE)))
+
+
+@pytest.mark.asyncio
+async def test_an_enum_with_gaps_bound_to_a_nodeset_type_can_be_held_by_a_variable(empty_server) -> None:
+    remote = await empty_server.ua_server.nodes.enum_data_type.add_data_type(
+        ua.NodeId("Remote", 1), ua.QualifiedName("Remote", 1)
+    )
+    await remote.add_property(
+        0,
+        "EnumValues",
+        [ua.EnumValueType(Value=member.value, DisplayName=ua.LocalizedText(member.name)) for member in Gapped],
+    )
+    await empty_server.register_enum(Gapped, ua_data_type=remote.nodeid)
+
+    machine = await empty_server.add_machine(machine_with(UaVariable(Gapped.FOUR, writable=True, bypass_lock=True)))
+    value = machine.parameter_set.Value
+
+    assert (await value.ua_node.read_data_type()) == remote.nodeid
+    assert await value.read() is Gapped.FOUR
+    await value.write(Gapped.TWO)
+    assert await value.read() is Gapped.TWO

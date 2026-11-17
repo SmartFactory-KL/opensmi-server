@@ -72,11 +72,25 @@ async def _ensure_enum(registry: _TypeRegistry, server: "Server", enum_type: typ
         if (known := registry.by_class.get(enum_type)) is not None:
             return known
         name = enum_type.__name__
+        _require_consecutive(enum_type)
         registry.check_name(1, name, enum_type)
         node = await new_enum(server=server, idx=1, name=name, fields=[enum_type(index).name for index in enum_type])
         registry.by_class[enum_type] = node.nodeid
         registry.by_name[1, name] = enum_type
         return node.nodeid
+
+
+def _require_consecutive(enum_type: type[IntEnum]) -> None:
+    """Refuse an enum that `new_enum` cannot describe: it publishes ``EnumStrings``, where the position is the value."""
+    values = [member.value for member in enum_type]
+    expected = list(range(len(values)))
+    if values != expected:
+        msg = (
+            f"OPC UA compatible IntEnums must start at 0 and increase by 1 per member; "
+            f"{enum_type.__name__} has values {values}, expected {expected}. Bind an enum with other values to an "
+            "existing DataType with register_enum instead."
+        )
+        raise ValueError(msg)
 
 
 async def _register_enum(

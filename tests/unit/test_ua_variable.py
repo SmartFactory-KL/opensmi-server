@@ -98,15 +98,6 @@ def test_types_invalid_enum() -> None:
         UaVariable(InvalidEnum.ONE)
 
 
-def test_types_invalid_int_enum() -> None:
-    class InvalidIntEnum(IntEnum):  # IntEnum, but does not start with 0
-        ONE = 1
-        TWO = 2
-
-    with pytest.raises(ValueError, match="OPC UA compatible IntEnums must start at 0 and increase by 1 per member"):
-        UaVariable(InvalidIntEnum.ONE)
-
-
 # ---------------------------------------------------------------------------
 # check_range
 # ---------------------------------------------------------------------------

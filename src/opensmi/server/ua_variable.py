@@ -70,19 +70,14 @@ def _get_initial_value_and_type(
 
 
 def _validate_enum_type(enum_type: type[Enum]) -> None:
-    """Ensure given ``enum_type`` satisfies OPC UA's enumeration requirements."""
+    """Ensure given ``enum_type`` is an `IntEnum`, the only kind of enum an OPC UA variable can hold.
+
+    Whether its values fit an enumeration DataType the server creates is checked when it is created
+    (`Server.ensure_enum`); an enum bound to an existing DataType (`Server.register_enum`) may have any values.
+    """
     if not issubclass(enum_type, IntEnum):
         msg = "Enums are only supported as IntEnums!"
         raise TypeError(msg)
-
-    values = [member.value for member in enum_type]
-    expected = list(range(len(values)))
-    if values != expected:
-        msg = (
-            f"OPC UA compatible IntEnums must start at 0 and increase by 1 per member; "
-            f"{enum_type.__name__} has values {values}, expected {expected}."
-        )
-        raise ValueError(msg)
 
 
 class UaVariable(NotificationForwarderMixin, UaObject, Generic[_VariableType]):
