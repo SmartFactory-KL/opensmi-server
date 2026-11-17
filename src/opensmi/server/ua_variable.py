@@ -26,7 +26,7 @@ from opensmi.core.ua_node_util import (
 from typing_extensions import TypeVar, override
 
 from opensmi.server.mixins.notification_mixins import NotificationForwarderMixin
-from opensmi.server.structures import structure_array_write_check, structure_class, structure_write_check
+from opensmi.server.structures import _check_structure_value, _structure_class
 from opensmi.server.ua_dictionary_entry import DictionaryEntry
 from opensmi.server.ua_object import UaObject, UaObjectDefinition
 
@@ -58,7 +58,7 @@ def _get_initial_value_and_type(
             case _:
                 return initial_value, type(initial_value.Value)
 
-    if initial_value == [] and structure_class(initial_value, variable_type) is not None:
+    if initial_value == [] and _structure_class(initial_value, variable_type) is not None:
         # an empty list has no element to guess the type from
         return ua.Variant(Value=[], VariantType=ua.VariantType.ExtensionObject), list  # pyright: ignore[reportReturnType]
 
@@ -176,6 +176,9 @@ class UaVariable(NotificationForwarderMixin, UaObject, Generic[_VariableType]):
         self._ua_value_rank: int | None = ua_value_rank
         self._ua_data_type: ua.NodeId | int | None = ua_data_type
         self._variable_type = variable_type
+        self._structure: type | None = _structure_class(self._initial_value.Value, variable_type)
+        """The dataclass of a structure value, or of the elements of a list of them; checked on every write."""
+        self._structure_array: bool = isinstance(self._initial_value.Value, list)
 
     @lifecycle
     async def _init(self) -> AsyncGenerator[None]:
@@ -268,18 +271,13 @@ class UaVariable(NotificationForwarderMixin, UaObject, Generic[_VariableType]):
         An explicit ``ua_data_type`` is used as is. Else a class that has a DataType keeps it, and else gets one
         in namespace 1 like enums.
         """
-        value = self._initial_value.Value
-        if (structure := structure_class(value, self._variable_type)) is None:
+        if self._structure is None:
             return self._ua_data_type
-        if isinstance(value, list):
+        if self._structure_array:
             self._ua_value_rank = ua.ValueRank.OneDimension
-        if self._write_check_callback is None:
-            self._write_check_callback = (
-                structure_array_write_check(structure) if isinstance(value, list) else structure_write_check(structure)
-            )
         if self._ua_data_type is not None:
             return self._ua_data_type
-        return await self.server.ensure_structure(structure)
+        return await self.server.ensure_structure(self._structure)
 
     @override
     async def _get_definition(self) -> UaObjectDefinition:
@@ -399,6 +397,10 @@ class UaVariable(NotificationForwarderMixin, UaObject, Generic[_VariableType]):
 
         if isinstance(value, ua.Variant):
             value = value.Value
+
+        # before the callback, which may then rely on the class; None was decided above
+        if self._structure is not None and value is not None:
+            _check_structure_value(self._structure, value, array=self._structure_array)
 
         if self._write_check_callback is not None:
             if inspect.iscoroutinefunction(self._write_check_callback):

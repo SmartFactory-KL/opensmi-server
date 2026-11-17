@@ -37,7 +37,7 @@ from typing_extensions import TypeVar, override
 
 from opensmi.server._history import FixedHistoryManager, FixedHistorySQLite
 from opensmi.server.config import HistoryOption, ServerConfiguration, UaServerConfiguration
-from opensmi.server.structures import StructureRegistry, ensure_structure, register_structure
+from opensmi.server.structures import _ensure_structure, _register_structure, _StructureRegistry
 from opensmi.server.ua_dictionary_entry import DictionaryEntry
 from opensmi.server.ua_object import UaObject
 
@@ -121,7 +121,7 @@ class Server(
         """Maps created custom enums to OPC UA type nodes."""
         self._enum_lock: asyncio.Lock = asyncio.Lock()
         """Lock used when creating new OPC UA enums."""
-        self._ua_structures = StructureRegistry()
+        self._ua_structures = _StructureRegistry()
         """Lock, DataType of each structure class and shapes of the created structures."""
         self._ua_nodesets_xml: dict[str, NodesetReference] = {}
         """Maps nodeset XML URIs to information how to load the corresponding XML file."""
@@ -595,7 +595,7 @@ class Server(
             one name. Nothing is created and the class stays untouched then.
         :return: The NodeId of the DataType, to pass as ``ua_data_type`` of a variable.
         """
-        return await ensure_structure(self._ua_structures, self.ua_server, cls, namespace_index)
+        return await _ensure_structure(self._ua_structures, self.ua_server, cls, namespace_index)
 
     async def register_structure(self, cls: type, *, ua_data_type: ua.NodeId) -> None:
         """Use an existing structure OPC UA data type for ``cls`` instead of creating one.
@@ -611,7 +611,7 @@ class Server(
         :raises ValueError: if the DataType has no Default Binary encoding.
         :raises TypeConflictError: if ``cls`` already has a different DataType on this server.
         """
-        await register_structure(self._ua_structures, self.ua_server, cls, ua_data_type)
+        await _register_structure(self._ua_structures, self.ua_server, cls, ua_data_type)
         self.logger.info("Registered structure type", name=cls.__name__, ua_data_type=ua_data_type.to_string())
 
     def __del__(self) -> None:

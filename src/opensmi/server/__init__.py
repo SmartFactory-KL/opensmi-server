@@ -15,6 +15,7 @@ from opensmi.server.base_machinery_item import BaseComponent as BaseComponent
 from opensmi.server.base_machinery_item import BaseMachineryItem as BaseMachineryItem
 from opensmi.server.base_method import BaseMethod as BaseMethod
 from opensmi.server.base_skill import BaseSkill as BaseSkill
+from opensmi.server.errors import TypeConflictError as TypeConflictError
 from opensmi.server.lock import Lock as Lock
 from opensmi.server.mixins.skill_logic_mixins import BaseSkillFinalResultData as BaseSkillFinalResultData
 from opensmi.server.mixins.skill_logic_mixins import ContinuousSkillLogicMixin, FiniteSkillLogicMixin

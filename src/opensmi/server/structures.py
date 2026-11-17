@@ -34,14 +34,21 @@ classes, in place. This changes the class for everybody who uses it.
 
 **Names.** The NodeIds are strings derived from the class name (``<name>`` and ``<name>.DefaultBinary``), so
 they do not depend on the order of registration. A different class under a name that is taken in the same
-namespace is refused with `TypeConflictError` before any node is created.
+namespace is refused with `TypeConflictError` before any node is created, even if its fields are the same: asyncua
+decodes each encoding into exactly one class, so a second class would take the values of the first.
 
 **One DataType per class.** A class has one DataType per server, because asyncua encodes a class with exactly one
 encoding. Asking again for a class that has one, or nesting it in another, gives back that DataType, the bound
-one included, and creates nothing. Asking for it in another namespace, or binding it to another DataType, is
-refused with `TypeConflictError`.
+one included, and creates nothing. Asking for it in another namespace, binding it to another DataType, or binding
+another class to its DataType, is refused with `TypeConflictError`.
 
-**Trust.** Beyond that conflict check, nothing is verified. A class bound with ``register_structure`` must match
+**Writes.** asyncua stores any ExtensionObject in a variable regardless of the variable's DataType, so a structure
+variable checks every write itself: a value that is not an instance of its class (or, for a list, not a list of
+them) is refused with ``BadTypeMismatch``. A ``write_check_callback`` of the variable runs after this check, never
+instead of it, so it always gets a value of the right class. ``None`` passes the check if the variable is
+``optional_ok``.
+
+**Trust.** Beyond these checks, nothing is verified. A class bound with ``register_structure`` must match
 the DataTypeDefinition of its DataType, a variable with an explicit ``ua_data_type`` needs its class registered
 or bound with that DataType, and only the first element of a list decides the class of a variable. Get these
 wrong and encoding fails; use them only if you know what you are doing.
@@ -49,6 +56,9 @@ wrong and encoding fails; use them only if you know what you are doing.
 **One process.** asyncua keeps its table of structure classes per process, keyed by NodeId. This is acceptable
 here because one `Server` per process is the normal case; two Servers in one process must not give different
 classes the same name in one namespace.
+
+Everything is reached through `Server` and `UaVariable`; the contents of this module are private.
+`TypeConflictError` lives in `opensmi.server.errors`.
 """
 
 import asyncio
@@ -63,18 +73,12 @@ from asyncua.common.manage_nodes import create_encoding
 from asyncua.ua.object_ids import ObjectIds
 from asyncua.ua.status_codes import StatusCodes
 
+from opensmi.server.errors import TypeConflictError
+
+__all__: list[str] = []  # everything here is private; use Server and UaVariable
+
 if TYPE_CHECKING:
-    from collections.abc import Callable
-
     from asyncua.server.server import Server
-
-__all__ = [
-    "StructureRegistry",
-    "TypeConflictError",
-    "structure_array_write_check",
-    "structure_class",
-    "structure_write_check",
-]
 
 _STRUCTURE: Final = ua.NodeId(ua.Int32(ObjectIds.Structure), ua.Int16(0))
 _DATA_TYPE_ENCODING_TYPE: Final = ua.NodeId(ua.Int32(ObjectIds.DataTypeEncodingType), ua.Int16(0))
@@ -111,12 +115,6 @@ _PLAIN: Final[dict[object, type]] = {
 }
 """Plain Python annotations and the ua class each stands for."""
 
-_Key = tuple[str, str, bool]
-
-
-class TypeConflictError(ValueError):
-    """A type cannot be created or bound: its name is taken by a different definition, or the class has another."""
-
 
 class _Field(NamedTuple):
     name: str
@@ -124,12 +122,8 @@ class _Field(NamedTuple):
     """A `_SCALARS` class, or a dataclass for a nested structure."""
     array: bool
 
-    def key(self) -> _Key:
-        """Return what makes two fields the same: the name, the type by name and whether it is an array."""
-        return self.name, ("" if self.element in _SCALARS else "@") + self.element.__name__, self.array
 
-
-class StructureRegistry:
+class _StructureRegistry:
     """What a `Server` knows about structures. Lives as long as the server and is never reset."""
 
     def __init__(self) -> None:
@@ -138,8 +132,8 @@ class StructureRegistry:
         """Held while structures are created or bound."""
         self.by_class: dict[type, ua.NodeId] = {}
         """The one DataType of each class that has one, whether created here or bound to an existing one."""
-        self.created: dict[tuple[int, str], tuple[_Key, ...]] = {}
-        """The keys of the fields of each structure created, by namespace index and name."""
+        self.created: dict[tuple[int, str], type] = {}
+        """The class of each structure created, by namespace index and name."""
 
 
 def _fields(cls: type) -> list[_Field]:
@@ -177,7 +171,7 @@ def _is_user_dataclass(hint: type) -> bool:
     return dataclasses.is_dataclass(hint) and not hint.__module__.startswith("asyncua")
 
 
-def structure_class(value: object, variable_type: object = None) -> type | None:
+def _structure_class(value: object, variable_type: object = None) -> type | None:
     """Return the dataclass of a value, or of the first element of a list, or ``None`` if it is not a structure.
 
     Only the first element decides, the others are not looked at. An empty list has no element, so its class is
@@ -197,26 +191,29 @@ def _collect(cls: type, found: dict[str, tuple[type, list[_Field]]], known: dict
 
     A nested class in ``known`` already has its DataType and is not collected.
     """
-    fields = _fields(cls)
     seen = found.get(cls.__name__)
     if seen is not None:
-        _require_same(cls.__name__, tuple(each.key() for each in seen[1]), tuple(each.key() for each in fields))
+        if seen[0] is not cls:
+            raise _name_taken(cls.__name__, seen[0], cls)
         return
+    fields = _fields(cls)
     for each in fields:
         if each.element not in _SCALARS and each.element not in known:
             _collect(each.element, found, known)
     found[cls.__name__] = (cls, fields)
 
 
-def _require_same(name: str, known: tuple[_Key, ...], wanted: tuple[_Key, ...]) -> None:
-    if known != wanted:
-        listed = ", ".join(repr(each[0]) for each in known)
-        msg = f"structure {name!r} is already defined with the fields {listed}, which differ"
-        raise TypeConflictError(msg)
+def _name_taken(name: str, owner: type, cls: type, namespace_index: int | None = None) -> TypeConflictError:
+    where = "" if namespace_index is None else f" in namespace {namespace_index}"
+    msg = (
+        f"structure {name!r}{where} is already defined by {owner.__module__}.{owner.__qualname__}, "
+        f"so {cls.__module__}.{cls.__qualname__} cannot have it, even with the same fields"
+    )
+    return TypeConflictError(msg)
 
 
-async def ensure_structure(
-    registry: StructureRegistry, server: "Server", cls: type, namespace_index: int | None = None
+async def _ensure_structure(
+    registry: _StructureRegistry, server: "Server", cls: type, namespace_index: int | None = None
 ) -> ua.NodeId:
     """Create the DataType of a dataclass on a server, and of the dataclasses it nests, unless they exist.
 
@@ -234,18 +231,16 @@ async def ensure_structure(
         namespace_index = 1 if namespace_index is None else namespace_index
         found: dict[str, tuple[type, list[_Field]]] = {}
         _collect(cls, found, registry.by_class)
-        keys = {name: tuple(each.key() for each in fields) for name, (_, fields) in found.items()}
-        for name, key in keys.items():
-            known = registry.created.get((namespace_index, name))
-            if known is not None:
-                _require_same(name, known, key)
+        for name, (each, _) in found.items():
+            # a class in found has no DataType yet, so whoever has the name is a different class
+            if (owner := registry.created.get((namespace_index, name))) is not None:
+                raise _name_taken(name, owner, each, namespace_index)
         # only now that nothing was refused may the annotations of the classes change
         for each, fields in found.values():
             _use_ua_annotations(each, fields)
         for name, (each, fields) in found.items():
-            if (namespace_index, name) not in registry.created:
-                await _create(server, namespace_index, name, fields, registry.by_class)
-                registry.created[namespace_index, name] = keys[name]
+            await _create(server, namespace_index, name, fields, registry.by_class)
+            registry.created[namespace_index, name] = each
             ua.register_extension_object(
                 name, _node_id(name + _ENCODING_SUFFIX, namespace_index), each, _node_id(name, namespace_index)
             )
@@ -253,7 +248,9 @@ async def ensure_structure(
         return registry.by_class[cls]
 
 
-async def register_structure(registry: StructureRegistry, server: "Server", cls: type, ua_data_type: ua.NodeId) -> None:
+async def _register_structure(
+    registry: _StructureRegistry, server: "Server", cls: type, ua_data_type: ua.NodeId
+) -> None:
     """Bind a dataclass to a DataType that exists. This is `Server.register_structure`, see there."""
     fields = _fields(cls)
     encoding_id = None
@@ -271,6 +268,13 @@ async def register_structure(registry: StructureRegistry, server: "Server", cls:
         if known is not None and known != ua_data_type:
             msg = f"{cls.__name__} already has the DataType {known.to_string()}, not {ua_data_type.to_string()}"
             raise TypeConflictError(msg)
+        for other, data_type in registry.by_class.items():
+            if data_type == ua_data_type and other is not cls:
+                msg = (
+                    f"the DataType {ua_data_type.to_string()} already belongs to {other.__module__}."
+                    f"{other.__qualname__}, so {cls.__module__}.{cls.__qualname__} cannot be bound to it"
+                )
+                raise TypeConflictError(msg)
         _use_ua_annotations(cls, fields)
         ua.register_extension_object(cls.__name__, encoding_id, cls, ua_data_type)
         registry.by_class[cls] = ua_data_type
@@ -315,30 +319,17 @@ def _ua_field(each: _Field, namespace_index: int, known: dict[type, ua.NodeId]) 
     )
 
 
-def structure_array_write_check(cls: type) -> "Callable[[object], None]":
-    """Return a ``write_check_callback`` for a `UaVariable` that holds an array of ``cls``.
+def _check_structure_value(cls: type, value: object, *, array: bool) -> None:
+    """Refuse a value that is not an instance of ``cls``, or with ``array`` not a list or tuple of them.
 
-    asyncua stores any ExtensionObject in a variable regardless of the variable's DataType, so the check is
-    needed to keep other values out. It refuses with ``BadTypeMismatch`` (`ua.UaStatusCodeError`) a value that
-    is not a list or tuple of instances of ``cls``.
+    asyncua stores any ExtensionObject in a variable regardless of the variable's DataType, so `UaVariable` runs
+    this on every write of a structure variable, before its own ``write_check_callback``.
+
+    :raises ua.UaStatusCodeError: ``BadTypeMismatch`` if the value has another type.
     """
-
-    def check(value: object) -> None:
-        if not isinstance(value, (list, tuple)) or not all(isinstance(each, cls) for each in value):
-            raise ua.UaStatusCodeError(StatusCodes.BadTypeMismatch)
-
-    return check
-
-
-def structure_write_check(cls: type) -> "Callable[[object], None]":
-    """Return a ``write_check_callback`` for a `UaVariable` that holds one ``cls``.
-
-    Refuses with ``BadTypeMismatch`` (`ua.UaStatusCodeError`) a value that is not an instance of ``cls``, for the
-    reason given at `structure_array_write_check`.
-    """
-
-    def check(value: object) -> None:
-        if not isinstance(value, cls):
-            raise ua.UaStatusCodeError(StatusCodes.BadTypeMismatch)
-
-    return check
+    if array:
+        if isinstance(value, (list, tuple)) and all(isinstance(each, cls) for each in value):
+            return
+    elif isinstance(value, cls):
+        return
+    raise ua.UaStatusCodeError(StatusCodes.BadTypeMismatch)
