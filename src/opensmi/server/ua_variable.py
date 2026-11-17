@@ -179,6 +179,8 @@ class UaVariable(NotificationForwarderMixin, UaObject, Generic[_VariableType]):
         self._structure: type | None = _structure_class(self._initial_value.Value, variable_type)
         """The dataclass of a structure value, or of the elements of a list of them; checked on every write."""
         self._structure_array: bool = isinstance(self._initial_value.Value, list)
+        if self._structure is not None and self._structure_array and self._ua_value_rank is None:
+            self._ua_value_rank = ua.ValueRank.OneDimension
 
     @lifecycle
     async def _init(self) -> AsyncGenerator[None]:
@@ -265,19 +267,20 @@ class UaVariable(NotificationForwarderMixin, UaObject, Generic[_VariableType]):
         self._historize = historize
         self.logger.debug("Set variable historize", historize=historize)
 
-    async def _ensure_structure(self) -> ua.NodeId | int | None:
-        """Return the data type of the variable, creating the structure type of a dataclass value if needed.
+    async def _data_type(self) -> ua.NodeId | int | None:
+        """Return the DataType of the variable's node; ``None`` lets asyncua derive it from the value.
 
-        An explicit ``ua_data_type`` is used as is. Else a class that has a DataType keeps it, and else gets one
-        in namespace 1 like enums.
+        The most explicit choice wins: ``ua_data_type`` as given (its class must already be registered or bound with
+        it), else the DataType the enum or dataclass already has (bound or created before), else one created now in
+        namespace 1.
         """
-        if self._structure is None:
-            return self._ua_data_type
-        if self._structure_array:
-            self._ua_value_rank = ua.ValueRank.OneDimension
         if self._ua_data_type is not None:
             return self._ua_data_type
-        return await self.server.ensure_structure(self._structure)
+        if issubclass(self._initial_value_type, IntEnum):
+            return await self.server.ensure_enum(self._initial_value_type)  # pyright: ignore[reportArgumentType]
+        if self._structure is not None:
+            return await self.server.ensure_structure(self._structure)
+        return None
 
     @override
     async def _get_definition(self) -> UaObjectDefinition:
@@ -289,49 +292,41 @@ class UaVariable(NotificationForwarderMixin, UaObject, Generic[_VariableType]):
     ) -> None:
         node_id = get_node_id(ua_location, name=self.name)
         browse_name = ua.QualifiedName(self.name, NamespaceIndex=1)
+        typed = issubclass(self._initial_value_type, IntEnum) or self._structure is not None
+        if typed and (self._unit is not None or self._range is not None):
+            msg = "Enums and structures cannot be used with units or ranges!"
+            raise ValueError(msg)
 
         try:
-            if issubclass(self._initial_value_type, IntEnum):
-                if self._unit is not None or self._range is not None:
-                    msg = "Enums cannot be used with units or ranges!"
-                    raise ValueError(msg)
-
-                ua_datatype_node = await self.server.ensure_enum(self._initial_value_type)  # pyright: ignore[reportArgumentType]
-                self.ua_node = await ua_location.add_variable(
-                    nodeid=node_id, bname=browse_name, val=self._initial_value, datatype=ua_datatype_node
-                )
-
-            elif self._unit is None:
+            if self._unit is None:
                 if self._range is not None:  # notify programmer of their error instead of silently ignoring it
                     msg = "Ranges can only be used in combination with a unit!"
                     raise ValueError(msg)
 
-                data_type = await self._ensure_structure()
                 self.ua_node = await ua_location.add_variable(
-                    nodeid=node_id, bname=browse_name, val=self._initial_value, datatype=data_type
+                    nodeid=node_id, bname=browse_name, val=self._initial_value, datatype=await self._data_type()
                 )
                 if self._ua_value_rank is not None:
                     await self.ua_node.write_value_rank(self._ua_value_rank)
                 return
+            if self._range is None:
+                object_type = ua.object_ids.ObjectIds.AnalogUnitType
             else:
-                if self._range is None:
-                    object_type = ua.object_ids.ObjectIds.AnalogUnitType
-                else:
-                    object_type = ua.object_ids.ObjectIds.AnalogUnitRangeType
+                object_type = ua.object_ids.ObjectIds.AnalogUnitRangeType
 
-                if self._ua_data_type is not None:
-                    msg = "custom ua_data_type specification is not supported for variables with units!"
-                    # Note: fixed 'Number' data type according to OPC UA specification OPC-10000-8/5.3.2
-                    raise ValueError(msg)
+            if self._ua_data_type is not None:
+                msg = "custom ua_data_type specification is not supported for variables with units!"
+                # Note: fixed 'Number' data type according to OPC UA specification OPC-10000-8/5.3.2
+                raise ValueError(msg)
 
-                self.ua_node = await ua_location.add_object(
-                    nodeid=node_id,
-                    bname=browse_name,
-                    objecttype=object_type,
-                    instantiate_optional=False,
-                )
-                if self._ua_value_rank is not None:
-                    await self.ua_node.write_value_rank(self._ua_value_rank)
+            self.ua_node = await ua_location.add_object(
+                nodeid=node_id,
+                bname=browse_name,
+                objecttype=object_type,
+                instantiate_optional=False,
+            )
+            if self._ua_value_rank is not None:
+                await self.ua_node.write_value_rank(self._ua_value_rank)
         except ua.uaerrors.BadNodeIdExists:
             if exist_ok:
                 self.logger.warning(

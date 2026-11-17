@@ -9,7 +9,9 @@ import pytest
 from asyncua import ua
 from asyncua.common.structures104 import new_enum
 
+from opensmi.server import BaseMachine, ParameterSet, UaVariable
 from opensmi.server.errors import TypeConflictError
+from opensmi.server.mixins import ParameterSetMixin
 from opensmi.server.structures import _create, _fields
 
 
@@ -161,3 +163,64 @@ async def test_register_enum_refuses_a_data_type_that_another_enum_has(empty_ser
 
     with pytest.raises(TypeConflictError, match="already belongs"):
         await empty_server.register_enum(mode_enum(), ua_data_type=owned)
+
+
+class Machine(BaseMachine):
+    async def _write_identification(self) -> None:
+        await self.identification.SerialNumber.write("1")
+        await self.identification.ProductInstanceUri.write("urn:example:1")
+        await self.identification.Manufacturer.write(ua.LocalizedText("Example", "en"))
+
+
+class Level(IntEnum):
+    LOW = 0
+    HIGH = 1
+
+
+def machine_with(variable: UaVariable) -> Machine:
+    """A machine whose ParameterSet holds ``variable`` as ``Value``."""
+
+    class Parameters(ParameterSet):
+        Value = variable
+
+    class WithVariable(ParameterSetMixin[Parameters], Machine):
+        pass
+
+    return WithVariable()
+
+
+@pytest.mark.asyncio
+async def test_an_enum_variable_uses_an_explicit_ua_data_type(empty_server) -> None:
+    remote = await nodeset_enum(empty_server, "Remote", ["LOW", "HIGH"])
+
+    machine = await empty_server.add_machine(machine_with(UaVariable(Level.HIGH, ua_data_type=remote)))
+
+    assert (await machine.parameter_set.Value.ua_node.read_data_type()) == remote
+    assert Level not in empty_server._types.by_class  # used as given, not bound
+    assert await machine.parameter_set.Value.read() is Level.HIGH
+
+
+@pytest.mark.asyncio
+async def test_an_enum_variable_uses_the_bound_data_type(empty_server) -> None:
+    remote = await nodeset_enum(empty_server, "Remote", ["LOW", "HIGH"])
+    await empty_server.register_enum(Level, ua_data_type=remote)
+
+    machine = await empty_server.add_machine(machine_with(UaVariable(Level.LOW)))
+
+    assert (await machine.parameter_set.Value.ua_node.read_data_type()) == remote
+    assert await enum_children(empty_server) == [remote.to_string()]
+
+
+@pytest.mark.asyncio
+@pytest.mark.parametrize(
+    "variable",
+    [
+        lambda: UaVariable(Level.LOW, unit="cm", range=(0, 1)),
+        lambda: UaVariable(Level.LOW, range=(0, 1)),
+        lambda: UaVariable(make_dataclass("Sized", [("x", ua.Double, ua.Double(0.0))])(), unit="cm", range=(0, 1)),
+    ],
+    ids=["enum with unit", "enum with range", "structure with unit"],
+)
+async def test_enums_and_structures_refuse_units_and_ranges(empty_server, variable) -> None:
+    with pytest.raises(ValueError, match="units or ranges"):
+        await empty_server.add_machine(machine_with(variable()))
