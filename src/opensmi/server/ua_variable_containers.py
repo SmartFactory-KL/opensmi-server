@@ -357,28 +357,33 @@ class UaVariableContainer(NotificationForwarderMixin, UaObject):
     # Pythonic container interface
     #
 
-    def __getitem__(self, name: str) -> Any:  # a `UaVariable`, or a `VariableGroup`
-        """Get a `UaVariable` or a `VariableGroup` by the given ``name``.
+    # The container interface covers the variables only, groups are in `groups`.
 
-        :raises KeyError: If no variable or group with given name exists.
+    @property
+    def groups(self) -> Mapping[str, "VariableGroup"]:
+        """The `VariableGroup` in this container by name, declared or added with `add_group`."""
+        return self._groups
+
+    def __getitem__(self, name: str) -> UaVariable:
+        """Get a `UaVariable` by the given ``name``; a group is in `groups`.
+
+        :raises KeyError: If no variable with given name exists.
         """
-        if name in self._groups:
-            return self._groups[name]
         if isinstance(variable := self.__dict__.get(name), UaVariable):
             return variable
-        msg = f"No UaVariable or VariableGroup named '{name}' contained in {self.path}!"
+        msg = f"No UaVariable named '{name}' contained in {self.path}!"
         raise KeyError(msg)
 
     def __contains__(self, key: object) -> bool:
-        """Whether a variable or group with given ``name`` exists in this container."""
-        return isinstance(key, str) and (key in self._groups or isinstance(self.__dict__.get(key), UaVariable))
+        """Whether a variable with given ``name`` exists in this container; a group is in `groups`."""
+        return isinstance(key, str) and isinstance(self.__dict__.get(key), UaVariable)
 
     def __len__(self) -> int:
-        """Return the number of contained `UaVariable`."""
+        """Return the number of contained `UaVariable`, without groups."""
         return sum(1 for var in self.__dict__.values() if isinstance(var, UaVariable))
 
     def __iter__(self) -> Iterator[UaVariable]:
-        """Iterate over the contained `UaVariable`."""
+        """Iterate over the contained `UaVariable`, without groups."""
         return (var for var in self.__dict__.values() if isinstance(var, UaVariable))
 
 

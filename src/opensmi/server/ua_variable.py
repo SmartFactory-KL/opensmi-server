@@ -97,15 +97,17 @@ class UaVariable(NotificationForwarderMixin, UaObject, Generic[_VariableType]):
     dataclasses, is one leaf. The browse name of a child is its field name in PascalCase (``in_tolerance`` ->
     ``InTolerance``), its display name is the field name. Two fields that become one name fail when the nodes are
     created. Children are reached with `children` or ``variable["Dimensions"]["Length"]`` and inherit ``writable``,
-    ``bypass_lock`` and ``minimum_access_level``. They have no ``write_check_callback`` of their own.
+    ``bypass_lock`` and ``minimum_access_level``; `set_writable` and `initial_value` on the parent reach them too.
+    They have no ``write_check_callback`` of their own.
 
     Parent and children always agree. Each write is checked once, at the parent: a write to the parent runs its
     `write_check`, a write to a child runs the parent's `write_check` on the merged value, so a
     ``write_check_callback`` always sees the whole structure. A refused write changes no node. After a passed
     check, the written node, its ancestors and its descendants get their values in one call with one
-    ``SourceTimestamp``. A ``write_check_callback`` must not write to the same variable. This holds for writes
+    ``SourceTimestamp`` and the status of the write; with a bad status, no node has a value. This holds for writes
     through `write` and for external OPC UA writes; a write that bypasses the access control (for example one
-    to the node of a child with plain asyncua inside the server) leaves them out of step.
+    to the node of a child with plain asyncua inside the server) leaves them out of step. A ``write_check_callback``
+    only checks and must not write any variable: a write to the same complex variable hangs.
     """
 
     _initial_value_type: type[_VariableType]
@@ -150,7 +152,8 @@ class UaVariable(NotificationForwarderMixin, UaObject, Generic[_VariableType]):
             ``initial_value``, i.e. when ``None`` is provided.
         :param write_check_callback: (Optional) User-definable function that is called whenever a `write_check`
             occurs (Triggered by internal and external OPC UA writes). Must raise `OutOfRangeError` (+custom message),
-            raise any appropriate `UaStatusCodeError` or return ``False`` when the custom check fails.
+            raise any appropriate `UaStatusCodeError` or return ``False`` when the custom check fails. It only checks
+            the value and must not write any variable: a write to the same complex variable hangs.
         :param dictionary_entry: (Optional) semantic information via OPC UA dictionary entry.
         :param description: (Optional) A human-readable description for the variable. Prefer a docstring right after
             the variable in its container class instead, which takes precedence and is shown by IDEs. Without both, an
@@ -323,10 +326,10 @@ class UaVariable(NotificationForwarderMixin, UaObject, Generic[_VariableType]):
             await root.write_check(merged)  # pyright: ignore[reportArgumentType]
 
     def _changes_down(self, value: object) -> list[tuple["UaVariable[Any]", object]]:
-        """Return the part of ``value`` for each descendant."""
+        """Return the part of ``value`` for each descendant; no value (a bad status) has no parts either."""
         changes: list[tuple[UaVariable[Any], object]] = []
         for child in self._children.values():
-            part = getattr(value, child._field_name)  # noqa: SLF001
+            part = None if value is None else getattr(value, child._field_name)  # noqa: SLF001
             changes.append((child, part))
             changes.extend(child._changes_down(part))  # noqa: SLF001
         return changes
@@ -347,7 +350,7 @@ class UaVariable(NotificationForwarderMixin, UaObject, Generic[_VariableType]):
                 NodeId=node.ua_node.nodeid,
                 AttributeId=ua.attribute_ids.AttributeIds.Value,
                 Value=ua.DataValue(
-                    ua.Variant(part, node._initial_value.VariantType),  # noqa: SLF001
+                    ua.Variant() if part is None else ua.Variant(part, node._initial_value.VariantType),  # noqa: SLF001
                     StatusCode=write_value.Value.StatusCode,
                     SourceTimestamp=timestamp,  # pyright: ignore[reportArgumentType]
                 ),
@@ -383,12 +386,16 @@ class UaVariable(NotificationForwarderMixin, UaObject, Generic[_VariableType]):
         value = ua.uatypes.get_default_value(self._initial_value.VariantType) if value is None else value
         self._initial_value, _ = _get_initial_value_and_type(value, self._initial_value_type)
         self.logger.debug("Updated initial value", initial_value=self._initial_value, previous_value=previous)
+        for child in self._children.values():  # a complex variable: each child resets to its part of the new value
+            child.initial_value = getattr(value, child._field_name)  # noqa: SLF001
 
     async def set_writable(self, writable: bool) -> None:
         """Set the variable to ``writable`` externally. Internally, a variable is always writable."""
         await self.ua_node.set_writable(writable)
         self._writable = writable
         self.logger.debug("Set variable writable", writable=writable)
+        for child in self._children.values():  # a complex variable: the children always share its writability
+            await child.set_writable(writable)
 
     async def set_historize(self, historize: bool, *, period: timedelta = timedelta(days=7), count: int = 1000) -> None:
         """Set the variable to ``historize``.

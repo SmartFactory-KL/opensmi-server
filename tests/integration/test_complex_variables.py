@@ -67,6 +67,7 @@ class Parameters(ParameterSet):
     Fixed = UaVariable(initial_value=make_part(), bypass_lock=True, minimum_access_level=3)
     Batch = UaVariable(initial_value=[make_part()], writable=True, bypass_lock=True)
     Count = UaVariable(initial_value=3, writable=True, bypass_lock=True, display_name="count of parts")
+    Unknown = UaVariable(initial_value=make_part(), writable=True, bypass_lock=True, optional_ok=True)
 
 
 class PartMachine(ParameterSetMixin[Parameters], BaseMachine):
@@ -413,3 +414,46 @@ async def test_children_inherit_the_access_of_the_parent(empty_server) -> None:
     assert fixed["Size"]["Length"].minimum_access_level == 3
     assert leaf._writable == current._writable is True
     assert fixed["Size"]["Length"]._writable == fixed._writable
+
+
+@pytest.mark.asyncio
+async def test_set_writable_on_the_parent_reaches_every_child(empty_server) -> None:
+    current = (await empty_server.add_machine(PartMachine())).parameter_set.Current
+    await current.set_writable(False)
+    before = await snapshot(current)
+
+    async with Client(url(empty_server)) as client:
+        length = client.get_node(current["Size"]["Length"].ua_node.nodeid)
+        with pytest.raises(ua.UaStatusCodeError):
+            await length.write_value(ua.Variant(7.0, ua.VariantType.Double))
+
+    assert current["Size"]["Length"]._writable is False
+    assert await snapshot(current) == before
+
+
+@pytest.mark.asyncio
+async def test_a_bad_status_without_a_value_reaches_every_node_without_a_value(empty_server) -> None:
+    unknown = (await empty_server.add_machine(PartMachine())).parameter_set.Unknown
+    nodes = (unknown, unknown["Size"], unknown["Size"]["Edge"]["Radius"], unknown["Id"])
+
+    bad = ua.StatusCode(ua.StatusCodes.BadNoCommunication)
+    await unknown.ua_node.write_value(
+        ua.DataValue(Value=ua.Variant(None, ua.VariantType.ExtensionObject), StatusCode=bad)
+    )
+
+    for node in nodes:
+        data_value = await node.ua_node.read_data_value(raise_on_bad_status=False)
+        assert data_value.StatusCode.value == ua.StatusCodes.BadNoCommunication, node.path
+        assert data_value.Value.Value is None, node.path
+
+
+@pytest.mark.asyncio
+async def test_a_new_initial_value_of_the_parent_is_the_one_its_children_reset_to(empty_server) -> None:
+    current = (await empty_server.add_machine(PartMachine())).parameter_set.Current
+
+    current.initial_value = make_part(size=Size(300.0, 80.0, Edge(2.5, True)))
+    await current["Size"]["Edge"]["Radius"].reset()
+    await current["Size"]["Length"].reset()
+
+    assert current["Size"].initial_value == Size(300.0, 80.0, Edge(2.5, True))
+    assert (await current.read()).size == Size(300.0, 80.0, Edge(2.5, True))

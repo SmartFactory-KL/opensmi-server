@@ -62,8 +62,8 @@ async def browse(node) -> dict[str, "object"]:
 async def test_declared_groups_are_objects_of_base_object_type_nested_two_levels(empty_server, where) -> None:
     container = getattr(await empty_server.add_machine(GroupMachine()), where)
 
-    controller = container["Controller"]
-    follow_path = controller["FollowPath"]
+    controller = container.groups["Controller"]
+    follow_path = controller.groups["FollowPath"]
     references = await container.ua_node.get_references(
         refs=ObjectIds.HasComponent, direction=ua.BrowseDirection.Forward
     )
@@ -90,7 +90,7 @@ async def test_runtime_groups_nest_two_levels_in_each_variable_group(empty_serve
     assert (await sensors.ua_node.read_display_name()).Text == "all sensors"
     assert (await left.ua_node.read_display_name()).Text == "Left"
     assert (await level.ua_node.get_parent()).nodeid == left.ua_node.nodeid
-    assert container["Sensors"]["Left"]["Level"] is level
+    assert container.groups["Sensors"].groups["Left"]["Level"] is level
     assert (await empty_server.resolve(str(level.path)).read()) == 0.0
 
 
@@ -104,7 +104,7 @@ async def test_a_runtime_keyed_name_may_have_spaces_and_colons(empty_server) -> 
 
     assert (await member.ua_node.read_browse_name()).Name == "sensor 1: left"
     assert (await member.ua_node.read_display_name()).Text == "sensor 1: left"
-    assert monitoring["sensor 1: left"]["Level"].path.segments[-2] == "sensor 1: left"
+    assert monitoring.groups["sensor 1: left"]["Level"].path.segments[-2] == "sensor 1: left"
     assert not [each for each in logs if "naming rule" in each["event"]]
 
 
@@ -116,7 +116,7 @@ async def test_a_runtime_keyed_name_is_still_held_to_the_hard_rule(empty_server,
     with pytest.raises(ValueError, match=r"segment|empty|'/'"):
         await monitoring.add_group(name, runtime_keyed=True)
 
-    assert name not in monitoring
+    assert name not in monitoring.groups
 
 
 @pytest.mark.asyncio
@@ -127,7 +127,7 @@ async def test_a_duplicate_group_is_refused_and_the_first_is_kept(empty_server) 
     with pytest.raises(RuntimeError):
         await monitoring.add_group("Sensors")
 
-    assert monitoring["Sensors"] is first
+    assert monitoring.groups["Sensors"] is first
 
 
 @pytest.mark.asyncio
@@ -138,7 +138,7 @@ async def test_a_group_name_that_breaks_the_naming_rule_is_warned_about_like_any
         group = await monitoring.add_group("not a name")
 
     assert [each for each in logs if "naming rule" in each["event"] and each["path"].endswith("not a name")]
-    assert monitoring["not a name"] is group
+    assert monitoring.groups["not a name"] is group
 
 
 @pytest.mark.asyncio
@@ -153,7 +153,7 @@ async def test_remove_group_removes_the_whole_subtree_and_frees_the_name(empty_s
 
     await parameters.remove_group("Sensors")
 
-    assert "Sensors" not in parameters
+    assert "Sensors" not in parameters.groups
     assert set(await browse(parameters.ua_node)) == {"Controller", "Plain"}
     with pytest.raises(ua.UaStatusCodeError):
         await level.ua_node.read_value()
@@ -177,14 +177,28 @@ async def test_read_all_and_write_all_include_groups_as_nested_mappings(empty_se
 
     await parameters.write_all({"Plain": 2.0, "Controller": {"FollowPath": {"MaxVelX": 1.5}}, "Extra": {"Count": 4}})
 
-    assert await parameters["Controller"]["FollowPath"]["MaxVelX"].read() == 1.5
-    assert await parameters["Controller"]["UseSimTime"].read() is False
+    assert await parameters.groups["Controller"].groups["FollowPath"]["MaxVelX"].read() == 1.5
+    assert await parameters.groups["Controller"]["UseSimTime"].read() is False
     assert await parameters.read_all() == {
         "Plain": 2.0,
         "Controller": {"UseSimTime": False, "FollowPath": {"MaxVelX": 1.5}},
         "Extra": {"Count": 4},
     }
-    assert "Controller" in parameters
+
+
+@pytest.mark.asyncio
+async def test_item_access_covers_variables_only_and_groups_have_their_own_mapping(empty_server) -> None:
+    parameters = (await empty_server.add_machine(GroupMachine())).parameter_set
+    extra = await parameters.add_group("Extra")
+
+    assert parameters.groups == {"Controller": parameters.Controller, "Extra": extra}
+    assert parameters.Controller.FollowPath is parameters.groups["Controller"].groups["FollowPath"]
+    assert "Plain" in parameters
+    assert "Controller" not in parameters
+    assert [variable.name for variable in parameters] == ["Plain"]
+    assert len(parameters) == 1
+    with pytest.raises(KeyError):
+        parameters["Controller"]
     assert "Nope" not in parameters
     with pytest.raises(KeyError):
         parameters["Nope"]
@@ -193,33 +207,33 @@ async def test_read_all_and_write_all_include_groups_as_nested_mappings(empty_se
 @pytest.mark.asyncio
 async def test_reset_all_resets_variables_in_groups(empty_server) -> None:
     parameters = (await empty_server.add_machine(GroupMachine())).parameter_set
-    await parameters["Controller"]["FollowPath"]["MaxVelX"].write(9.0)
+    await parameters.groups["Controller"].groups["FollowPath"]["MaxVelX"].write(9.0)
 
     await parameters.reset_all()
 
-    assert await parameters["Controller"]["FollowPath"]["MaxVelX"].read() == 0.5
+    assert await parameters.groups["Controller"].groups["FollowPath"]["MaxVelX"].read() == 0.5
 
 
 @pytest.mark.asyncio
 async def test_groups_inherit_writability_and_access_level_from_their_container(empty_server) -> None:
     machine = await empty_server.add_machine(GroupMachine())
     parameters, monitoring = machine.parameter_set, machine.monitoring
-    assert parameters["Controller"]["FollowPath"].minimum_access_level == parameters.minimum_access_level
+    assert parameters.groups["Controller"].groups["FollowPath"].minimum_access_level == parameters.minimum_access_level
     parameters.minimum_access_level = 3
     runtime = await parameters.add_group("Runtime")
     await runtime.add(UaVariable(initial_value=0.0, name="Value", bypass_lock=True, writable=False))
 
     assert runtime.minimum_access_level == 3
     assert (await runtime.add_group("Deeper")).minimum_access_level == 3
-    assert parameters["Controller"]["FollowPath"]["MaxVelX"]._writable is True
-    assert monitoring["Controller"]["FollowPath"]["MaxVelX"]._writable is False
+    assert parameters.groups["Controller"].groups["FollowPath"]["MaxVelX"]._writable is True
+    assert monitoring.groups["Controller"].groups["FollowPath"]["MaxVelX"]._writable is False
 
     async with Client(url(empty_server)) as client:
-        writable = client.get_node(parameters["Controller"]["FollowPath"]["MaxVelX"].ua_node.nodeid)
+        writable = client.get_node(parameters.groups["Controller"].groups["FollowPath"]["MaxVelX"].ua_node.nodeid)
         await writable.write_value(ua.Variant(2.5, ua.VariantType.Double))
-        assert await parameters["Controller"]["FollowPath"]["MaxVelX"].read() == 2.5
+        assert await parameters.groups["Controller"].groups["FollowPath"]["MaxVelX"].read() == 2.5
 
-        read_only = client.get_node(monitoring["Controller"]["FollowPath"]["MaxVelX"].ua_node.nodeid)
+        read_only = client.get_node(monitoring.groups["Controller"].groups["FollowPath"]["MaxVelX"].ua_node.nodeid)
         with pytest.raises(ua.UaStatusCodeError):
             await read_only.write_value(ua.Variant(2.5, ua.VariantType.Double))
 
@@ -239,7 +253,7 @@ async def test_a_complex_variable_works_inside_a_group(empty_server) -> None:
 
     await spot["Y"].write(5.0)
 
-    assert await parameters["Station"]["Spot"].read() == Spot(1.0, 5.0)
+    assert await parameters.groups["Station"]["Spot"].read() == Spot(1.0, 5.0)
 
     child_path = str(spot["Y"].path)
     await parameters.remove_group("Station")
@@ -252,7 +266,7 @@ async def test_remove_group_removes_a_declared_group_from_its_container(empty_se
 
     await parameters.remove_group("Controller")
 
-    assert "Controller" not in parameters
+    assert "Controller" not in parameters.groups
     assert "Controller" not in vars(parameters)
     assert set(await browse(parameters.ua_node)) == {"Plain"}
 
@@ -276,7 +290,7 @@ class MachineryMachine(MonitoringMixin[MachineryReadings], BaseMachine):
 async def test_a_group_can_be_a_folder_like_the_machinery_monitoring_sub_structures(empty_server) -> None:
     monitoring = (await empty_server.add_machine(MachineryMachine())).monitoring
 
-    declared = monitoring["Process"]
+    declared = monitoring.groups["Process"]
     added = await monitoring.add_group("Health", object_type=ua.NodeId(ObjectIds.FolderType))
     nested = await added.add_group("Detail")
 
