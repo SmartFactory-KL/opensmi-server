@@ -1,0 +1,27 @@
+docs/migration.md
+  s_3f75ddcb3b04c5::t_7f6cee51e8ce49 28-31
+docs/variables.md
+  s_3f75ddcb3b04c5::t_263e404886f567 4-22
+  s_3f75ddcb3b04c5::t_5d07538fe9bd0a 89-90
+tests/integration/test_bad_status.py
+  s_3f75ddcb3b04c5::t_93a9d6d5b8c031 56,100,110-120
+src/opensmi/server/ua_variable.py
+  s_3f75ddcb3b04c5::t_3679e11dddd765 622
+  s_3f75ddcb3b04c5::t_a4ced0e699f2f0 614-621,623-627
+---
+{
+  "schema_version": "authorship/3.0.0",
+  "git_ai_version": "1.7.5",
+  "base_commit_sha": "001e51c9602c80e69d241d75f04621d7b08c6dd6",
+  "prompts": {},
+  "sessions": {
+    "s_3f75ddcb3b04c5": {
+      "agent_id": {
+        "tool": "claude",
+        "id": "e5a8bfbd-b0dd-451c-8079-ca09f8d8d207",
+        "model": "claude-opus-5-5"
+      },
+      "human_author": "Carsten Harms <Carsten.Harms@dfki.de>"
+    }
+  }
+}
