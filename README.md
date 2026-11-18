@@ -146,6 +146,7 @@ See [here](examples) for more OpenSMI server examples.
 | [**Machines**](docs/machinery_item.md#machines)     | The top-level unit a client addresses as "the machine," e.g. a robot + storage + transport port. A single server can expose several machines. |
 | [**Skills**](docs/skills.md)                        | Asynchronous, stateful capabilities  — finite (run once, complete) or continuous (run indefinitely), atomic or composite.                     |
 | [**Methods**](docs/methods.md)                      | Synchronous, quick operations — no state machine, just `call()` in, result out.                                                               |
+| [**Variables**](docs/variables.md)                  | Values that belong together: structures as dataclasses, their fields as child variables, and groups of variables.                             |
 | [**Events**](docs/events.md)                        | Messages as OPC UA events: info, warning and error notifications and their history.                                                           |
 
 ## Project Status
