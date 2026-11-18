@@ -23,6 +23,15 @@ versions, apply every section between your version and the newest one, oldest fi
   enum now clashes with it, as with structures: adding the machine after the enum fails with an unrelated looking
   `UaStatusCodeError`, creating the enum after the machine with `BadNodeIdExists`. Rename one of them.
 
+### Notifications: own event types
+
+- Only if you create generators for your own event types on a `Notification` with `ua_server.get_event_generator()`:
+  switch to the new `Notification.add_event_generator()`, see
+  [Advanced: own event types](events.md#advanced-own-event-types). Until then the event history stores these events
+  without the fields specific to their type.
+- The SQLite history storage adds missing event field columns to an existing table, so a database written by an
+  earlier version also stores them from now on.
+
 ## OpenSMI v0.2 -> v0.3
 
 ### Dependencies
@@ -98,8 +107,8 @@ Clients that matched incoming events to their subscription by `SourceNode` no lo
 Match by the monitored item instead, e.g. by `event.server_handle` in asyncua. OpenSMI-Core v0.7.0 and older match by
 `SourceNode`, so clients based on them (OpenSMI-Client up to now) need OpenSMI-Core v0.7.1 or newer.
 
-Notification events are now also kept in the server's event history (up to 1000 per `Notification` object) and can be
-read with `HistoryRead`.
+Notification events are now also kept in the server's event history and can be read with `HistoryRead`. How many
+are kept depends on the history storage, see [Event history](events.md#event-history).
 
 ### Other API changes
 

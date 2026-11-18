@@ -79,3 +79,33 @@ async def test_historizing_again_keeps_the_fields_of_an_event_type_added_later(m
                 await asyncio.sleep(0.05)
 
     assert [e.Extra for e in events if e.Message.Text == "late event"] == ["kept"]
+
+
+@pytest.mark.asyncio
+async def test_an_event_type_added_with_add_event_generator_keeps_its_fields_in_the_history(
+    machine: BaseMachine,
+) -> None:
+    ua_server = machine.server.ua_server
+    idx = await ua_server.register_namespace("urn:test:added-event-type")
+    event_type = await ua_server.create_custom_event_type(
+        idx, "AddedEventType", properties=[("Extra", ua.VariantType.String)]
+    )
+    generator = await machine.notification.add_event_generator(event_type)
+
+    start = datetime.now(UTC) - timedelta(seconds=1)
+    generator.event.Message = ua.LocalizedText("added event")
+    generator.event.Extra = "kept"
+    await generator.trigger()
+
+    port = ua_server.bserver.port
+    async with Client(url=f"opc.tcp://visitor:visitor@localhost:{port}") as client:
+        node = client.get_node(machine.notification.ua_node.nodeid)
+        events: list[Any] = []
+        async with asyncio.timeout(5):  # events are stored asynchronously
+            while "added event" not in {event.Message.Text for event in events}:
+                events = await node.read_event_history(
+                    start, datetime.now(UTC) + timedelta(seconds=1), evtypes=event_type.nodeid
+                )
+                await asyncio.sleep(0.05)
+
+    assert [e.Extra for e in events if e.Message.Text == "added event"] == ["kept"]

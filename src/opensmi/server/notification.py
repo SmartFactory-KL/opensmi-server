@@ -5,9 +5,11 @@
 """Implementation of the `AbstractUaLogger` interface with a Notification OPC UA object and event sources."""
 
 from collections.abc import AsyncGenerator
-from typing import TYPE_CHECKING
+from datetime import timedelta
+from typing import TYPE_CHECKING, Final
 
 from asyncua import ua
+from asyncua.common.node import Node
 from asyncua.server.event_generator import EventGenerator
 from opensmi.core.lifecycle_mixin import lifecycle
 from opensmi.core.nodesets import SmartFactoryMachineSetNodeIds
@@ -22,7 +24,15 @@ if TYPE_CHECKING:
 
 
 class Notification(ParentMixin["BaseMachineryItem"], UaObject, AbstractUaLogger):
-    """Implementation of the `AbstractUaLogger` interface with a Notification OPC UA object and event sources."""
+    """Implementation of the `AbstractUaLogger` interface with a Notification OPC UA object and event sources.
+
+    The events it emits are kept in the server's event history, see ``docs/events.md``.
+    """
+
+    HISTORY_EVENT_COUNT: Final = 1000
+    """Most events kept in the history of a `Notification`; asyncua's SQLite history storage ignores it."""
+    HISTORY_EVENT_PERIOD: Final = timedelta(days=7)
+    """How long events are kept in the history of a `Notification`."""
 
     _ua_info_event_gen: EventGenerator
     _ua_alarm_event_gen: EventGenerator
@@ -52,10 +62,27 @@ class Notification(ParentMixin["BaseMachineryItem"], UaObject, AbstractUaLogger)
         )
 
         # historize the events of both generators (must happen after they added their GeneratesEvent references)
-        await self.server.ua_server.historize_node_event(self.ua_node, count=1000)
+        await self._historize_events()
 
         yield
         # no shutdown
+
+    async def add_event_generator(self, event_type: Node | ua.NodeId | int) -> EventGenerator:
+        """Return a generator for events of `event_type` emitted by this `Notification`, kept in its event history.
+
+        Use it instead of ``ua_server.get_event_generator()`` for event types beyond the info and alert events, so the
+        history also stores the fields of `event_type`. Call it during setup, e.g. in a `lifecycle` step ordered after
+        `lifecycle_notification`: events emitted shortly before or while it runs can be missing from the history.
+        """
+        generator = await self.server.ua_server.get_event_generator(etype=event_type, emitting_node=self.ua_node.nodeid)
+        # historize again: the history only stores the fields of the event types generated when it is set up
+        await self._historize_events()
+        return generator
+
+    async def _historize_events(self) -> None:
+        await self.server.ua_server.historize_node_event(
+            self.ua_node, period=self.HISTORY_EVENT_PERIOD, count=self.HISTORY_EVENT_COUNT
+        )
 
     async def _generate_info_event(
         self, *, msg: str, severity: int = 0, source: AbstractUaObject | None = None
