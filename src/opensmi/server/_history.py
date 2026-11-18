@@ -13,7 +13,7 @@ import aiosqlite
 from asyncua import ua
 from asyncua.common.events import Event
 from asyncua.common.sql_injection import validate_table_name
-from asyncua.server.history import HistoryManager, HistoryStorageInterface, SubHandler
+from asyncua.server.history import HistoryDict, HistoryManager, HistoryStorageInterface, SubHandler
 from asyncua.server.history_sql import HistorySQLite
 from typing_extensions import override
 
@@ -38,6 +38,22 @@ class FixedHistorySQLite(HistorySQLite):
         # (e.g. ``ConditionClassId`` in alarm types); duplicate column names make ``CREATE TABLE`` fail.
         # See https://github.com/FreeOpcUa/opcua-asyncio/issues/2076.
         return list(dict.fromkeys(await super()._get_event_fields(evtypes)))
+
+    @override
+    async def new_historized_event(  # pyright: ignore[reportIncompatibleMethodOverride]
+        self, source_id: ua.NodeId, evtypes: list[Node], period: timedelta | None, count: int = 0
+    ) -> None:
+        # asyncua only creates the table; when it exists (historized again, or a database from an earlier run),
+        # event fields added since have no column, so add them (https://github.com/FreeOpcUa/opcua-asyncio/issues/2084).
+        await super().new_historized_event(source_id, evtypes, period, count)
+        table = self._get_table_name(source_id)
+        validate_table_name(table)
+        async with self._db.execute(f'PRAGMA table_info("{table}")') as cursor:
+            existing = {row[1] async for row in cursor}
+        for name in self._event_fields[source_id]:
+            if name not in existing:
+                await self._db.execute(f'ALTER TABLE "{table}" ADD COLUMN "{name}" BLOB')
+        await self._db.commit()
 
     @override
     async def save_event(self, event: Event) -> None:
@@ -100,14 +116,28 @@ class _EventSourceSubHandler(SubHandler):
         super().event_notification(event)
 
 
+class _HistoryDict(HistoryDict):
+    """`HistoryDict` that can historize the events of a node again, keeping the events stored so far."""
+
+    @override
+    async def new_historized_event(  # pyright: ignore[reportIncompatibleMethodOverride]
+        self, source_id: ua.NodeId, evtypes: list[ua.NodeId], period: timedelta | None, count: int = 0
+    ) -> None:
+        self._events.setdefault(source_id, [])
+        self._events_periods[source_id] = period, count
+
+
 class FixedHistoryManager(HistoryManager):
     """`HistoryManager` whose event history actually stores events under the historized node.
 
-    Workaround for https://github.com/FreeOpcUa/opcua-asyncio/issues/2074.
+    Workaround for https://github.com/FreeOpcUa/opcua-asyncio/issues/2074. Historizing the events of a node again
+    picks up the event types it generates by then, so an event type added after the first historize keeps its fields
+    (https://github.com/FreeOpcUa/opcua-asyncio/issues/2084).
     """
 
     def __init__(self, iserver: InternalServer) -> None:
         super().__init__(iserver)
+        self.storage = _HistoryDict()
         self._event_sources: dict[int, ua.NodeId] = {}  # monitored item server handle -> historized node
 
     @override
@@ -116,6 +146,8 @@ class FixedHistoryManager(HistoryManager):
 
     @override
     async def historize_event(self, source: Node, period: timedelta | None = timedelta(days=7), count: int = 0) -> None:
+        if source in self._handlers:  # asyncua refuses; subscribe again with the event types of now
+            await self.dehistorize(source)
         await super().historize_event(source, period, count)
         handle: Any = self._handlers[source]
         self._event_sources[handle] = source.nodeid
