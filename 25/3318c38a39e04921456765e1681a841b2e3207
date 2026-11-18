@@ -1,0 +1,21 @@
+docs/variables.md
+  s_3f75ddcb3b04c5::t_4d018ac828c576 22
+docs/migration.md
+  s_3f75ddcb3b04c5::t_7aa2bc2d231d26 29-30
+---
+{
+  "schema_version": "authorship/3.0.0",
+  "git_ai_version": "1.7.5",
+  "base_commit_sha": "253318c38a39e04921456765e1681a841b2e3207",
+  "prompts": {},
+  "sessions": {
+    "s_3f75ddcb3b04c5": {
+      "agent_id": {
+        "tool": "claude",
+        "id": "e5a8bfbd-b0dd-451c-8079-ca09f8d8d207",
+        "model": "claude-opus-5-5"
+      },
+      "human_author": "Carsten Harms <Carsten.Harms@dfki.de>"
+    }
+  }
+}
