@@ -7,6 +7,7 @@ from datetime import UTC, datetime, timedelta
 from typing import Any
 
 import pytest
+from asyncua import ua
 from asyncua.client.client import Client
 
 from opensmi.server import BaseMachine, Server
@@ -47,3 +48,34 @@ async def test_notification_event_history(machine: BaseMachine) -> None:
         (messages[1], source.ua_node.nodeid, source.name),
         (messages[2], machine.ua_node.nodeid, machine.name),
     ]
+
+
+@pytest.mark.asyncio
+async def test_historizing_again_keeps_the_fields_of_an_event_type_added_later(machine: BaseMachine) -> None:
+    ua_server = machine.server.ua_server
+    notification = machine.notification.ua_node
+    idx = await ua_server.register_namespace("urn:test:late-event-type")
+    event_type = await ua_server.create_custom_event_type(
+        idx, "LateEventType", properties=[("Extra", ua.VariantType.String)]
+    )
+    generator = await ua_server.get_event_generator(event_type, notification.nodeid)
+    await ua_server.historize_node_event(notification, count=1000)  # again, now that it generates LateEventType
+
+    start = datetime.now(UTC) - timedelta(seconds=1)
+    generator.event.Message = ua.LocalizedText("late event")
+    generator.event.Extra = "kept"
+    await generator.trigger()
+    await machine.ua_log_info("info event")
+
+    port = ua_server.bserver.port
+    async with Client(url=f"opc.tcp://visitor:visitor@localhost:{port}") as client:
+        node = client.get_node(notification.nodeid)
+        events: list[Any] = []
+        async with asyncio.timeout(5):  # events are stored asynchronously
+            while {"late event", "info event"} - {event.Message.Text for event in events}:
+                events = await node.read_event_history(
+                    start, datetime.now(UTC) + timedelta(seconds=1), evtypes=event_type.nodeid
+                )
+                await asyncio.sleep(0.05)
+
+    assert [e.Extra for e in events if e.Message.Text == "late event"] == ["kept"]
