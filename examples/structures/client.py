@@ -26,6 +26,21 @@ async def main() -> None:
         size = workpiece.dimensions
         print(f"Workpiece: {workpiece.id} ({workpiece.material}), {size.length} x {size.width} x {size.height} mm")  # noqa: T201
 
+        # The workpiece has a child variable per field: read one leaf, write it, and read the whole workpiece again
+        length_node = await workpiece_node.get_child(["1:Dimensions", "1:Length"])
+        print(f"Length: {await length_node.read_value()} mm")  # noqa: T201
+        await length_node.write_value(ua.Variant(95.0, ua.VariantType.Double))
+        print(f"Workpiece now: {(await workpiece_node.read_value()).dimensions.length} mm long")  # noqa: T201
+
+        # Groups are objects: browse the declared one in the ParameterSet and the one added at runtime
+        parameter_set = client.get_node("ns=1;s=ExampleMachine.ParameterSet")
+        gripper = await parameter_set.get_child("1:Gripper")
+        print(f"Gripper: {[(await each.read_browse_name()).Name for each in await gripper.get_children()]}")  # noqa: T201
+        monitoring = client.get_node("ns=1;s=ExampleMachine.Monitoring")
+        for group in await monitoring.get_children(nodeclassmask=ua.NodeClass.Object):
+            names = [(await each.read_browse_name()).Name for each in await group.get_children()]
+            print(f"Monitoring group {(await group.read_browse_name()).Name!r}: {names}")  # noqa: T201
+
         measurements_node = client.get_node("ns=1;s=ExampleMachine.ParameterSet.Measurements")
         measurements = await measurements_node.read_value()
         print(f"Measurements: {[each.name for each in measurements]}")  # noqa: T201

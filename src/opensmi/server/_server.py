@@ -201,6 +201,7 @@ class Server(
         :raises ValueError: If the name is no valid path segment (empty or containing ``/``), or its path (or an alias)
             is already taken by another object.
         """
+        from opensmi.server.ua_variable_containers import VariableGroup  # prevent circular import
         from opensmi.server.user import User  # prevent circular import
 
         try:
@@ -208,7 +209,8 @@ class Server(
         except ValueError as err:
             msg = f"Invalid name for {ua_object.path.parent}/...: {err}"
             raise ValueError(msg) from None
-        if not isinstance(ua_object, User):  # usernames are only used as text
+        # usernames are only used as text, runtime keys are whatever the runtime delivers
+        if not (isinstance(ua_object, User) or (isinstance(ua_object, VariableGroup) and ua_object.runtime_keyed)):
             try:
                 check_name(ua_object.name)
             except ValueError as err:
