@@ -25,10 +25,11 @@ versions, apply every section between your version and the newest one, oldest fi
 
 ### Variables: bad status
 
-- A write with a bad status (e.g. `ua.DataValue(StatusCode=ua.StatusCode(ua.StatusCodes.BadNoCommunication))`) is
-  no longer checked, since it has no value: every variable accepts it, also one that is not `optional_ok`, and its
-  `write_check_callback` is not called. Drop dummy values that were only written to get a bad status through the
-  check. Access level and lock still apply.
+- A write with a bad status is no longer checked, since it has no value: every variable accepts it, also one that is
+  not `optional_ok`, and its `write_check_callback` is not called. A client still needs the access level and the
+  lock to write it. Replace dummy
+  values that were only written to get a bad status through the check by the new `UaVariable.write_status()`:
+  `await variable.write_status(ua.StatusCodes.BadNoCommunication)`.
 
 ### Notifications: own event types
 

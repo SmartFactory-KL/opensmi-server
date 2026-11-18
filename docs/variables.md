@@ -1,8 +1,25 @@
 # Variables
 
 Machinery items, skills and methods hold their values in `UaVariable`s inside the variable containers `ParameterSet`,
-`Monitoring` and `FinalResultData` (see [Machinery Items](machinery_item.md)). This page covers values that belong
-together: structures, and groups of variables.
+`Monitoring` and `FinalResultData` (see [Machinery Items](machinery_item.md)). This page covers values without a valid
+value, and values that belong together: structures, and groups of variables.
+
+## Bad status
+
+When a variable has no valid value, e.g. because the connection to its data source is lost, mark it with a bad
+status instead of leaving the last value. Clients then see the status and no value:
+
+```python
+from asyncua import ua
+
+await self.monitoring.Temperature.write_status(ua.StatusCodes.BadNoCommunication)
+...
+await self.monitoring.Temperature.write(21.5)  # valid again: the status is Good
+```
+
+`write_status()` accepts bad statuses only; a good or uncertain status comes with a value, so use `write()`. A bad
+status is not checked: every variable accepts it, also one that is not `optional_ok`, and its `write_check_callback`
+is not called.
 
 ## Structures
 
@@ -69,8 +86,8 @@ The variable and its children always agree:
 
 - A write to the variable also writes all its children, and a write to a child also writes the variable and the
   structures on the way up. All of them get one `SourceTimestamp` and the status of the write.
-- A bad status (e.g. `BadNoCommunication`) has no value and is not checked. Written to the variable or to any child,
-  it reaches the variable and all its children, and none of them has a value.
+- A bad status (e.g. `BadNoCommunication`, see [Bad status](#bad-status)) has no value and is not checked. Written to
+  the variable or to any child, it reaches the variable and all its children, and none of them has a value.
 - Every write is checked once, by the variable that holds the whole structure, on the whole new structure. Its
   `write_check_callback` therefore also sees writes to a child and can check rules across fields. A refused write
   changes nothing. A `write_check_callback` only checks: it must not write any variable.
@@ -127,3 +144,14 @@ container` do not see groups. `read_all()`, `write_all()` and `reset_all()` incl
 await parameters.read_all()
 # {"Controller": {"UseSimTime": False, "FollowPath": {"MaxVelX": 0.5}}}
 ```
+
+## Structure or group?
+
+A complex variable is one value: it is valid as a whole or not at all. A bad status on any of its nodes reaches all
+of them, and a client can read it atomically. A group is only a namespace: each variable in it has its own value and
+status, and the group itself has none.
+
+- Use a **structure** for values that arrive and are valid together, from one source, e.g. a workpiece record or a
+  pose read from the controller in one go.
+- Use a **group** for values that come from independent sources and can fail separately, e.g. the readings of two
+  sensors. Then one lost sensor marks only its own variables bad, and the others stay readable.

@@ -611,6 +611,20 @@ class UaVariable(NotificationForwarderMixin, UaObject, Generic[_VariableType]):
         await write_value(node=self.ua_node, value=value, variant_type=self._initial_value.VariantType)
         # self.logger.debug("Written to variable", value=new_value)
 
+    async def write_status(self, status: ua.StatusCode | int) -> None:
+        """Mark this variable as without a valid value, e.g. ``ua.StatusCodes.BadNoCommunication``.
+
+        The variable keeps the bad ``status`` and no value until the next `write`, which sets it to Good again. A
+        complex variable passes the status on to all its nodes, also when it is written to a child.
+
+        :raises ValueError: If ``status`` is not bad: a good or uncertain status needs a value, use `write`.
+        """
+        status = status if isinstance(status, ua.StatusCode) else ua.StatusCode(ua.UInt32(status))
+        if not status.is_bad():
+            msg = f"{self.path}: {status.name} is not a bad status, write a value instead!"
+            raise ValueError(msg)
+        await self.ua_node.write_value(ua.DataValue(StatusCode=status))
+
     def _extract_value(self, value) -> _VariableType:
         if issubclass(self._initial_value_type, IntEnum):
             return self._initial_value_type(value)

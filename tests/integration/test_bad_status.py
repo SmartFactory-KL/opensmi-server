@@ -53,7 +53,7 @@ async def test_a_bad_status_without_a_value_is_accepted_by_a_variable_that_is_no
     speed = (await empty_server.add_machine(StatusMachine())).parameter_set.Speed
     assert speed.optional_ok is False
 
-    await speed.ua_node.write_value(ua.DataValue(StatusCode=BAD))
+    await speed.write_status(ua.StatusCodes.BadNoCommunication)
     assert await status_and_value(speed) == (ua.StatusCodes.BadNoCommunication, None)
 
     await speed.write(2.0)
@@ -97,7 +97,7 @@ async def test_a_bad_status_on_a_complex_variable_without_optional_ok_reaches_ev
 async def test_a_bad_status_on_a_leaf_reaches_the_whole_complex_variable(empty_server) -> None:
     current = (await empty_server.add_machine(StatusMachine())).parameter_set.Current
 
-    await current["Size"]["Length"].ua_node.write_value(ua.DataValue(StatusCode=BAD))
+    await current["Size"]["Length"].write_status(BAD)
 
     for node in (current, current["Id"], current["Size"], current["Size"]["Width"], current["Size"]["Length"]):
         assert await status_and_value(node) == (ua.StatusCodes.BadNoCommunication, None), node.path
@@ -107,3 +107,14 @@ async def test_a_bad_status_on_a_leaf_reaches_the_whole_complex_variable(empty_s
         await current["Size"]["Length"].write(5.0)
     await current.write(Part("P-2", Size(5.0, 6.0)))
     assert await current["Size"]["Length"].read() == 5.0
+
+
+@pytest.mark.asyncio
+@pytest.mark.parametrize("status", [ua.StatusCodes.Good, ua.StatusCodes.UncertainLastUsableValue])
+async def test_write_status_refuses_a_status_that_is_not_bad(empty_server, status) -> None:
+    speed = (await empty_server.add_machine(StatusMachine())).parameter_set.Speed
+
+    with pytest.raises(ValueError, match="not a bad status"):
+        await speed.write_status(status)
+
+    assert await status_and_value(speed) == (ua.StatusCodes.Good, 1.0)
