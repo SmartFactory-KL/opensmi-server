@@ -104,7 +104,8 @@ class UaVariable(NotificationForwarderMixin, UaObject, Generic[_VariableType]):
     `write_check`, a write to a child runs the parent's `write_check` on the merged value, so a
     ``write_check_callback`` always sees the whole structure. A refused write changes no node. After a passed
     check, the written node, its ancestors and its descendants get their values in one call with one
-    ``SourceTimestamp`` and the status of the write; with a bad status, no node has a value. This holds for writes
+    ``SourceTimestamp`` and the status of the write. A bad status has no value and is not checked; written to any
+    node, it reaches every node of the complex variable. This holds for writes
     through `write` and for external OPC UA writes; a write that bypasses the access control (for example one
     to the node of a child with plain asyncua inside the server) leaves them out of step. A ``write_check_callback``
     only checks and must not write any variable: a write to the same complex variable hangs.
@@ -337,14 +338,24 @@ class UaVariable(NotificationForwarderMixin, UaObject, Generic[_VariableType]):
     async def sync_writes(self, write_value: ua.WriteValue) -> list[ua.WriteValue]:
         """Return ``write_value`` for this variable and the writes that bring the rest of its tree in step with it.
 
-        All carry one ``SourceTimestamp`` and the ``StatusCode`` of ``write_value``, so a bad status reaches every node.
-        A variable that is not part of a complex variable returns ``write_value``.
+        All carry one ``SourceTimestamp`` and the ``StatusCode`` of ``write_value``. A bad status has no value and
+        reaches every node of the complex variable, also when it is written to a child. A variable that is not part
+        of a complex variable returns ``write_value``.
         """
         if self._complex_parent is None and not self._children:
             return [write_value]
         value = write_value.Value.Value.Value
         timestamp = write_value.Value.SourceTimestamp or datetime.now(UTC)
-        changes = [*await self._changes_up(value), *self._changes_down(value)]
+        status = write_value.Value.StatusCode
+        if status is not None and status.is_bad():
+            # no value to merge: the whole complex variable, from its root down, gets the status and no value
+            root = self
+            while root._complex_parent is not None:
+                root = root._complex_parent
+            tree = [root, *(node for node, _ in root._changes_down(None))]  # noqa: SLF001
+            changes = [(self, None), *((node, None) for node in tree if node is not self)]
+        else:
+            changes = [*await self._changes_up(value), *self._changes_down(value)]
         write_values = [
             ua.WriteValue(
                 NodeId=node.ua_node.nodeid,
@@ -526,6 +537,9 @@ class UaVariable(NotificationForwarderMixin, UaObject, Generic[_VariableType]):
 
     async def write_check(self, value: _VariableType | ua.Variant | None) -> None:
         """Check whether given ``value`` can be written to this variable.
+
+        Not called for a write with a bad status, which has no value: a data source can mark any variable as without
+        a valid value, also one that is not ``optional_ok``.
 
         :raises OutOfRangeError: if ``value`` is not within the range of the variable.
         """

@@ -68,8 +68,9 @@ await length.write(95.0)
 The variable and its children always agree:
 
 - A write to the variable also writes all its children, and a write to a child also writes the variable and the
-  structures on the way up. All of them get one `SourceTimestamp` and the status of the write. With a bad status
-  (e.g. `BadNoCommunication`), none of them has a value.
+  structures on the way up. All of them get one `SourceTimestamp` and the status of the write.
+- A bad status (e.g. `BadNoCommunication`) has no value and is not checked. Written to the variable or to any child,
+  it reaches the variable and all its children, and none of them has a value.
 - Every write is checked once, by the variable that holds the whole structure, on the whole new structure. Its
   `write_check_callback` therefore also sees writes to a child and can check rules across fields. A refused write
   changes nothing. A `write_check_callback` only checks: it must not write any variable.

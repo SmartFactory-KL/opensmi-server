@@ -223,7 +223,10 @@ class AccessControlAttributeService(AttributeService):
                     async with ua_object.tree_lock:
                         try:
                             value = ua_write_value.Value.Value.Value
-                            await ua_object.write_check(value)
+                            # a bad status has no value (asyncua stores null), so there is no value to check
+                            status = ua_write_value.Value.StatusCode
+                            if status is None or not status.is_bad():
+                                await ua_object.write_check(value)
                         except UaStatusCodeError as err:
                             result.append(ua.StatusCode(err.code))
                             continue

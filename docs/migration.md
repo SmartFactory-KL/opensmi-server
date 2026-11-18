@@ -23,6 +23,13 @@ versions, apply every section between your version and the newest one, oldest fi
   enum now clashes with it, as with structures: adding the machine after the enum fails with an unrelated looking
   `UaStatusCodeError`, creating the enum after the machine with `BadNodeIdExists`. Rename one of them.
 
+### Variables: bad status
+
+- A write with a bad status (e.g. `ua.DataValue(StatusCode=ua.StatusCode(ua.StatusCodes.BadNoCommunication))`) is
+  no longer checked, since it has no value: every variable accepts it, also one that is not `optional_ok`, and its
+  `write_check_callback` is not called. Drop dummy values that were only written to get a bad status through the
+  check. Access level and lock still apply.
+
 ### Notifications: own event types
 
 - Only if you create generators for your own event types on a `Notification` with `ua_server.get_event_generator()`:
