@@ -1,7 +1,5 @@
 # Frequently Asked Questions
 
-[[_TOC_]]
-
 ## How can I fix the "Event loop is too busy" warning(s)?
 
 These warnings are generated, if the [Async Event Loop](https://docs.python.org/3/library/asyncio-eventloop.html) is

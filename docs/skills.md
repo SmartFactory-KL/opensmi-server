@@ -1,7 +1,5 @@
 # Skills
 
-[[_TOC_]]
-
 ## Basics
 
 Each skill is a self-contained capability exposed over OPC-UA with `start()`/`suspend()`/`reset()`/`halt()` methods and

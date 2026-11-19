@@ -3,8 +3,6 @@
 > [!important] 
 > You do **not** need to read this if you just want to use this as a normal Python library!
 
-[[_TOC_]]
-
 ## Design Goals
 
 - API as simple to use as possible, ideally little to no asyncua contact for end users
