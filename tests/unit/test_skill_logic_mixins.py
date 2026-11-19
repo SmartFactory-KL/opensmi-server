@@ -17,6 +17,7 @@ from asyncua.ua.uaerrors import BadStateNotActive
 from opensmi.core import SkillState
 from opensmi.core.errors import OpenSmiRuntimeError
 from opensmi.core.nodesets import SmartFactoryMachineSetNodeIds
+from opensmi.core.skill_state_machine import SkillCommand, transitions
 from typing_extensions import override
 
 from opensmi.server import BaseSkill
@@ -610,6 +611,39 @@ async def test_calling_undeclared_skill_warns() -> None:
 
 def test_dependencies_empty_without_requirements_mixin() -> None:
     assert ContinuousTestSkill().dependencies == ()
+
+
+######################################
+# Transitions match the skill state machine spec in core
+
+
+_COMMAND_TRIGGERS = {command.value.lower(): command for command in SkillCommand}
+"""Triggers of the server's state machine that correspond to a skill command; all others are internal."""
+
+
+def _spec_transitions(*, finite: bool) -> set[tuple[SkillState, SkillState, SkillCommand | None]]:
+    return {(t.source, t.target, t.cause) for t in transitions(finite=finite)}
+
+
+def _fsm_transitions(skill) -> set[tuple[SkillState, SkillState, SkillCommand | None]]:
+    machine = skill._machine._internal_machine
+    return {
+        (SkillState[source], SkillState[transition.dest], _COMMAND_TRIGGERS.get(trigger))
+        for trigger, event in machine.events.items()
+        for source, transitions_ in event.transitions.items()
+        for transition in transitions_
+    }
+
+
+def test_finite_transitions_match_spec() -> None:
+    assert _fsm_transitions(FiniteTestSkill()) == _spec_transitions(finite=True)
+
+
+def test_continuous_transitions_match_spec() -> None:
+    finite_only = {SkillState.COMPLETING, SkillState.COMPLETED}
+    # the shared halt transition lists Completing and Completed as sources, which a continuous skill never reaches
+    fsm = {t for t in _fsm_transitions(ContinuousTestSkill()) if t[0] not in finite_only}
+    assert fsm == _spec_transitions(finite=False)
 
 
 ######################################

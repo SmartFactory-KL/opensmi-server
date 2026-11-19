@@ -83,7 +83,7 @@ class _SkillLogicMixin(AbstractSkill, AbstractUaLogger):
     def _add_transitions(self) -> None:
         self._machine.add_transition(
             trigger="reset",
-            source=[SkillState.HALTED, SkillState.STARTING, SkillState.SUSPENDED, SkillState.COMPLETED],
+            source=[SkillState.HALTED, SkillState.COMPLETED],
             dest=SkillState.RESETTING,
             conditions=[self._condition_access_allowed, self._condition_reset_allowed],
             after=self._after_resetting,
@@ -97,6 +97,7 @@ class _SkillLogicMixin(AbstractSkill, AbstractUaLogger):
                 SkillState.READY,
                 SkillState.STARTING,
                 SkillState.RUNNING,
+                SkillState.COMPLETING,
                 SkillState.COMPLETED,
                 SkillState.SUSPENDED,
                 SkillState.SUSPENDING,
