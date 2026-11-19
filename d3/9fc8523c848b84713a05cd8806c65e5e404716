@@ -1,0 +1,28 @@
+src/opensmi/server/mixins/skill_logic_mixins.py
+  s_046f4fd4e4eb85::t_8ff0c0397f4190 126,165-166,271,446
+  s_046f4fd4e4eb85::t_3b33da5f8568a4 160-164
+  s_046f4fd4e4eb85::t_2d8192d1bacdd8 270
+  s_046f4fd4e4eb85::t_b1d83830791397 437-445
+  s_046f4fd4e4eb85::t_cf2626bde6ef2c 123-125
+tests/unit/test_skill_logic_mixins.py
+  s_046f4fd4e4eb85::t_8ba4f9a06ef481 616,621,629,640-647,651,660,664-666,669,672,679,682-691,693
+  s_046f4fd4e4eb85::t_140b7a5f9507c1 615,617-620,622-628,630-639,648-650,652,661-663,667-668,670-671,673-678,680-681,692,694-696
+  s_046f4fd4e4eb85::t_95f9ec2d92e3a4 613-614
+  s_046f4fd4e4eb85::t_02a7d305c9357b 653-659
+---
+{
+  "schema_version": "authorship/3.0.0",
+  "git_ai_version": "1.7.5",
+  "base_commit_sha": "d39fc8523c848b84713a05cd8806c65e5e404716",
+  "prompts": {},
+  "sessions": {
+    "s_046f4fd4e4eb85": {
+      "agent_id": {
+        "tool": "claude",
+        "id": "b8916ebf-ea90-4b68-b5b1-f0faa8b48590",
+        "model": "claude-opus-5-5"
+      },
+      "human_author": "Carsten Harms <Carsten.Harms@dfki.de>"
+    }
+  }
+}
