@@ -7,6 +7,7 @@ from asyncua import ua
 from asyncua.client.client import Client
 from asyncua.ua.uaerrors import BadInvalidState, BadOutOfRange, BadRequiresLock, BadUserAccessDenied
 from opensmi.core import SkillState, Unit
+from opensmi.core.skill_state_machine import state_node_id, states, transitions
 from typing_extensions import override
 
 from opensmi.server import (
@@ -138,3 +139,43 @@ async def test_skill_basic_interaction_via_asyncua_client(server) -> None:
             await client_skill_fsm.call_method("6:Halt")
             await skill.wait_for_state(SkillState.HALTED)
             assert await client_skill_fsm_current_state.read_value() == SkillState.HALTED.localized_text
+
+
+@pytest.mark.asyncio
+async def test_skill_state_machine_follows_the_spec(server) -> None:
+    machine = _TestMachine()
+
+    async with server:
+        await server.add_machine(machine)
+        skill = machine.skill_set.TestSkill
+        await server.start(blocking=False)
+
+        client = Client(url=f"opc.tcp://operator:operator@localhost:{server.ua_server.bserver.port}")
+        async with client:
+            fsm = client.get_node(skill.ua_state_machine.nodeid)
+
+            async def read(*path: str) -> object:
+                return await (await fsm.get_child(list(path))).read_value()
+
+            # TestSkill is finite and not suspendable
+            assert await read("AvailableStates") == [
+                server.ua_get_node_id(state_node_id(state)) for state in states(finite=True, suspendable=False)
+            ]
+            assert await read("AvailableTransitions") == [
+                server.ua_get_node_id(t.node_id) for t in transitions(finite=True, suspendable=False)
+            ]
+            assert await read("CurrentState", "Id") == server.ua_get_node_id(state_node_id(SkillState.HALTED))
+            for path in (["LastTransition"], ["LastTransition", "Id"], ["CurrentState", "Number"]):
+                assert (await (await fsm.get_child(path)).read_display_name()).Text == path[-1]
+
+            await skill.reset()
+            await skill.wait_for_state(SkillState.READY)
+
+            assert await read("CurrentState") == SkillState.READY.localized_text
+            assert await read("CurrentState", "Id") == server.ua_get_node_id(state_node_id(SkillState.READY))
+            assert await read("CurrentState", "Number") == SkillState.READY.id
+            assert await read("LastTransition") == ua.LocalizedText("ResettingToReady")
+            resetting_to_ready = next(
+                t for t in transitions(finite=True, suspendable=False) if t.name == "ResettingToReady"
+            )
+            assert await read("LastTransition", "Id") == server.ua_get_node_id(resetting_to_ready.node_id)

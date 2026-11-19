@@ -48,7 +48,7 @@ class BaseTestSkill(BaseSkill, ABC):
         self.errors: list[tuple[str, Any]] = []
         self.gate = {"access": True, "startup": True, "deps": True}
         super().__init__(name="test_skill", suspendable=suspendable)
-        self._ua_current_state = MagicMock(write_value=AsyncMock())
+        self._ua_state_nodes = MagicMock(write=AsyncMock())
         self._logger = MagicMock()
 
     @property
@@ -137,8 +137,8 @@ def registered_tasks(skill) -> dict[str, asyncio.Task]:
 
 
 def written_states(skill) -> list:
-    """Values written to the (mocked) OPC-UA ``CurrentState`` node, in order."""
-    return [call.args[0] for call in skill._ua_current_state.write_value.await_args_list]
+    """Texts written to the (mocked) OPC-UA ``CurrentState`` node, in order."""
+    return [call.args[0].localized_text for call in skill._ua_state_nodes.write.await_args_list]
 
 
 def texts(*states: SkillState) -> list[ua.LocalizedText]:

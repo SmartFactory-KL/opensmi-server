@@ -7,34 +7,135 @@
 from __future__ import annotations
 
 import asyncio
-from collections.abc import AsyncGenerator
+from collections.abc import AsyncGenerator, Callable
 from contextlib import asynccontextmanager
+from dataclasses import dataclass
+from datetime import UTC, datetime
 from typing import TYPE_CHECKING, ClassVar
 
+from asyncua import ua
+from asyncua.common.instantiate_util import instantiate
 from asyncua.common.node import Node
 from asyncua.ua import QualifiedName
+from asyncua.ua.status_codes import StatusCodes as UaStatusCodes
 from asyncua.ua.uaerrors import BadNoMatch
 from opensmi.core import SkillState, lifecycle
 from opensmi.core.errors import OpenSmiRuntimeError, SkillHaltedError
 from opensmi.core.nodesets import SmartFactoryMachineSetNodeIds, SmartFactorySkillSetNodeIds
 from opensmi.core.paths import ObjectPath
+from opensmi.core.skill_state_machine import SkillTransition, state_node_id, states, transitions
+from opensmi.core.ua import NodeIdDefinition
 from opensmi.core.ua_node_util import get_child_without_ns, get_node_id
 from typing_extensions import override
 
 from opensmi.server.base_callable import BaseCallable
 from opensmi.server.interfaces import AbstractSkill
+from opensmi.server.protocols import UserAuthorization
 from opensmi.server.ua_object import UaObject
 
 if TYPE_CHECKING:
+    from asyncua.server.server import Server as AsyncuaServer
+
     from opensmi.server.base_feasibility_check import BaseFeasibilityCheck
     from opensmi.server.base_precondition_check import BasePreconditionCheck
+
+
+@dataclass(frozen=True, slots=True, kw_only=True)
+class _SkillStateMachineNodes:
+    """Nodes of a skill's state machine that follow its current state."""
+
+    ua_server: AsyncuaServer
+    to_node_id: Callable[[NodeIdDefinition], ua.NodeId]
+    current_state: Node
+    current_state_id: Node
+    current_state_number: Node
+    last_transition: Node
+    last_transition_id: Node
+
+    @classmethod
+    async def create(
+        cls,
+        *,
+        ua_server: AsyncuaServer,
+        to_node_id: Callable[[NodeIdDefinition], ua.NodeId],
+        state_machine: Node,
+        finite: bool,
+        suspendable: bool,
+    ) -> _SkillStateMachineNodes:
+        """Find the nodes on ``state_machine``, add the optional ones and write the available states and transitions.
+
+        ``CurrentState/Number`` and ``LastTransition`` with its ``Id`` are optional in ``SkillStateMachineType``.
+        ``LastTransition`` has no ``Number``, as the nodeset gives its transitions no ``TransitionNumber``.
+        """
+        current_state = await state_machine.get_child("CurrentState")
+        try:
+            current_state_number = await current_state.get_child("Number")
+        except BadNoMatch:
+            current_state_number = await current_state.add_property(
+                get_node_id(current_state, name="Number", ns_idx=None),
+                QualifiedName("Number"),
+                ua.UInt32(0),
+                ua.VariantType.UInt32,
+            )
+        try:
+            last_transition = await state_machine.get_child("LastTransition")
+        except BadNoMatch:
+            last_transition, *_ = await instantiate(
+                state_machine,
+                ua_server.get_node(ua.FourByteNodeId(ua.Int32(ua.object_ids.ObjectIds.FiniteTransitionVariableType))),
+                nodeid=get_node_id(state_machine, name="LastTransition", ns_idx=None),
+                bname=QualifiedName("LastTransition"),
+                dname=ua.LocalizedText("LastTransition"),  # else it takes the type's display name
+                instantiate_optional=False,
+            )
+
+        nodes = cls(
+            ua_server=ua_server,
+            to_node_id=to_node_id,
+            current_state=current_state,
+            current_state_id=await current_state.get_child("Id"),
+            current_state_number=current_state_number,
+            last_transition=last_transition,
+            last_transition_id=await last_transition.get_child("Id"),
+        )
+        skill_transitions = transitions(finite=finite, suspendable=suspendable)
+        available = {
+            "AvailableStates": [to_node_id(state_node_id(s)) for s in states(finite=finite, suspendable=suspendable)],
+            "AvailableTransitions": [to_node_id(t.node_id) for t in skill_transitions],
+        }
+        for name, node_ids in available.items():
+            node = await state_machine.get_child(name)
+            await ua_server.write_attribute_value(
+                node.nodeid, ua.DataValue(ua.Variant(node_ids, ua.VariantType.NodeId))
+            )
+        return nodes
+
+    async def write(self, state: SkillState, transition: SkillTransition | None) -> None:
+        """Write ``state`` and, if given, the ``transition`` that led to it, all with the same timestamp.
+
+        The writes don't yield in between, so a subscriber gets them in one publish.
+        """
+        now = datetime.now(UTC)
+        values: list[tuple[Node, ua.Variant]] = [
+            (self.current_state, ua.Variant(state.localized_text, ua.VariantType.LocalizedText)),
+            (self.current_state_id, ua.Variant(self.to_node_id(state_node_id(state)), ua.VariantType.NodeId)),
+            (self.current_state_number, ua.Variant(state.id, ua.VariantType.UInt32)),
+        ]
+        if transition is not None:
+            values += [
+                (self.last_transition, ua.Variant(ua.LocalizedText(transition.name), ua.VariantType.LocalizedText)),
+                (self.last_transition_id, ua.Variant(self.to_node_id(transition.node_id), ua.VariantType.NodeId)),
+            ]
+        for node, variant in values:
+            data_value = ua.DataValue(variant, SourceTimestamp=now, ServerTimestamp=now)  # pyright: ignore[reportArgumentType]
+            await self.ua_server.write_attribute_value(node.nodeid, data_value)
 
 
 class _BaseSkill(BaseCallable, AbstractSkill):
     _ua_state_machine: Node
     """OPC UA base node of state machine."""
-    _ua_current_state: Node
-    """OPC UA node if the state variable of the state machine."""
+    _ua_state_nodes: _SkillStateMachineNodes
+    """OPC UA nodes of the state machine that follow the current state."""
 
     def __init__(
         self,
@@ -55,6 +156,9 @@ class _BaseSkill(BaseCallable, AbstractSkill):
         super().__init__(name=name, minimum_access_level=minimum_access_level, parent=parent, **kwargs)
 
         self._called_skills: list[BaseSkill] = []
+        self._transitions: dict[tuple[SkillState, SkillState], SkillTransition] = {
+            (t.source, t.target): t for t in transitions(finite=self.is_finite, suspendable=suspendable)
+        }
         self._current_state = SkillState.HALTED
         self._condition = asyncio.Condition()  # for wait_for_state
 
@@ -71,7 +175,13 @@ class _BaseSkill(BaseCallable, AbstractSkill):
         ns_machine_set = self.server.ua_get_namespace_index(SmartFactoryMachineSetNodeIds)
 
         self._ua_state_machine = await ua_sub_node.get_child(QualifiedName("StateMachine", ns_skill_set))
-        self._ua_current_state = await self.ua_state_machine.get_child("CurrentState")
+        self._ua_state_nodes = await _SkillStateMachineNodes.create(
+            ua_server=self.server.ua_server,
+            to_node_id=self.server.ua_get_node_id,
+            state_machine=self.ua_state_machine,
+            finite=self.is_finite,
+            suspendable=self.is_suspendable,
+        )
 
         node_start = await self.ua_state_machine.get_child(f"{ns_machine_set}:Start")
         node_halt = await self.ua_state_machine.get_child(f"{ns_machine_set}:Halt")
@@ -106,12 +216,13 @@ class _BaseSkill(BaseCallable, AbstractSkill):
             return
 
         self.logger.info("Updating current state", new_state=state, old_state=self.current_state)
+        transition = self._transitions.get((self.current_state, state)) if self.is_initialized else None
 
         async with self._condition:
             self._current_state = state
             self._condition.notify_all()
 
-        await self._ua_current_state.write_value(state.localized_text)
+        await self._ua_state_nodes.write(state, transition)
 
     @property
     @override
