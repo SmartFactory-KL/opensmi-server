@@ -120,7 +120,10 @@ class _SkillLogicMixin(AbstractSkill, AbstractUaLogger):
             after=self._after_starting,
         )
         self._machine.add_transition(
-            trigger="starting_done", source=SkillState.STARTING, dest=SkillState.RUNNING, after=self._after_running
+            trigger="starting_done",
+            source=SkillState.STARTING,
+            dest=SkillState.RUNNING,
+            after=[self._resume_paused_work, self._after_running],
         )
 
         self._machine.add_transition(
@@ -152,10 +155,14 @@ class _SkillLogicMixin(AbstractSkill, AbstractUaLogger):
 
     async def _after_starting(self, *args, **kwargs) -> None:
         """Is called by the finite state machine after the `SkillState.STARTING` state is entered."""
-        # covers both a fresh start (Ready) and a resume (from Suspended)
-        self._resume_event.set()
-
         await self._wrap_handle_method(handle_method=self._handle_starting, success_trigger="starting_done")
+
+    async def _resume_paused_work(self, *args, **kwargs) -> None:
+        """Is called by the finite state machine after the `SkillState.RUNNING` state is entered.
+
+        Work paused at a suspend point continues only now, not while the skill is still starting.
+        """
+        self._resume_event.set()
 
     @abstractmethod
     async def _after_running(self, *args, **kwargs) -> None:
@@ -260,7 +267,8 @@ class _SkillLogicMixin(AbstractSkill, AbstractUaLogger):
         if it is finite. Continuous skills stay in `SkillState.RUNNING`.
 
         **Note**: This continues to be executed during `SkillState.SUSPENDING` state. Use `_suspend_point` method to
-        block the task executing this function and advance to `SkillState.SUSPENDED` state.
+        block the task executing this function and advance to `SkillState.SUSPENDED` state. If it returns during
+        `SkillState.SUSPENDING`, a finite skill finishes suspending and completes once it is started again.
         """
         raise NotImplementedError
 
@@ -426,7 +434,16 @@ class FiniteSkillLogicMixin(_SkillLogicMixin):
     @override
     async def _after_running(self, *args, **kwargs):
         """Is called by the finite state machine after the `SkillState.RUNNING` state is entered."""
-        await self._wrap_handle_method(handle_method=self._handle_running, success_trigger="done_internal")
+        await self._wrap_handle_method(handle_method=self._run_to_completion, success_trigger="done_internal")
+
+    async def _run_to_completion(self) -> None:
+        """Run `_handle_running`, then pause if a suspend was requested meanwhile.
+
+        A skill completes only from `SkillState.RUNNING`. Work that ends while the skill is suspending is at a safe
+        point to pause, so the skill finishes suspending and completes once it is started again.
+        """
+        await self._handle_running()
+        await self._suspend_point()
 
     async def _after_completing(self, *args, **kwargs):
         """Is called by the finite state machine after the `SkillState.COMPLETED` state is entered."""

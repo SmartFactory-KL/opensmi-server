@@ -610,3 +610,87 @@ async def test_calling_undeclared_skill_warns() -> None:
 
 def test_dependencies_empty_without_requirements_mixin() -> None:
     assert ContinuousTestSkill().dependencies == ()
+
+
+######################################
+# Work that ends while suspending
+
+
+@pytest.mark.asyncio
+@pytest.mark.parametrize("suspending_done_first", [True, False], ids=["after suspending", "during suspending"])
+async def test_finite_work_ending_while_suspending_completes_after_resume(suspending_done_first: bool) -> None:
+    skill = FiniteTestSkill()
+    counter = MockUaVariable()
+    skill.final_result_data = SimpleNamespace(SuccessfulExecutionsCount=counter)  # pyright: ignore[reportAttributeAccessIssue]
+    finish_running, finish_suspending = asyncio.Event(), asyncio.Event()
+    if suspending_done_first:
+        finish_suspending.set()
+
+    skill.hooks["running"] = finish_running.wait  # never reaches a suspend point of its own
+    skill.hooks["suspending"] = finish_suspending.wait
+    await skill.reset()
+    await skill.wait_for_state(SkillState.READY)
+    await skill.start()
+    await wait_until(lambda: "running" in skill.calls)
+    await skill.suspend()
+    await wait_until(lambda: "suspending" in skill.calls)
+
+    finish_running.set()
+    finish_suspending.set()
+    await skill.wait_for_state(SkillState.SUSPENDED)
+    await asyncio.sleep(0.01)
+    assert skill.current_state == SkillState.SUSPENDED  # no completing out of a suspend
+    assert counter.value is None
+
+    skill.hooks["starting"] = lambda: asyncio.sleep(0.01)  # resumed work must wait until Running
+    await skill.start()
+    await skill.wait_for_state(SkillState.COMPLETED)
+    await wait_until(lambda: not registered_tasks(skill))
+
+    assert counter.value == 1
+    assert skill.calls.count("running") == 1
+    assert skill.errors == []
+    assert written_states(skill)[-6:] == texts(
+        SkillState.SUSPENDING,
+        SkillState.SUSPENDED,
+        SkillState.STARTING,
+        SkillState.RUNNING,
+        SkillState.COMPLETING,
+        SkillState.COMPLETED,
+    )
+
+
+@pytest.mark.asyncio
+@pytest.mark.parametrize("skill", [FiniteTestSkill(), ContinuousTestSkill()], ids=["Finite Skill", "Continuous Skill"])
+async def test_paused_work_continues_only_when_running(skill) -> None:
+    ticks = 0
+
+    async def running() -> None:
+        nonlocal ticks
+        while True:
+            await skill._suspend_point()
+            ticks += 1
+            await asyncio.sleep(0.001)
+
+    skill.hooks["running"] = running
+    await skill.reset()
+    await skill.wait_for_state(SkillState.READY)
+    await skill.start()
+    await wait_until(lambda: ticks > 0)
+    await skill.suspend()
+    await skill.wait_for_state(SkillState.SUSPENDED)
+
+    finish_starting = asyncio.Event()
+    skill.hooks["starting"] = finish_starting.wait
+    await skill.start()
+    await skill.wait_for_state(SkillState.STARTING)
+    ticks_starting = ticks
+    await asyncio.sleep(0.02)
+    assert ticks == ticks_starting  # still parked while starting
+
+    finish_starting.set()
+    await skill.wait_for_state(SkillState.RUNNING)
+    await wait_until(lambda: ticks > ticks_starting)
+
+    await skill.halt()
+    await skill.wait_for_state(SkillState.HALTED)
