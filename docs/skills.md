@@ -27,26 +27,22 @@ final position and result data until reset for the next move.
 ```mermaid
 stateDiagram-v2
     [*] --> Halted
-    Halted --> Resetting: reset()
-    Starting --> Resetting: reset()
-    Suspended --> Resetting: reset()
-    Completed --> Resetting: reset()
-    Resetting --> Ready: _internal_
-    Ready --> Halting: halt()
-    Running --> Halting: halt()
-    Suspended --> Halting: halt()
-    Starting --> Halting: halt()
-    Resetting --> Halting: halt()
-    Suspending --> Halting: halt()
-    Completed --> Halting: halt()
+    Halted --> Operational: reset()
+    Operational --> Halting: halt()
     Halting --> Halted: _internal_
-    Ready --> Starting: start()
-    Suspended --> Starting: start()
-    Starting --> Running: _internal_
-    Running --> Suspending: suspend()
-    Suspending --> Suspended: _internal_
-    Running --> Completing: _internal_
-    Completing --> Completed: _internal_
+
+    state Operational {
+        [*] --> Resetting
+        Resetting --> Ready: _internal_
+        Ready --> Starting: start()
+        Starting --> Running: _internal_
+        Running --> Suspending: suspend()
+        Suspending --> Suspended: _internal_
+        Suspended --> Starting: start()
+        Running --> Completing: _internal_
+        Completing --> Completed: _internal_
+        Completed --> Resetting: reset()
+    }
 ```
 
 - `Halted`: A halted skill is in a failed/safe-ish state. E.g. a motor should apply fail-safe brakes, cut power etc. and
@@ -69,6 +65,8 @@ stateDiagram-v2
 - `Suspended`: A suspended skill has paused at a safe point and is holding its state, ready to resume from exactly
   where it left off. Unlike `Halted`, this isn't a failure/safe-mode — actuators may still be powered and holding
   position. E.g. a robot arm is stationary between cycles, gripper still closed on a part, waiting to continue.
+  `start()` resumes it through `Starting`, so `_handle_starting()` runs again before the paused work continues in
+  `Running`.
 - `Completing` *(finite skills only)*: A completing skill has finished its primary work and is performing final
   cleanup or result reporting before being marked done. E.g. a gripper releases the part it just placed, or final
   measurement data is written to the result record.
@@ -76,10 +74,14 @@ stateDiagram-v2
   final results until it is reset for the next run. E.g. a part has been placed and the skill is reporting success
   while awaiting a `reset()` before it can `start()` again.
 
+`Operational` is only a box in the diagram, not a state: `halt()` works from every state in it, and `reset()` from
+`Halted` enters it at `Resetting`. A finite skill completes only from `Running`. If `_handle_running()` returns while
+the skill is `Suspending`, the skill finishes suspending and completes once it is started again.
+
 > [!note]
 > The \*ing states (`Halting`, `Resetting`, `Starting`, `Suspending`, `Completing`) all share the same shape: they're
-the "in transition, doing async work" counterparts to their target steady state, and each is driven by a _handle_* hook
-that skill authors override.
+> the "in transition, doing async work" counterparts to their target steady state, and each is driven by a `_handle_*`
+> hook that skill authors override.
 
 ### Continuous Skills
 
@@ -94,24 +96,41 @@ skill would consider itself "done."
 ```mermaid
 stateDiagram-v2
     [*] --> Halted
-    Halted --> Resetting: reset()
-    Starting --> Resetting: reset()
-    Suspended --> Resetting: reset()
-    Resetting --> Ready: _internal_
-    Ready --> Halting: halt()
-    Running --> Halting: halt()
-    Suspended --> Halting: halt()
-    Starting --> Halting: halt()
-    Resetting --> Halting: halt()
-    Suspending --> Halting: halt()
+    Halted --> Operational: reset()
+    Operational --> Halting: halt()
     Halting --> Halted: _internal_
-    Ready --> Starting: start()
-    Suspended --> Starting: start()
-    Starting --> Running: _internal_
-    Running --> Suspending: suspend()
-    Suspending --> Suspended: _internal_
 
+    state Operational {
+        [*] --> Resetting
+        Resetting --> Ready: _internal_
+        Ready --> Starting: start()
+        Starting --> Running: _internal_
+        Running --> Suspending: suspend()
+        Suspending --> Suspended: _internal_
+        Suspended --> Starting: start()
+    }
 ```
+
+As for finite skills, `halt()` works from every state in the `Operational` box.
+
+### The state machine in the address space
+
+The transitions are those of `SkillStateMachineType` in the MachineSet nodeset; OpenSMI-Core provides them as
+`opensmi.core.skill_state_machine`, which the server builds its state machine from and clients use to know which
+commands a state allows (`allowed_commands()`). A skill created with `suspendable=False` has no `Suspend` method in
+the address space and never reaches `Suspending` or `Suspended`; calling its Python `suspend()` raises
+`BadNotImplemented`.
+
+Besides the text of `CurrentState`, every skill's state machine publishes:
+
+- `CurrentState/Id` and `CurrentState/Number`: NodeId and number of the state in `SkillStateMachineType`.
+- `LastTransition` and `LastTransition/Id`: name and NodeId of the transition that led to the current state, empty
+  until the first transition after startup. The `SourceTimestamp` is the time of the transition. `LastTransition` has
+  no `Number`, as the nodeset defines none.
+- `AvailableStates` and `AvailableTransitions`: the NodeIds of the states and transitions this skill can reach,
+  depending on whether it is finite and suspendable.
+
+`CurrentState` and `LastTransition` change together, with the same timestamp.
 
 ## Advanced
 
@@ -128,7 +147,7 @@ and "Open"/"Close" skills.
 
 > [!Note]
 > The composite/atomic distinction is purely about what a skill's handlers do, not a different code path in the OpenSMI
-framework.
+> framework.
 
 ### Feasibility Check
 

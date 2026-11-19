@@ -9,6 +9,37 @@ versions, apply every section between your version and the newest one, oldest fi
 
 ## OpenSMI v0.3 -> v0.4 (unreleased)
 
+### Dependencies
+
+- OpenSMI-Server requires `OpenSMI-Core>=0.8.1,<0.9`.
+
+### Skills: transitions follow the nodeset
+
+The skill state machine is now built from `SkillStateMachineType` (via `opensmi.core.skill_state_machine`) instead of
+a hand-written table, see [Skills](skills.md#the-state-machine-in-the-address-space). Changes in behavior:
+
+- `reset()` works only from `Halted` and `Completed`, no longer from `Starting` or `Suspended`. Halt a starting or
+  suspended skill first.
+- `halt()` also works from `Completing`.
+- A finite skill whose `_handle_running()` returns while it is `Suspending` no longer halts: it finishes suspending
+  and completes once it is started again.
+- Work paused at `_suspend_point()` continues only once the skill is `Running` again, not already while `Starting`
+  (where finishing work halted the skill).
+- A skill created with `suspendable=False` has no suspend transitions; `suspend()` on it raises
+  `UaStatusCodeError(BadNotImplemented)` right away.
+
+Only if you subclass skills beyond the `_handle_*` hooks and `_condition_*_allowed` conditions:
+
+- `_condition_is_suspendable()` was removed; overriding it has no effect. Pass `suspendable` to the constructor.
+- `AbstractSkill` has a new abstract property `is_suspendable`. `BaseSkill` implements it.
+- The internal triggers are `<state>_done` (`resetting_done`, `halting_done`, `starting_done`, `running_done`,
+  `completing_done`, `suspending_done`); `done_internal` is gone.
+
+### Skills: new nodes for clients
+
+Every skill's state machine now has `CurrentState/Number` and `LastTransition` with its `Id`, and fills
+`CurrentState/Id`, `AvailableStates` and `AvailableTransitions`. Nothing to do; clients may use them.
+
 ### Enum types
 
 - Two different `IntEnum` classes of one name are refused: `server.ensure_enum()` raises `TypeConflictError`
