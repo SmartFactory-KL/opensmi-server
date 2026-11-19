@@ -82,6 +82,11 @@ length = self.parameter_set.CurrentWorkpiece["Dimensions"]["Length"]
 await length.write(95.0)
 ```
 
+To change one field from server code, write the child rather than reading, changing and writing the whole structure.
+A write to a child is merged into the current structure while other writes to the variable wait, so a concurrent
+write to another field, e.g. by a client, is kept. Between your `read()` and `write()` of the whole structure,
+another write can land, and yours would undo it.
+
 The variable and its children always agree:
 
 - A write to the variable also writes all its children, and a write to a child also writes the variable and the
