@@ -13,7 +13,7 @@ from unittest.mock import AsyncMock, MagicMock
 
 import pytest
 from asyncua import ua
-from asyncua.ua.uaerrors import BadStateNotActive
+from asyncua.ua.uaerrors import BadNotImplemented, BadStateNotActive
 from opensmi.core import SkillState
 from opensmi.core.errors import OpenSmiRuntimeError
 from opensmi.core.nodesets import SmartFactoryMachineSetNodeIds
@@ -42,12 +42,12 @@ class MockUaVariable:
 
 
 class BaseTestSkill(BaseSkill, ABC):
-    def __init__(self) -> None:
+    def __init__(self, *, suspendable: bool = True) -> None:
         self.calls: list[str] = []
         self.hooks: dict[str, Callable[[], Any]] = {}
         self.errors: list[tuple[str, Any]] = []
-        self.gate = {"access": True, "startup": True, "deps": True, "suspendable": True}
-        super().__init__(name="test_skill")
+        self.gate = {"access": True, "startup": True, "deps": True}
+        super().__init__(name="test_skill", suspendable=suspendable)
         self._ua_current_state = MagicMock(write_value=AsyncMock())
         self._logger = MagicMock()
 
@@ -79,10 +79,6 @@ class BaseTestSkill(BaseSkill, ABC):
     @override
     async def _condition_dependencies_ready(self, _user: UserAuthorization) -> bool:
         return self.gate["deps"]
-
-    @override
-    async def _condition_is_suspendable(self, _user: UserAuthorization) -> bool:
-        return self.gate["suspendable"]
 
     # --- skill logic hooks
     async def _hook(self, name: str) -> None:
@@ -402,17 +398,17 @@ async def test_access_denied_blocks_reset(skill) -> None:
 
 
 @pytest.mark.asyncio
-@pytest.mark.parametrize("skill", [FiniteTestSkill(), ContinuousTestSkill()], ids=["Finite Skill", "Continuous Skill"])
-async def test_suspend_denied_when_not_suspendable(skill) -> None:
+@pytest.mark.parametrize("skill_type", [FiniteTestSkill, ContinuousTestSkill], ids=["Finite Skill", "Continuous Skill"])
+async def test_suspend_denied_when_not_suspendable(skill_type: type[BaseTestSkill]) -> None:
+    skill = skill_type(suspendable=False)
     skill.hooks["running"] = block_forever
     await skill.reset()
     await skill.wait_for_state(SkillState.READY)
     await skill.start()
     await wait_until(lambda: "running" in skill.calls)
 
-    skill.gate["suspendable"] = False
-    await skill.suspend()
-    await asyncio.sleep(0.02)
+    with pytest.raises(BadNotImplemented):
+        await skill.suspend()
 
     assert skill.current_state == SkillState.RUNNING
     assert "suspending" not in skill.calls
@@ -621,10 +617,6 @@ _COMMAND_TRIGGERS = {command.value.lower(): command for command in SkillCommand}
 """Triggers of the server's state machine that correspond to a skill command; all others are internal."""
 
 
-def _spec_transitions(*, finite: bool) -> set[tuple[SkillState, SkillState, SkillCommand | None]]:
-    return {(t.source, t.target, t.cause) for t in transitions(finite=finite)}
-
-
 def _fsm_transitions(skill) -> set[tuple[SkillState, SkillState, SkillCommand | None]]:
     machine = skill._machine._internal_machine
     return {
@@ -635,15 +627,13 @@ def _fsm_transitions(skill) -> set[tuple[SkillState, SkillState, SkillCommand | 
     }
 
 
-def test_finite_transitions_match_spec() -> None:
-    assert _fsm_transitions(FiniteTestSkill()) == _spec_transitions(finite=True)
-
-
-def test_continuous_transitions_match_spec() -> None:
-    finite_only = {SkillState.COMPLETING, SkillState.COMPLETED}
-    # the shared halt transition lists Completing and Completed as sources, which a continuous skill never reaches
-    fsm = {t for t in _fsm_transitions(ContinuousTestSkill()) if t[0] not in finite_only}
-    assert fsm == _spec_transitions(finite=False)
+@pytest.mark.parametrize("skill_type", [FiniteTestSkill, ContinuousTestSkill], ids=["finite", "continuous"])
+@pytest.mark.parametrize("suspendable", [True, False], ids=["suspendable", "not suspendable"])
+def test_transitions_match_spec(skill_type: type[BaseTestSkill], suspendable: bool) -> None:
+    skill = skill_type(suspendable=suspendable)
+    assert _fsm_transitions(skill) == {
+        (t.source, t.target, t.cause) for t in transitions(finite=skill.is_finite, suspendable=suspendable)
+    }
 
 
 ######################################

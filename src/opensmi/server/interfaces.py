@@ -145,6 +145,12 @@ class AbstractSkill(AbstractCallable):
 
     @property
     @abstractmethod
+    def is_suspendable(self) -> bool:
+        """Return ``True`` if this skill can be suspended, i.e. has a Suspend method."""
+        raise NotImplementedError
+
+    @property
+    @abstractmethod
     def current_state(self) -> SkillState:
         """Current state of the skill."""
         raise NotImplementedError
@@ -261,14 +267,6 @@ class AbstractSkill(AbstractCallable):
         :param session: OPC UA Client session that issued the method request.
         """
         return ua.StatusCode(ua.UInt32(UaStatusCodes.BadNotImplemented))
-
-    @abstractmethod
-    async def _condition_is_suspendable(self, _user: UserAuthorization) -> bool:
-        """Check whether this skill is suspendable.
-
-        :return: Always ``True``, else an exception is raised.
-        :raises UaStatusCodeError: If the skill is not suspendable.
-        """
 
     @abstractmethod
     async def _write_current_state(self, state: SkillState) -> None:

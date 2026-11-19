@@ -21,6 +21,7 @@ from opensmi.core import SkillState
 from opensmi.core.errors import OpenSmiRuntimeError
 from opensmi.core.lifecycle_mixin import lifecycle
 from opensmi.core.nodesets import SmartFactoryMachineSetNodeIds
+from opensmi.core.skill_state_machine import SkillCommand, SkillTransition, transitions
 from transitions import MachineError
 from typing_extensions import override
 
@@ -34,17 +35,28 @@ from opensmi.server.ua_variable_containers import FinalResultData
 from opensmi.server.user import INTERNAL_USER
 
 TRIGGER = Literal[
-    "halt",
-    "halting_done",
-    "reset",
-    "resetting_done",
     "start",
-    "starting_done",
+    "halt",
+    "reset",
     "suspend",
+    "resetting_done",
+    "halting_done",
+    "starting_done",
+    "running_done",
+    "completing_done",
     "suspending_done",
-    "done_internal",
 ]
-""" All state machine transition triggers for the skill state machine. """
+"""Triggers of the skill state machine: one per skill command, and ``<state>_done`` for the internal transition leaving
+that state, of which each state has at most one.
+
+A ``<state>_done`` trigger fails in any other state, so a handler that finishes late can't advance the skill.
+"""
+
+
+def _trigger(transition: SkillTransition) -> TRIGGER:
+    if transition.cause is not None:
+        return transition.cause.value.lower()  # pyright: ignore[reportReturnType]
+    return f"{transition.source.value[1].lower()}_done"  # pyright: ignore[reportReturnType]
 
 
 class _SkillLogicMixin(AbstractSkill, AbstractUaLogger):
@@ -81,64 +93,44 @@ class _SkillLogicMixin(AbstractSkill, AbstractUaLogger):
         # no shutdown
 
     def _add_transitions(self) -> None:
-        self._machine.add_transition(
-            trigger="reset",
-            source=[SkillState.HALTED, SkillState.COMPLETED],
-            dest=SkillState.RESETTING,
-            conditions=[self._condition_access_allowed, self._condition_reset_allowed],
-            after=self._after_resetting,
-        )
-        self._machine.add_transition(trigger="resetting_done", source=SkillState.RESETTING, dest=SkillState.READY)
+        """Add the transitions of the core spec, with the conditions of their cause and callbacks of their target."""
+        conditions = self._command_conditions()
+        callbacks = self._enter_callbacks()
+        for transition in transitions(finite=self.is_finite, suspendable=self.is_suspendable):
+            self._machine.add_transition(
+                trigger=_trigger(transition),
+                source=transition.source,
+                dest=transition.target,
+                conditions=conditions.get(transition.cause, []),
+                after=callbacks.get(transition.target, []),
+            )
 
-        self._machine.add_transition(
-            trigger="halt",
-            source=[
-                SkillState.RESETTING,
-                SkillState.READY,
-                SkillState.STARTING,
-                SkillState.RUNNING,
-                SkillState.COMPLETING,
-                SkillState.COMPLETED,
-                SkillState.SUSPENDED,
-                SkillState.SUSPENDING,
-            ],
-            dest=SkillState.HALTING,
-            conditions=[self._condition_access_allowed],
-            after=self._after_halting,
-        )
-        self._machine.add_transition(trigger="halting_done", source=SkillState.HALTING, dest=SkillState.HALTED)
-
-        self._machine.add_transition(
-            trigger="start",
-            source=[SkillState.READY, SkillState.SUSPENDED],
-            dest=SkillState.STARTING,
-            conditions=[
+    def _command_conditions(self) -> dict[SkillCommand | None, list[Callable[..., Awaitable[bool]]]]:
+        """Return the conditions checked before a transition, by the command that causes it."""
+        return {
+            SkillCommand.RESET: [self._condition_access_allowed, self._condition_reset_allowed],
+            SkillCommand.HALT: [self._condition_access_allowed],
+            SkillCommand.START: [
                 self._condition_access_allowed,
                 self._condition_startup_completed,
                 self._condition_dependencies_ready,
                 self._condition_start_allowed,
             ],
-            after=self._after_starting,
-        )
-        self._machine.add_transition(
-            trigger="starting_done",
-            source=SkillState.STARTING,
-            dest=SkillState.RUNNING,
-            after=[self._resume_paused_work, self._after_running],
-        )
-
-        self._machine.add_transition(
-            trigger="suspend",
-            source=SkillState.RUNNING,
-            dest=SkillState.SUSPENDING,
-            conditions=[
+            SkillCommand.SUSPEND: [
                 self._condition_access_allowed,
-                self._condition_is_suspendable,
                 self._condition_suspend_allowed,
             ],
-            after=self._after_suspending,
-        )
-        self._machine.add_transition(trigger="suspending_done", source=SkillState.SUSPENDING, dest=SkillState.SUSPENDED)
+        }
+
+    def _enter_callbacks(self) -> dict[SkillState, list[Callable[..., Awaitable[None]]]]:
+        """Return the callbacks run after a transition, by the state it enters."""
+        return {
+            SkillState.RESETTING: [self._after_resetting],
+            SkillState.HALTING: [self._after_halting],
+            SkillState.STARTING: [self._after_starting],
+            SkillState.RUNNING: [self._resume_paused_work, self._after_running],
+            SkillState.SUSPENDING: [self._after_suspending],
+        }
 
     async def _after_resetting(self, *args, **kwargs) -> None:
         """Is called by the finite state machine after the `SkillState.RESETTING` state is entered."""
@@ -337,6 +329,9 @@ class _SkillLogicMixin(AbstractSkill, AbstractUaLogger):
 
     @override
     async def suspend(self) -> None:
+        if not self.is_suspendable:  # has no suspend transition to trigger
+            await self.ua_log_error(f"Denied, skill '{self.path}' is not suspendable!")
+            raise ua.UaStatusCodeError(UaStatusCodes.BadNotImplemented)
         await self._machine.trigger("suspend", INTERNAL_USER)  # type: ignore
 
     @override
@@ -422,20 +417,13 @@ class FiniteSkillLogicMixin(_SkillLogicMixin):
         return UaObjectDefinition(object_type=SmartFactoryMachineSetNodeIds.FiniteSkillType)
 
     @override
-    def _add_transitions(self) -> None:
-        super()._add_transitions()
-
-        # the only difference between finite and continuous skills is that finite skills have the completed state.
-        # hence, we only need to add missing transitions
-        self._machine.add_transition(
-            trigger="done_internal", source=SkillState.RUNNING, dest=SkillState.COMPLETING, after=self._after_completing
-        )
-        self._machine.add_transition(trigger="done_internal", source=SkillState.COMPLETING, dest=SkillState.COMPLETED)
+    def _enter_callbacks(self) -> dict[SkillState, list[Callable[..., Awaitable[None]]]]:
+        return {**super()._enter_callbacks(), SkillState.COMPLETING: [self._after_completing]}
 
     @override
     async def _after_running(self, *args, **kwargs):
         """Is called by the finite state machine after the `SkillState.RUNNING` state is entered."""
-        await self._wrap_handle_method(handle_method=self._run_to_completion, success_trigger="done_internal")
+        await self._wrap_handle_method(handle_method=self._run_to_completion, success_trigger="running_done")
 
     async def _run_to_completion(self) -> None:
         """Run `_handle_running`, then pause if a suspend was requested meanwhile.
@@ -455,7 +443,7 @@ class FiniteSkillLogicMixin(_SkillLogicMixin):
             await self.final_result_data.SuccessfulExecutionsCount.write(new_value)  # pyright: ignore[reportAttributeAccessIssue]
             self.logger.debug("Updated successful executions count", new_value=new_value)
 
-        await self._wrap_handle_method(handle_method=self._handle_completing, success_trigger="done_internal")
+        await self._wrap_handle_method(handle_method=self._handle_completing, success_trigger="completing_done")
 
     async def _handle_completing(self) -> None:
         """Handle user-specific logic during the `SkillState.COMPLETING` state.

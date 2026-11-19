@@ -11,10 +11,8 @@ from collections.abc import AsyncGenerator
 from contextlib import asynccontextmanager
 from typing import TYPE_CHECKING, ClassVar
 
-from asyncua import ua
 from asyncua.common.node import Node
 from asyncua.ua import QualifiedName
-from asyncua.ua.status_codes import StatusCodes as UaStatusCodes
 from asyncua.ua.uaerrors import BadNoMatch
 from opensmi.core import SkillState, lifecycle
 from opensmi.core.errors import OpenSmiRuntimeError, SkillHaltedError
@@ -25,7 +23,6 @@ from typing_extensions import override
 
 from opensmi.server.base_callable import BaseCallable
 from opensmi.server.interfaces import AbstractSkill
-from opensmi.server.protocols import UserAuthorization
 from opensmi.server.ua_object import UaObject
 
 if TYPE_CHECKING:
@@ -54,9 +51,9 @@ class _BaseSkill(BaseCallable, AbstractSkill):
         :param suspendable: whether the skill can be suspended/resumed.
         :param minimum_access_level: Minimum required access level to start the skill (see User for more info).
         """
+        self._suspendable = suspendable  # before super().__init__(), the skill logic mixin builds its transitions
         super().__init__(name=name, minimum_access_level=minimum_access_level, parent=parent, **kwargs)
 
-        self._suspendable = suspendable
         self._called_skills: list[BaseSkill] = []
         self._current_state = SkillState.HALTED
         self._condition = asyncio.Condition()  # for wait_for_state
@@ -124,6 +121,11 @@ class _BaseSkill(BaseCallable, AbstractSkill):
 
     @property
     @override
+    def is_suspendable(self) -> bool:
+        return self._suspendable
+
+    @property
+    @override
     def ua_state_machine(self) -> Node:
         return self._ua_state_machine
 
@@ -131,13 +133,6 @@ class _BaseSkill(BaseCallable, AbstractSkill):
     # FSM Conditions
 
     # Raise UaStatusCodeError for correct OPC-UA status code answers instead of a misc one
-
-    @override
-    async def _condition_is_suspendable(self, _user: UserAuthorization) -> bool:
-        if not self._suspendable:
-            await self.ua_log_error(f"Denied, skill '{self.full_name}' is not suspendable!")
-            raise ua.UaStatusCodeError(UaStatusCodes.BadNotImplemented)
-        return True
 
     @override
     async def wait_for_state(self, state: SkillState) -> None:
