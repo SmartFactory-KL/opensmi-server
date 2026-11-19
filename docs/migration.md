@@ -3,11 +3,11 @@
 This guide helps you upgrade to the newest version of OpenSMI-Server. Sections are ordered newest first. If you skip
 versions, apply every section between your version and the newest one, oldest first.
 
-- [OpenSMI v0.3 -> v0.4 (unreleased)](#opensmi-v03---v04-unreleased)
+- [OpenSMI v0.3 -> v0.4](#opensmi-v03---v04)
 - [OpenSMI v0.2 -> v0.3](#opensmi-v02---v03)
 - [OpenSMI v0.1 -> v0.2](#opensmi-v01---v02)
 
-## OpenSMI v0.3 -> v0.4 (unreleased)
+## OpenSMI v0.3 -> v0.4
 
 ### Dependencies
 
