@@ -2,8 +2,8 @@
 
 ## Basics
 
-Each skill is a self-contained capability exposed over OPC-UA with `start()`/`suspend()`/`reset()`/`halt()` methods and
-a standard state machine. They have
+Each skill is a self-contained capability exposed over OPC-UA with `start()`/`reset()`/`halt()` methods (and
+`suspend()` for skills created with `suspendable=True`) and a standard state machine. They have
 
 - **`ParameterSet`** — the inputs a skill needs to do its work, written by a caller before or during `start`. For
   example a "MoveTo" skill's target position, or a "Drilling" skill's hole diameter and depth.
@@ -42,6 +42,8 @@ stateDiagram-v2
         Completed --> Resetting: reset()
     }
 ```
+
+`Suspending` and `Suspended` exist only for skills created with `suspendable=True`.
 
 - `Halted`: A halted skill is in a failed/safe-ish state. E.g. a motor should apply fail-safe brakes, cut power etc. and
   no longer move.
@@ -84,8 +86,8 @@ the skill is `Suspending`, the skill finishes suspending and completes once it i
 ### Continuous Skills
 
 A continuous skill is a skill with no terminal "done" state — its `Running` state has no `Completed` counterpart at
-all. Once started, it keeps working until it is explicitly `suspend()`ed (paused, resumable) or `halt()`ed (stopped,
-non-resumable), rather than finishing on its own.
+all. Once started, it keeps working until it is explicitly `halt()`ed (stopped, non-resumable) or, if created with
+`suspendable=True`, `suspend()`ed (paused, resumable), rather than finishing on its own.
 
 For example, a "ConveyorFeed" skill that drives a belt to keep feeding parts downstream: `Running` means the motor
 is actively driving, for as long as the line needs material moved — there is no single unit of work after which the
@@ -109,15 +111,17 @@ stateDiagram-v2
     }
 ```
 
+`Suspending` and `Suspended` exist only for skills created with `suspendable=True`.
+
 As for finite skills, `halt()` works from every state in the `Operational` box.
 
 ### The state machine in the address space
 
 The transitions are those of `SkillStateMachineType` in the MachineSet nodeset; OpenSMI-Core provides them as
 `opensmi.core.skill_state_machine`, which the server builds its state machine from and clients use to know which
-commands a state allows (`allowed_commands()`). A skill created with `suspendable=False` has no `Suspend` method in
-the address space and never reaches `Suspending` or `Suspended`; calling its Python `suspend()` raises
-`BadNotImplemented`.
+commands a state allows (`allowed_commands()`). Suspending is opt-in: a skill created without `suspendable=True` (the
+default is `False`) has no `Suspend` method in the address space and never reaches `Suspending` or `Suspended`; calling
+its Python `suspend()` raises `BadNotImplemented`.
 
 Besides the text of `CurrentState`, every skill's state machine publishes:
 
