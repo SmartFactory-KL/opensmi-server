@@ -24,6 +24,7 @@ from opensmi.core.paths import check_segment
 from opensmi.core.ua_node_util import get_properties
 from typing_extensions import override
 
+from opensmi.server.docstrings import description_from_docstring
 from opensmi.server.mixins.notification_mixins import NotificationForwarderMixin
 from opensmi.server.ua_object import UaObject, UaObjectDefinition
 from opensmi.server.ua_variable import UaVariable
@@ -57,8 +58,9 @@ def collect_attr_docs(cls: type) -> dict[str, str]:
 
         for t in targets:
             if isinstance(t, ast.Name):  # skip things like self.x or a[0]
-                # cleandoc strips the indentation and surrounding blank lines
-                docs[t.id] = inspect.cleandoc(nxt.value.value)
+                description = description_from_docstring(nxt.value.value)
+                if description:
+                    docs[t.id] = description
     return docs
 
 

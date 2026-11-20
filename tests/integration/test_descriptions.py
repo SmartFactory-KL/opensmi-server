@@ -29,6 +29,9 @@ class _Parameters(ParameterSet):
     WithBoth = UaVariable(0, description="From parameter.")
     """From docstring."""
     WithNone = UaVariable(0)
+    Wrapped = UaVariable(0)
+    """A docstring wrapped
+    over two lines, with `markup`."""
 
 
 class _DescribedMachine(ParameterSetMixin[_Parameters], BaseMachine):
@@ -65,6 +68,7 @@ async def _description(variable: UaVariable) -> str:
         ("WithDocstring", "From docstring."),
         ("WithParameter", "From parameter."),
         ("WithBoth", "From docstring."),  # docstring takes precedence
+        ("Wrapped", "A docstring wrapped over two lines, with `markup`."),
     ],
 )
 @pytest.mark.asyncio

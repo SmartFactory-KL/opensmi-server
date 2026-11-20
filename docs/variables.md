@@ -1,8 +1,23 @@
 # Variables
 
 Machinery items, skills and methods hold their values in `UaVariable`s inside the variable containers `ParameterSet`,
-`Monitoring` and `FinalResultData` (see [Machinery Items](machinery_item.md)). This page covers values without a valid
-value, and values that belong together: structures, and groups of variables.
+`Monitoring` and `FinalResultData` (see [Machinery Items](machinery_item.md)). This page covers their descriptions,
+values without a valid value, and values that belong together: structures, and groups of variables.
+
+## Descriptions
+
+The docstring right after a variable (or group) in its container class becomes the OPC UA `Description` of its node,
+just like the docstring of a skill, component or machine class becomes the description of its object:
+
+```python
+class Results(FinalResultData):
+    Count = UaVariable(0)
+    """Number of parts produced since server start."""
+```
+
+Descriptions are Markdown, and plain text is fine. The lines of a paragraph are joined, so wrap docstrings as usual;
+paragraphs and list items keep their own lines. They are read by clients, so describe the value for an operator or
+integrator, not the Python API.
 
 ## Bad status
 
