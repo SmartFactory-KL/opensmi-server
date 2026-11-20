@@ -1,0 +1,35 @@
+tests/integration/test_variable_groups.py
+  s_046f4fd4e4eb85::t_4acd7c1f8ac587 217-243
+src/opensmi/server/ua_variable_containers.py
+  s_046f4fd4e4eb85::t_c0f1297e17a3cf 329
+  s_3f75ddcb3b04c5::t_7c30d01eea0275 331-332
+src/opensmi/server/ua_variable.py
+  s_046f4fd4e4eb85::t_c0f1297e17a3cf 138,167-168,197,665-669,671,719
+docs/variables.md
+  s_046f4fd4e4eb85::t_4acd7c1f8ac587 154-155
+  s_046f4fd4e4eb85::t_b068e020b6947e 153
+---
+{
+  "schema_version": "authorship/3.0.0",
+  "git_ai_version": "1.7.5",
+  "base_commit_sha": "8f0bbd6fc6372a9edd91335296a67b48e5f18733",
+  "prompts": {},
+  "sessions": {
+    "s_046f4fd4e4eb85": {
+      "agent_id": {
+        "tool": "claude",
+        "id": "b8916ebf-ea90-4b68-b5b1-f0faa8b48590",
+        "model": "claude-opus-5-5"
+      },
+      "human_author": "Carsten Harms <Carsten.Harms@dfki.de>"
+    },
+    "s_3f75ddcb3b04c5": {
+      "agent_id": {
+        "tool": "claude",
+        "id": "e5a8bfbd-b0dd-451c-8079-ca09f8d8d207",
+        "model": "unknown"
+      },
+      "human_author": "Carsten Harms <Carsten.Harms@dfki.de>"
+    }
+  }
+}
