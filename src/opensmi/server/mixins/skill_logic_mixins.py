@@ -384,8 +384,9 @@ class _SkillLogicMixin(AbstractSkill, AbstractUaLogger):
 class BaseSkillFinalResultData(FinalResultData):
     """Base final result data for skills, counting their successful executions."""
 
-    SuccessfulExecutionsCount = UaVariable(0)
-    """Number of successful executions of this skill since server start."""
+    SuccessfulExecutionsCount = UaVariable(0, resettable=False)
+    """Number of successful executions of this skill since server start. A finite skill counts when it reaches
+    Completed, a continuous skill once per start from Ready. Not reset by Reset."""
 
 
 class ContinuousSkillLogicMixin(_SkillLogicMixin):

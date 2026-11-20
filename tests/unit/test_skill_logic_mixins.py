@@ -23,7 +23,11 @@ from typing_extensions import override
 from opensmi.server import BaseSkill
 from opensmi.server.interfaces import AbstractUaObject
 from opensmi.server.mixins import RequirementsMixin
-from opensmi.server.mixins.skill_logic_mixins import ContinuousSkillLogicMixin, FiniteSkillLogicMixin
+from opensmi.server.mixins.skill_logic_mixins import (
+    BaseSkillFinalResultData,
+    ContinuousSkillLogicMixin,
+    FiniteSkillLogicMixin,
+)
 from opensmi.server.protocols import UserAuthorization
 from opensmi.server.ua_object import UaObjectDefinition
 
@@ -807,3 +811,9 @@ async def test_paused_work_continues_only_when_running(skill) -> None:
 
     await skill.halt()
     await skill.wait_for_state(SkillState.HALTED)
+
+
+def test_successful_executions_count_is_not_resettable() -> None:
+    template = BaseSkillFinalResultData.SuccessfulExecutionsCount
+    assert not template.resettable
+    assert not template.clone(name="SuccessfulExecutionsCount").resettable  # what each skill instance gets
