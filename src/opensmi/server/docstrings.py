@@ -15,7 +15,8 @@ def description_from_docstring(docstring: str | None) -> str | None:
 
     The indentation is removed and the lines of a paragraph are joined, so docstrings can be wrapped as usual and
     clients that show the text as is don't break it in the middle of a sentence. Paragraphs stay separated by a blank
-    line and list items (``- ``, ``* `` or ``1. ``) stay on their own lines. Markup is kept.
+    line and list items (lines starting with ``-``, ``*`` or a number like ``1.``) stay on their own lines. Markup is
+    kept.
 
     :return: The description, or ``None`` if the docstring is empty.
     """
