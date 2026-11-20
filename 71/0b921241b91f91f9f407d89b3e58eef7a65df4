@@ -1,0 +1,19 @@
+tests/unit/test_skill_logic_mixins.py
+  s_046f4fd4e4eb85::t_921ee9b82c5a67 24,821-869
+---
+{
+  "schema_version": "authorship/3.0.0",
+  "git_ai_version": "1.7.5",
+  "base_commit_sha": "710b921241b91f91f9f407d89b3e58eef7a65df4",
+  "prompts": {},
+  "sessions": {
+    "s_046f4fd4e4eb85": {
+      "agent_id": {
+        "tool": "claude",
+        "id": "b8916ebf-ea90-4b68-b5b1-f0faa8b48590",
+        "model": "unknown"
+      },
+      "human_author": "Carsten Harms <Carsten.Harms@dfki.de>"
+    }
+  }
+}
