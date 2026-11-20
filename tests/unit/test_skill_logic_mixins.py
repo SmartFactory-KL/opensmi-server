@@ -21,6 +21,7 @@ from opensmi.core.skill_state_machine import SkillCommand, transitions
 from typing_extensions import override
 
 from opensmi.server import BaseSkill
+from opensmi.server.common import halt_skill_and_wait, reset_skill_and_wait
 from opensmi.server.interfaces import AbstractUaObject
 from opensmi.server.mixins import RequirementsMixin
 from opensmi.server.mixins.skill_logic_mixins import (
@@ -817,3 +818,52 @@ def test_successful_executions_count_is_not_resettable() -> None:
     template = BaseSkillFinalResultData.SuccessfulExecutionsCount
     assert not template.resettable
     assert not template.clone(name="SuccessfulExecutionsCount").resettable  # what each skill instance gets
+
+
+### helpers in common.py
+
+
+@pytest.mark.asyncio
+async def test_halt_skill_and_wait_waits_for_a_halting_skill() -> None:
+    skill = FiniteTestSkill()
+    halting_may_finish = asyncio.Event()
+    skill.hooks["running"] = block_forever
+    skill.hooks["halting"] = halting_may_finish.wait
+    await skill.reset()
+    await skill.wait_for_state(SkillState.READY)
+    await skill.start()
+    await skill.wait_for_state(SkillState.RUNNING)
+    await skill.halt()
+    await skill.wait_for_state(SkillState.HALTING)
+
+    waiting = asyncio.create_task(halt_skill_and_wait(skill))  # halt() is rejected in Halting
+    await asyncio.sleep(0.01)
+    assert not waiting.done()
+
+    halting_may_finish.set()
+    await asyncio.wait_for(waiting, timeout=1)
+    assert skill.current_state is SkillState.HALTED
+
+
+@pytest.mark.asyncio
+async def test_reset_skill_and_wait_leaves_a_suspended_skill_alone() -> None:
+    skill = ContinuousTestSkill()
+
+    async def running() -> None:
+        while True:
+            await skill._suspend_point()
+            await asyncio.sleep(0.001)
+
+    skill.hooks["running"] = running
+    await skill.reset()
+    await skill.wait_for_state(SkillState.READY)
+    await skill.start()
+    await skill.wait_for_state(SkillState.RUNNING)
+    await skill.suspend()
+    await skill.wait_for_state(SkillState.SUSPENDED)
+    resets = skill.calls.count("resetting")
+
+    await reset_skill_and_wait(skill, timeout=1)  # no Suspended -> Resetting since 0.4
+
+    assert skill.current_state is SkillState.SUSPENDED
+    assert skill.calls.count("resetting") == resets

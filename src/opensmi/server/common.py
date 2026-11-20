@@ -32,7 +32,7 @@ async def reset_skill_and_wait(skill: AbstractSkill, *, timeout: float | None = 
         async with asyncio.timeout(timeout):
             await skill.wait_for_state(SkillState.HALTED)
 
-    if skill.current_state in (SkillState.HALTED, SkillState.SUSPENDED, SkillState.COMPLETED):
+    if skill.current_state in (SkillState.HALTED, SkillState.COMPLETED):  # the states with a Reset transition
         _LOGGER.debug("Resetting skill...", skill_name=skill.path)
         await skill.reset()
         # resetting takes time, we need to wait until the skill is actually ready!
@@ -41,15 +41,16 @@ async def reset_skill_and_wait(skill: AbstractSkill, *, timeout: float | None = 
 
 
 async def halt_skill_and_wait(skill: AbstractSkill, *, timeout: float | None = 60.0) -> None:
-    """Halt the given skill and wait until it finished and is in the Halted state."""
+    """Halt the given skill and wait until it is in the Halted state, also if it was already halting."""
     try:
         _LOGGER.debug("Trying to halt skill...", skill_name=skill.path)
-        await skill.halt()
+        try:
+            await skill.halt()
+        except (BadInvalidState, MachineError):
+            pass  # already halting or halted; either way, wait for Halted below
         # halting takes time, we need to wait until the skill is actually halted!
         async with asyncio.timeout(timeout):
             await skill.wait_for_state(SkillState.HALTED)
-    except (BadInvalidState, MachineError):
-        pass  # assume that skill is already halted
     except (Exception, asyncio.CancelledError) as ex:
         msg = f"Could not halt skill '{skill.name}'!"
         raise OpenSmiRuntimeError(msg) from ex
