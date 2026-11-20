@@ -150,6 +150,9 @@ await parameters.read_all()
 # {"Controller": {"UseSimTime": False, "FollowPath": {"MaxVelX": 0.5}}}
 ```
 
+`reset_all()` skips variables created with `resettable=False`, e.g. counters since server start; their own `reset()`
+still resets them.
+
 ## Structure or group?
 
 A complex variable is one value: it is valid as a whole or not at all. A bad status on any of its nodes reaches all

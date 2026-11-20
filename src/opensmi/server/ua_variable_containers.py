@@ -326,9 +326,10 @@ class UaVariableContainer(NotificationForwarderMixin, UaObject):
     #     )
 
     async def reset_all(self) -> None:
-        """Reset all contained `UaVariable` to their initial value."""
+        """Reset all contained `UaVariable` to their initial value, except those created with ``resettable=False``."""
         for variable in self:
-            await variable.reset()
+            if variable.resettable:
+                await variable.reset()
         for group in self._groups.values():
             await group.reset_all()
 

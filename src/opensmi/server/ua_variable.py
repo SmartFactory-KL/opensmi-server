@@ -135,6 +135,7 @@ class UaVariable(NotificationForwarderMixin, UaObject, Generic[_VariableType]):
         ua_value_rank: ua.ValueRank | int | None = None,
         ua_data_type: ua.NodeId | int | None = None,
         display_name: str | None = None,
+        resettable: bool = True,
         **kwargs,
     ) -> None:
         """*Cooperative* constructor for a new variable instance.
@@ -163,6 +164,8 @@ class UaVariable(NotificationForwarderMixin, UaObject, Generic[_VariableType]):
         :param ua_data_type: (Optional) OPC UA data type of the variable. **Advanced**, make sure this type maps to
             the Python type! You could use this for UInt16, etc. instead of default Int64 types
         :param display_name: (Optional) OPC UA display name of the variable. Defaults to the name.
+        :param resettable: Whether `UaVariableContainer.reset_all` resets the variable. ``False`` for values that must
+            survive it, e.g. counters since server start. An explicit `reset` always resets.
         """
         super().__init__(minimum_access_level=minimum_access_level, bypass_lock=bypass_lock, name=name, **kwargs)
 
@@ -191,6 +194,7 @@ class UaVariable(NotificationForwarderMixin, UaObject, Generic[_VariableType]):
         self._historize: bool = historize
         self._references: set[UaObject] = set()
         self.optional_ok: bool = optional_ok
+        self._resettable: bool = resettable
         self._write_check_callback = write_check_callback
         self._dictionary_entry: DictionaryEntry | None = dictionary_entry
         self.description: str | None = description
@@ -658,8 +662,13 @@ class UaVariable(NotificationForwarderMixin, UaObject, Generic[_VariableType]):
         except NoValidValueReadError:
             return None
 
+    @property
+    def resettable(self) -> bool:
+        """Whether `UaVariableContainer.reset_all` resets this variable."""
+        return self._resettable
+
     async def reset(self) -> None:
-        """Reset variable to initial value."""
+        """Reset variable to initial value, also if it isn't `resettable`."""
         await self.write(self._initial_value)
 
     def check_range(self, value: _VariableType | ua.Variant | None) -> bool:
@@ -707,6 +716,7 @@ class UaVariable(NotificationForwarderMixin, UaObject, Generic[_VariableType]):
             ua_value_rank=self._ua_value_rank,
             ua_data_type=self._ua_data_type,
             display_name=self._display_name,
+            resettable=self._resettable,
         )
 
     @override

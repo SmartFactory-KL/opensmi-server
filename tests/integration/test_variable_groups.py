@@ -214,6 +214,33 @@ async def test_reset_all_resets_variables_in_groups(empty_server) -> None:
     assert await parameters.groups["Controller"].groups["FollowPath"]["MaxVelX"].read() == 0.5
 
 
+class CountingParameters(ParameterSet):
+    Plain = UaVariable(initial_value=1.0, bypass_lock=True)
+    Count = UaVariable(initial_value=0, bypass_lock=True, resettable=False)
+
+
+class CountingMachine(ParameterSetMixin[CountingParameters], BaseMachine):
+    async def _write_identification(self) -> None:
+        await self.identification.SerialNumber.write("1")
+        await self.identification.ProductInstanceUri.write("urn:example:1")
+        await self.identification.Manufacturer.write(ua.LocalizedText("Example", "en"))
+
+
+@pytest.mark.asyncio
+async def test_reset_all_skips_variables_that_are_not_resettable(empty_server) -> None:
+    parameters = (await empty_server.add_machine(CountingMachine())).parameter_set
+    await parameters.Plain.write(2.0)
+    await parameters.Count.write(7)
+
+    await parameters.reset_all()
+
+    assert await parameters.Plain.read() == 1.0
+    assert await parameters.Count.read() == 7
+    assert not parameters.Count.resettable  # kept when the class-level definition is cloned
+    await parameters.Count.reset()  # an explicit reset still resets
+    assert await parameters.Count.read() == 0
+
+
 @pytest.mark.asyncio
 async def test_groups_inherit_writability_and_access_level_from_their_container(empty_server) -> None:
     machine = await empty_server.add_machine(GroupMachine())
