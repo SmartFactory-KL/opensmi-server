@@ -73,6 +73,8 @@ class _SkillLogicMixin(AbstractSkill, AbstractUaLogger):
         self._resume_event: asyncio.Event = asyncio.Event()
         self._resume_event.set()  # not suspended by default
         self._paused_event: asyncio.Event = asyncio.Event()
+        self._execution_counted = False
+        """Whether the current execution was counted in ``SuccessfulExecutionsCount``."""
 
         self._machine: UaFiniteStateMachine[SkillState] = UaFiniteStateMachine(
             name=f"{self.name}_StateMachine",
@@ -134,7 +136,19 @@ class _SkillLogicMixin(AbstractSkill, AbstractUaLogger):
 
     async def _after_resetting(self, *args, **kwargs) -> None:
         """Is called by the finite state machine after the `SkillState.RESETTING` state is entered."""
+        self._execution_counted = False  # every execution starts from Ready, which is only reached through Resetting
         await self._wrap_handle_method(handle_method=self._handle_resetting, success_trigger="resetting_done")
+
+    async def _count_successful_execution(self) -> None:
+        """Increment ``SuccessfulExecutionsCount`` of the final result data, if the skill has one."""
+        counter = getattr(getattr(self, "final_result_data", None), "SuccessfulExecutionsCount", None)
+        if counter is None:
+            return
+        old_value: int | None = await counter.read()
+        new_value = old_value + 1 if old_value is not None else 1
+        await counter.write(new_value)
+        self._execution_counted = True
+        self.logger.debug("Updated successful executions count", new_value=new_value)
 
     async def _after_halting(self, *args, **kwargs) -> None:
         """Is called by the finite state machine after the `SkillState.HALTING` state is entered."""
@@ -368,7 +382,7 @@ class _SkillLogicMixin(AbstractSkill, AbstractUaLogger):
 
 
 class BaseSkillFinalResultData(FinalResultData):
-    """Base final result data for finite skills."""
+    """Base final result data for skills, counting their successful executions."""
 
     SuccessfulExecutionsCount = UaVariable(0)
     """Number of successful executions of this skill since server start."""
@@ -383,11 +397,13 @@ class ContinuousSkillLogicMixin(_SkillLogicMixin):
 
     @override
     async def _after_running(self, *args, **kwargs):
-        """Is called by the finite state machine after `SkillState.RUNNING` is entered."""
-        with contextlib.suppress(AttributeError):
-            old_value = await self.final_result_data.SuccessfulExecutionsCount.read()  # pyright: ignore[reportAttributeAccessIssue]
-            new_value = old_value + 1 if old_value is not None else 1
-            await self.final_result_data.SuccessfulExecutionsCount.write(new_value)  # pyright: ignore[reportAttributeAccessIssue]
+        """Is called by the finite state machine after `SkillState.RUNNING` is entered.
+
+        A continuous skill never completes, so an execution counts as successful once it is running. Resuming from
+        `SkillState.SUSPENDED` continues the same execution and isn't counted again.
+        """
+        if not self._execution_counted:
+            await self._count_successful_execution()
 
         await self._wrap_handle_method(handle_method=self._handle_running, success_trigger=None)
 
@@ -435,15 +451,17 @@ class FiniteSkillLogicMixin(_SkillLogicMixin):
         await self._suspend_point()
 
     async def _after_completing(self, *args, **kwargs):
-        """Is called by the finite state machine after the `SkillState.COMPLETED` state is entered."""
-        # Update successful executions count if it exists
-        with contextlib.suppress(AttributeError):
-            old_value: int = await self.final_result_data.SuccessfulExecutionsCount.read()  # pyright: ignore[reportAttributeAccessIssue]
-            new_value = old_value + 1 if old_value is not None else 1
-            await self.final_result_data.SuccessfulExecutionsCount.write(new_value)  # pyright: ignore[reportAttributeAccessIssue]
-            self.logger.debug("Updated successful executions count", new_value=new_value)
+        """Is called by the finite state machine after the `SkillState.COMPLETING` state is entered."""
+        await self._wrap_handle_method(handle_method=self._complete_and_count, success_trigger="completing_done")
 
-        await self._wrap_handle_method(handle_method=self._handle_completing, success_trigger="completing_done")
+    async def _complete_and_count(self) -> None:
+        """Run `_handle_completing`, then count the execution as successful.
+
+        Counted before the skill reaches `SkillState.COMPLETED`, so a client seeing Completed reads the new count. A
+        failing `_handle_completing` halts the skill and isn't counted.
+        """
+        await self._handle_completing()
+        await self._count_successful_execution()
 
     async def _handle_completing(self) -> None:
         """Handle user-specific logic during the `SkillState.COMPLETING` state.

@@ -246,6 +246,95 @@ async def test_finite_without_result_data_still_completes() -> None:
 
 
 @pytest.mark.asyncio
+async def test_finite_failing_completing_halts_without_counting() -> None:
+    skill = FiniteTestSkill()
+    counter = MockUaVariable(3)
+    skill.final_result_data = SimpleNamespace(SuccessfulExecutionsCount=counter)  # pyright: ignore[reportAttributeAccessIssue]
+
+    async def failing() -> None:
+        raise RuntimeError("boom")
+
+    skill.hooks["completing"] = failing
+    await skill.reset()
+    await skill.wait_for_state(SkillState.READY)
+    await skill.start()
+    await skill.wait_for_state(SkillState.HALTED)
+
+    assert counter.value == 3
+
+
+@pytest.mark.asyncio
+async def test_finite_halt_while_completing_reaches_halted() -> None:
+    skill = FiniteTestSkill()
+    counter = MockUaVariable(0)
+    skill.final_result_data = SimpleNamespace(SuccessfulExecutionsCount=counter)  # pyright: ignore[reportAttributeAccessIssue]
+    skill.hooks["completing"] = block_forever
+    await skill.reset()
+    await skill.wait_for_state(SkillState.READY)
+    await skill.start()
+    await skill.wait_for_state(SkillState.COMPLETING)
+
+    await skill.halt()
+    await skill.wait_for_state(SkillState.HALTED)
+
+    assert counter.value == 0  # the execution didn't complete
+
+
+@pytest.mark.asyncio
+async def test_finite_counts_before_completed() -> None:
+    skill = FiniteTestSkill()
+    counter = MockUaVariable(0)
+    skill.final_result_data = SimpleNamespace(SuccessfulExecutionsCount=counter)  # pyright: ignore[reportAttributeAccessIssue]
+    seen_at_completed: list[int | None] = []
+    write_state = skill._write_current_state
+
+    async def record(state: SkillState, *args, **kwargs) -> None:
+        if state is SkillState.COMPLETED:
+            seen_at_completed.append(counter.value)
+        await write_state(state, *args, **kwargs)
+
+    skill._machine._write_func = record  # pyright: ignore[reportAttributeAccessIssue]
+    await skill.reset()
+    await skill.wait_for_state(SkillState.READY)
+    await skill.start()
+    await skill.wait_for_state(SkillState.COMPLETED)
+
+    assert seen_at_completed == [1]
+
+
+@pytest.mark.asyncio
+async def test_continuous_counts_once_per_start_not_per_resume() -> None:
+    skill = ContinuousTestSkill()
+    counter = MockUaVariable(0)
+    skill.final_result_data = SimpleNamespace(SuccessfulExecutionsCount=counter)  # pyright: ignore[reportAttributeAccessIssue]
+
+    async def running() -> None:
+        while True:
+            await skill._suspend_point()
+            await asyncio.sleep(0.001)
+
+    skill.hooks["running"] = running
+    await skill.reset()
+    await skill.wait_for_state(SkillState.READY)
+    await skill.start()
+    await wait_until(lambda: counter.value == 1)  # counted by the enter callback, right after Running is set
+    for _ in range(2):  # suspend and resume twice: the same execution
+        await skill.suspend()
+        await skill.wait_for_state(SkillState.SUSPENDED)
+        await skill.start()
+        await wait_until(lambda: "running" in skill.calls and skill.current_state is SkillState.RUNNING)
+    await asyncio.sleep(0.01)  # give a wrong second count the chance to happen
+    assert counter.value == 1
+
+    await skill.halt()
+    await skill.wait_for_state(SkillState.HALTED)
+    await skill.reset()
+    await skill.wait_for_state(SkillState.READY)
+    await skill.start()
+    await wait_until(lambda: counter.value == 2)
+
+
+@pytest.mark.asyncio
 async def test_continuous_stays_running() -> None:
     skill = ContinuousTestSkill()
     counter = MockUaVariable()
