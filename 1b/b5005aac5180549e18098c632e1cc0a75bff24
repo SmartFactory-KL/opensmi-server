@@ -1,0 +1,19 @@
+src/opensmi/server/docstrings.py
+  s_046f4fd4e4eb85::t_1563814b618306 18-19
+---
+{
+  "schema_version": "authorship/3.0.0",
+  "git_ai_version": "1.7.5",
+  "base_commit_sha": "1bb5005aac5180549e18098c632e1cc0a75bff24",
+  "prompts": {},
+  "sessions": {
+    "s_046f4fd4e4eb85": {
+      "agent_id": {
+        "tool": "claude",
+        "id": "b8916ebf-ea90-4b68-b5b1-f0faa8b48590",
+        "model": "claude-opus-5-5"
+      },
+      "human_author": "Carsten Harms <Carsten.Harms@dfki.de>"
+    }
+  }
+}
